@@ -32,15 +32,21 @@ create table venues (
   name text not null,
   slug text unique not null,             -- usato in URL QR: /v/{slug}/t/{table_code}
   vat_number text,                       -- p.iva, per fattura elettronica
+  fiscal_code text,                      -- codice fiscale, richiesto in FatturaPA CedentePrestatore
   sdi_code text,                         -- codice destinatario SDI
   pec text,
-  address text,
+  address text,                          -- via/numero civico
+  address_zip text,
+  address_city text,
+  address_province text,                 -- sigla, es. "MI"
+  regime_fiscale text default 'RF01',    -- RF01 = ordinario, cambiare se forfettario/altro
   timezone text default 'Europe/Rome',
   currency text default 'EUR',
   stripe_account_id text,                -- Stripe Connect account
   satispay_shop_id text,                 -- opzionale
   invoice_provider text default 'invoicetronic', -- provider SDI esterno
   invoice_provider_api_key text,         -- da cifrare a livello applicativo prima di salvare
+  invoice_counter int default 0,         -- numerazione progressiva fatture, azzerare a inizio anno
   subscription_plan text default 'starter', -- starter/pro/enterprise
   subscription_status text default 'trialing',
   created_at timestamptz default now()

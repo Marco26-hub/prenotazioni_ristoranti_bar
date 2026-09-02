@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { db } from "@repo/shared/db";
 import { resolveTableFromQr } from "@/lib/table";
 import { OrderMenu } from "./order-menu";
+import { Bill } from "./bill";
 
 export default async function TablePage({
   params,
@@ -48,6 +49,8 @@ export default async function TablePage({
         categories={categories}
         items={items}
       />
+
+      <Bill sessionId={resolved.sessionId} />
     </main>
   );
 }

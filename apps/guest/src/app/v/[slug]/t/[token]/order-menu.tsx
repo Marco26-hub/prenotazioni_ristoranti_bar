@@ -70,7 +70,8 @@ export function OrderMenu({
       const existing = prev[itemId];
       if (!existing) return prev;
       if (existing.quantity <= 1) {
-        const { [itemId]: _removed, ...rest } = prev;
+        const rest = { ...prev };
+        delete rest[itemId];
         return rest;
       }
       return { ...prev, [itemId]: { ...existing, quantity: existing.quantity - 1 } };
