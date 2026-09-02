@@ -332,6 +332,7 @@ function InvoiceRequest({
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [fiscalCode, setFiscalCode] = useState("");
+  const [email, setEmail] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [vatNumber, setVatNumber] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
@@ -344,8 +345,8 @@ function InvoiceRequest({
 
     const customer =
       type === "privato"
-        ? { type: "privato" as const, firstName, lastName, fiscalCode }
-        : { type: "azienda" as const, companyName, vatNumber };
+        ? { type: "privato" as const, firstName, lastName, fiscalCode, email }
+        : { type: "azienda" as const, companyName, vatNumber, email };
 
     try {
       const res = await fetch("/api/invoices", {
@@ -441,10 +442,21 @@ function InvoiceRequest({
         </>
       )}
 
+      <input
+        type="email"
+        inputMode="email"
+        autoComplete="email"
+        placeholder="Email per ricevere la fattura"
+        required
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        className="min-h-12 w-full rounded-lg border border-border bg-background px-3"
+      />
+
       {error && <p className="text-sm text-danger">{error}</p>}
       <p className="text-xs text-muted">
-        I dati inseriti sono usati per emettere la fattura e trasmetterla al
-        Sistema di Interscambio.{" "}
+        I dati inseriti sono usati per emettere la fattura, trasmetterla al
+        Sistema di Interscambio e inviarti una copia via email.{" "}
         <a href={privacyHref} className="underline">
           Informativa privacy
         </a>

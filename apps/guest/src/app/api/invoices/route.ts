@@ -4,6 +4,7 @@ import { checkRateLimit, clientKey } from "@repo/shared/rate-limit";
 import { decryptSecret } from "@repo/shared/crypto";
 import { buildFatturaPaJson, type CustomerData } from "@/lib/invoice/fatturapa";
 import { invoicetronicClient } from "@/lib/invoice/invoicetronic-client";
+import { inviaEmail } from "@repo/shared/email";
 
 interface InvoiceRequestBody {
   sessionId: string;
@@ -13,10 +14,10 @@ interface InvoiceRequestBody {
 function isValidCustomer(customer: CustomerData): boolean {
   if (customer.type === "privato") {
     return Boolean(
-      customer.firstName?.trim() && customer.lastName?.trim() && customer.fiscalCode?.trim()
+      customer.firstName?.trim() && customer.lastName?.trim() && customer.fiscalCode?.trim() && customer.email?.trim()
     );
   }
-  return Boolean(customer.companyName?.trim() && customer.vatNumber?.trim());
+  return Boolean(customer.companyName?.trim() && customer.vatNumber?.trim() && customer.email?.trim());
 }
 
 export async function POST(request: Request) {
@@ -172,8 +173,28 @@ export async function POST(request: Request) {
 
     await sql`
       update invoices set status = 'sent', provider_invoice_id = ${String(data.id)},
-        sdi_identifier = ${data.identifier ?? null}
+        sdi_identifier = ${data.identifier ?? null},
+        customer_first_name = ${body.customer.type === "privato" ? body.customer.firstName : null},
+        customer_last_name = ${body.customer.type === "privato" ? body.customer.lastName : null},
+        customer_company_name = ${body.customer.type === "azienda" ? body.customer.companyName : null},
+        customer_fiscal_code = ${body.customer.type === "privato" ? body.customer.fiscalCode : null},
+        customer_vat_number = ${body.customer.type === "azienda" ? body.customer.vatNumber : null},
+        customer_email = ${body.customer.email}
       where id = ${invoiceRowId}`;
+
+    const recipientName = body.customer.type === "privato"
+      ? `${body.customer.firstName} ${body.customer.lastName}`
+      : body.customer.companyName;
+    const emailResult = await inviaEmail({
+      a: body.customer.email,
+      oggetto: `Fattura ${invoiceNumber} — ${venue.name}`,
+      testo: `Ciao ${recipientName},\n\nla fattura ${invoiceNumber} del ${venue.name} è stata trasmessa al Sistema di Interscambio.\nIdentificativo Invoicetronic: ${String(data.id)}\n\nConserva questa email come ricevuta di trasmissione.`,
+    });
+    if (emailResult.inviata) {
+      await sql`update invoices set emailed_at = now() where id = ${invoiceRowId}`;
+    } else {
+      console.warn(`[invoices] copia email non inviata per payment ${payment.id}: ${emailResult.errore}`);
+    }
 
     return NextResponse.json({ status: "sent", invoiceId: data.id });
   } catch (err) {

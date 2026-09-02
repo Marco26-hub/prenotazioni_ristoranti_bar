@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@invoicetronic/ts-sdk": "^1.9.0",
     "@repo/shared": "workspace:*",
     "bcryptjs": "^2.4.3",
     "exceljs": "^4.4.0",

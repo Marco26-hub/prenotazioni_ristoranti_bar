@@ -24,6 +24,13 @@ lista. Il download XML compare quando `xml_url` è disponibile; il recupero
 automatico del documento dal provider e la sincronizzazione webhook degli
 stati restano da completare.
 
+La gestione fatture è stata completata lato codice: il dettaglio sincronizza
+lo stato con Invoicetronic, `/dashboard/invoices/[id]/document` scarica l'XML
+dal provider e `/api/webhooks/invoicetronic` aggiorna gli stati con firma HMAC.
+Il webhook va registrato nel pannello Invoicetronic con l'URL pubblico e il
+segreto in `INVOICETRONIC_WEBHOOK_SECRET`. La richiesta fattura raccoglie
+anche l'email del cliente e invia una copia tramite Resend quando configurato.
+
 ---
 
 ## 1. Cos'è

@@ -307,9 +307,14 @@ create table invoices (
   invoice_number int,                    -- progressivo usato nell'XML, per retry coerenti
   customer_fiscal_code text,
   customer_vat_number text,
+  customer_first_name text,
+  customer_last_name text,
+  customer_company_name text,
+  customer_email text,
   customer_sdi_code text,
   customer_pec text,
   xml_url text,                          -- copia XML conservata (storage)
+  emailed_at timestamptz,
   provider_invoice_id text,              -- id lato Invoicetronic/OpenAPI
   status text not null default 'pending'
     check (status in ('pending','sent','delivered','rejected')),

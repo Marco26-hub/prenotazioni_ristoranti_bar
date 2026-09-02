@@ -27,11 +27,13 @@ export type CustomerData =
       firstName: string;
       lastName: string;
       fiscalCode: string;
+      email: string;
     }
   | {
       type: "azienda";
       companyName: string;
       vatNumber: string;
+      email: string;
     };
 
 export interface InvoiceLine {

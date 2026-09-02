@@ -24,13 +24,15 @@ export default async function InvoicesPage() {
       provider_invoice_id: string | null;
       sdi_identifier: string | null;
       xml_url: string | null;
+      customer_email: string | null;
+      emailed_at: Date | null;
       created_at: Date;
       amount_cents: number;
       payment_provider: string;
     }[]
   >`
     select i.id, i.invoice_number, i.status, i.provider_invoice_id,
-           i.sdi_identifier, i.xml_url, i.created_at,
+           i.sdi_identifier, i.xml_url, i.customer_email, i.emailed_at, i.created_at,
            p.amount_cents, p.provider as payment_provider
       from invoices i
       join payments p on p.id = i.payment_id
