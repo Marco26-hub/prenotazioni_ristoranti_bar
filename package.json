@@ -9,6 +9,12 @@
     "dev:guest": "pnpm --filter guest dev",
     "dev:dashboard": "pnpm --filter dashboard dev",
     "build": "pnpm -r build",
-    "lint": "pnpm -r lint"
+    "lint": "pnpm -r lint",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "bcryptjs": "^2.4.3",
+    "postgres": "^3.4.5"
   }
 }
