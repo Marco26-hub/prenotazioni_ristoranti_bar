@@ -67,7 +67,7 @@ export function MockupTelefono() {
   const pezzi = PIATTI.reduce((s, p) => s + (p.inCarrello ?? 0), 0);
 
   return (
-    <div className="telefono mx-auto w-full max-w-[19rem]">
+    <div className="telefono mx-auto w-full max-w-[21rem]">
       {/* Schermo: il riflesso in alto è ciò che distingue un telefono
           disegnato da un rettangolo con dentro una lista. */}
       <div className="relative overflow-hidden rounded-[1.7rem] bg-surface">
@@ -123,7 +123,7 @@ export function MockupTelefono() {
 
         <ul className="divide-y divide-border">
           {PIATTI.map((p) => (
-            <li key={p.nome} className="flex items-center gap-3 px-5 py-3">
+            <li key={p.nome} className="flex items-center gap-2.5 px-4 py-3">
               <Segnaposto tinte={p.tinte} />
 
               <div className="min-w-0 flex-1">
@@ -141,14 +141,14 @@ export function MockupTelefono() {
               </div>
 
               {p.inCarrello ? (
-                <div className="flex shrink-0 items-center gap-1.5 rounded-full bg-accent px-1.5 py-1 text-accent-foreground">
-                  <span className="flex h-5 w-5 items-center justify-center text-sm leading-none">
+                <div className="flex shrink-0 items-center gap-0.5 rounded-full bg-accent px-1 py-0.5 text-accent-foreground">
+                  <span className="flex h-6 w-5 items-center justify-center text-sm leading-none">
                     −
                   </span>
-                  <span className="min-w-3 text-center text-[13px] font-semibold tabular-nums">
+                  <span className="min-w-3 text-center text-[12.5px] font-semibold tabular-nums">
                     {p.inCarrello}
                   </span>
-                  <span className="flex h-5 w-5 items-center justify-center text-sm leading-none">
+                  <span className="flex h-6 w-5 items-center justify-center text-sm leading-none">
                     +
                   </span>
                 </div>
