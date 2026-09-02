@@ -38,6 +38,11 @@ create table venues (
   brand_color text,                      -- hex, es. "#b4451f"
   public_phone text,                     -- mostrato al cliente, obbligo trasparenza
   public_email text,
+  -- La mancia è opzionale e configurabile: in Italia insistere infastidisce
+  -- più di quanto aiuti, a differenza dei mercati anglosassoni.
+  tips_enabled boolean default true,
+  tip_percents int[] default '{5,10,15}',
+  google_review_url text,                -- link "lascia recensione" del profilo Google
   vat_number text,                       -- p.iva, per fattura elettronica
   fiscal_code text,                      -- codice fiscale, richiesto in FatturaPA CedentePrestatore
   sdi_code text,                         -- codice destinatario SDI

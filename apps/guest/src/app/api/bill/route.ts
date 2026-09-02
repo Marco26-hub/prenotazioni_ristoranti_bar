@@ -23,8 +23,17 @@ export async function GET(request: Request) {
   }
 
   const [venue] = await sql<
-    { stripe_account_id: string | null; satispay_key_id: string | null; currency: string }[]
-  >`select stripe_account_id, satispay_key_id, currency from venues where id = ${session.venue_id}`;
+    {
+      stripe_account_id: string | null;
+      satispay_key_id: string | null;
+      currency: string;
+      tips_enabled: boolean;
+      tip_percents: number[] | null;
+      google_review_url: string | null;
+    }[]
+  >`select stripe_account_id, satispay_key_id, currency,
+           tips_enabled, tip_percents, google_review_url
+    from venues where id = ${session.venue_id}`;
 
   const [balanceCents, items] = await Promise.all([
     outstandingBalanceCents(session.id),
@@ -36,6 +45,9 @@ export async function GET(request: Request) {
     currency: venue?.currency ?? "EUR",
     stripeAccountId: venue?.stripe_account_id ?? null,
     satispayEnabled: Boolean(venue?.satispay_key_id),
+    tipsEnabled: venue?.tips_enabled ?? false,
+    tipPercents: venue?.tip_percents ?? [5, 10, 15],
+    googleReviewUrl: venue?.google_review_url ?? null,
     sessionStatus: session.status,
     unpaidItems: items,
   });

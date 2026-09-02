@@ -22,6 +22,9 @@ interface BillState {
   currency: string;
   stripeAccountId: string | null;
   satispayEnabled: boolean;
+  tipsEnabled: boolean;
+  tipPercents: number[];
+  googleReviewUrl: string | null;
   unpaidItems: UnpaidItem[];
 }
 
@@ -113,8 +116,23 @@ export function Bill({ sessionId }: { sessionId: string }) {
 
   if (paid) {
     return (
-      <section className="mt-8 rounded-xl border border-border bg-surface p-5">
-        <p className="mb-3 font-medium text-success">Conto saldato, grazie!</p>
+      <section className="mt-8 space-y-4 rounded-xl border border-border bg-surface p-5">
+        <p className="font-medium text-success">Conto saldato, grazie!</p>
+
+        {/* Il momento subito dopo il pagamento è quello in cui le persone
+            sono più disposte a lasciare una recensione: chiederla dopo, per
+            email, funziona molto meno. */}
+        {bill.googleReviewUrl && (
+          <a
+            href={bill.googleReviewUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="flex min-h-12 items-center justify-center rounded-full bg-accent px-5 font-medium text-accent-foreground"
+          >
+            Lascia una recensione
+          </a>
+        )}
+
         <InvoiceRequest sessionId={sessionId} />
       </section>
     );
@@ -195,23 +213,49 @@ export function Bill({ sessionId }: { sessionId: string }) {
             </div>
           )}
 
-          <div>
-            <label className="mb-1 block text-sm">Mancia (opzionale)</label>
-            <div className="flex gap-2">
-              {[0, 100, 200, 500].map((cents) => (
+          {bill.tipsEnabled && (
+            <div>
+              <label className="mb-1 block text-sm">Mancia per il personale</label>
+              <div className="flex flex-wrap gap-2">
                 <button
-                  key={cents}
                   type="button"
-                  onClick={() => setTipCents(cents)}
+                  onClick={() => setTipCents(0)}
                   className={`min-h-10 rounded-full border border-border px-4 text-sm ${
-                    tipCents === cents ? "bg-accent text-accent-foreground" : ""
+                    tipCents === 0 ? "bg-accent text-accent-foreground" : ""
                   }`}
                 >
-                  {cents === 0 ? "Nessuna" : formatPriceCents(cents, bill.currency)}
+                  Nessuna
                 </button>
-              ))}
+                {bill.tipPercents.map((pct, i) => {
+                  const cents = Math.round((payableCents * pct) / 100);
+                  // La percentuale centrale è quella suggerita: è quella che
+                  // sceglie la maggior parte delle persone, indicarlo aiuta
+                  // chi non sa quanto lasciare.
+                  const suggested = i === Math.floor(bill.tipPercents.length / 2);
+                  return (
+                    <button
+                      key={pct}
+                      type="button"
+                      onClick={() => setTipCents(cents)}
+                      className={`min-h-10 rounded-full border px-4 text-sm ${
+                        tipCents === cents
+                          ? "border-accent bg-accent text-accent-foreground"
+                          : suggested
+                            ? "border-accent"
+                            : "border-border"
+                      }`}
+                    >
+                      {pct}%
+                      <span className="ml-1 opacity-70">
+                        {formatPriceCents(cents, bill.currency)}
+                      </span>
+                      {suggested && <span className="ml-1 text-xs">· più scelta</span>}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
 
           {bill.stripeAccountId && (
             <button

@@ -20,9 +20,23 @@ export async function saveBranding(formData: FormData): Promise<BrandResult> {
   const publicPhone = String(formData.get("publicPhone") ?? "").trim() || null;
   const publicEmail = String(formData.get("publicEmail") ?? "").trim() || null;
   const removeLogo = formData.get("removeLogo") === "on";
+  const tipsEnabled = formData.get("tipsEnabled") === "on";
+  const googleReviewUrl = String(formData.get("googleReviewUrl") ?? "").trim() || null;
+
+  const tipPercents = String(formData.get("tipPercents") ?? "")
+    .split(",")
+    .map((p) => Number.parseInt(p.trim(), 10))
+    .filter((p) => Number.isFinite(p) && p > 0 && p <= 100)
+    .slice(0, 4);
   const logo = formData.get("logo");
 
   if (!displayName) return { error: "Il nome del locale è obbligatorio" };
+  if (tipsEnabled && tipPercents.length === 0) {
+    return { error: "Indica almeno una percentuale di mancia, es. 5,10,15" };
+  }
+  if (googleReviewUrl && !/^https?:\/\//.test(googleReviewUrl)) {
+    return { error: "Il link recensioni deve iniziare con https://" };
+  }
   if (brandColor && !/^#[0-9a-fA-F]{6}$/.test(brandColor)) {
     return { error: "Colore non valido: usa il formato #RRGGBB" };
   }
@@ -49,13 +63,16 @@ export async function saveBranding(formData: FormData): Promise<BrandResult> {
   if (logoDataUrl === undefined) {
     await sql`
       update venues set name = ${displayName}, brand_color = ${brandColor || null},
-        public_phone = ${publicPhone}, public_email = ${publicEmail}
+        public_phone = ${publicPhone}, public_email = ${publicEmail},
+        tips_enabled = ${tipsEnabled}, tip_percents = ${tipPercents},
+        google_review_url = ${googleReviewUrl}
       where id = ${venue.venueId}`;
   } else {
     await sql`
       update venues set name = ${displayName}, brand_color = ${brandColor || null},
         public_phone = ${publicPhone}, public_email = ${publicEmail},
-        logo_url = ${logoDataUrl}
+        tips_enabled = ${tipsEnabled}, tip_percents = ${tipPercents},
+        google_review_url = ${googleReviewUrl}, logo_url = ${logoDataUrl}
       where id = ${venue.venueId}`;
   }
 

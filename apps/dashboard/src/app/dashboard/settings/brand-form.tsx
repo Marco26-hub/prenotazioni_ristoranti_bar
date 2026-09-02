@@ -12,6 +12,9 @@ export function BrandForm({
     brandColor: string | null;
     publicPhone: string | null;
     publicEmail: string | null;
+    tipsEnabled: boolean;
+    tipPercents: number[];
+    googleReviewUrl: string | null;
   };
 }) {
   const [state, formAction, pending] = useActionState<BrandResult | null, FormData>(
@@ -86,6 +89,38 @@ export function BrandForm({
           defaultValue={defaults.publicEmail ?? ""}
           className="min-h-11 w-full rounded-lg border border-border bg-background px-3"
         />
+      </div>
+
+      <div className="border-t border-border pt-3">
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" name="tipsEnabled" defaultChecked={defaults.tipsEnabled} />
+          Proponi la mancia al cliente
+        </label>
+        <input
+          name="tipPercents"
+          defaultValue={defaults.tipPercents.join(",")}
+          placeholder="5,10,15"
+          className="mt-2 min-h-11 w-full rounded-lg border border-border bg-background px-3"
+        />
+        <p className="mt-1 text-xs text-muted">
+          Percentuali separate da virgola. Quella centrale viene indicata al
+          cliente come &quot;più scelta&quot;.
+        </p>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-sm">Link per le recensioni Google</label>
+        <input
+          name="googleReviewUrl"
+          type="url"
+          defaultValue={defaults.googleReviewUrl ?? ""}
+          placeholder="https://g.page/r/..../review"
+          className="min-h-11 w-full rounded-lg border border-border bg-background px-3"
+        />
+        <p className="mt-1 text-xs text-muted">
+          Dal tuo profilo Google Business, voce &quot;Chiedi recensioni&quot;. Compare
+          al cliente subito dopo il pagamento, quando è più disposto a lasciarla.
+        </p>
       </div>
 
       {state?.error && <p className="text-sm text-danger">{state.error}</p>}

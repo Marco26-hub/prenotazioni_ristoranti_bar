@@ -20,6 +20,9 @@ export default async function SettingsPage() {
       brand_color: string | null;
       public_phone: string | null;
       public_email: string | null;
+      tips_enabled: boolean;
+      tip_percents: number[] | null;
+      google_review_url: string | null;
       stripe_account_id: string | null;
       satispay_key_id: string | null;
       vat_number: string | null;
@@ -32,6 +35,7 @@ export default async function SettingsPage() {
       invoice_provider_api_key: string | null;
     }[]
   >`select name, logo_url, brand_color, public_phone, public_email,
+           tips_enabled, tip_percents, google_review_url,
            stripe_account_id, satispay_key_id, vat_number, fiscal_code, regime_fiscale,
            address, address_zip, address_city, address_province, invoice_provider_api_key
     from venues where id = ${venue.venueId}`;
@@ -58,6 +62,9 @@ export default async function SettingsPage() {
             brandColor: venueRow?.brand_color ?? null,
             publicPhone: venueRow?.public_phone ?? null,
             publicEmail: venueRow?.public_email ?? null,
+            tipsEnabled: venueRow?.tips_enabled ?? true,
+            tipPercents: venueRow?.tip_percents ?? [5, 10, 15],
+            googleReviewUrl: venueRow?.google_review_url ?? null,
           }}
         />
       </section>
