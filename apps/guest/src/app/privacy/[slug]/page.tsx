@@ -224,7 +224,8 @@ export default async function PrivacyLocalePage({
           </li>
           <li>
             <strong>Fornitore di hosting e banca dati</strong> — i dati sono
-            ospitati su server nell&apos;Unione Europea (Francoforte).
+            ospitati su server nell&apos;Unione Europea (Francoforte), presso
+            fornitori le cui capogruppo hanno sede negli Stati Uniti.
           </li>
           <li>
             <strong>Fornitore di pagamento</strong> (Stripe, Satispay) —
@@ -249,10 +250,12 @@ export default async function PrivacyLocalePage({
 
       <Sezione titolo="Trasferimenti fuori dall'Unione Europea">
         <p>
-          La banca dati risiede nell&apos;Unione Europea. Alcuni fornitori
-          tecnici — in particolare quello di hosting applicativo e quello di
-          pagamento — hanno società capogruppo negli Stati Uniti e possono
-          trattare dati anche lì. Questi trasferimenti avvengono sulla base
+          La banca dati risiede fisicamente nell&apos;Unione Europea, a
+          Francoforte. I fornitori che la gestiscono — così come quelli di
+          hosting applicativo e di pagamento — hanno però società capogruppo
+          negli Stati Uniti, e possono quindi essere raggiunti da richieste
+          delle autorità statunitensi anche per dati conservati in Europa.
+          I trasferimenti avvengono sulla base
           delle clausole contrattuali tipo approvate dalla Commissione europea
           e, ove applicabile, dell&apos;adeguatezza riconosciuta al quadro
           UE-USA per la protezione dei dati.

@@ -96,13 +96,39 @@ un consenso preventivo, con rifiuto possibile senza perdita di servizio.
 
 ## 5. Trasferimenti extra UE
 
-- Banca dati: Neon su AWS `eu-central-1`, Francoforte. **Dentro l'UE.**
+- Banca dati: Neon su AWS `eu-central-1`, Francoforte. I **dati** stanno
+  nell'UE, ma Neon è stata acquisita da **Databricks** (giugno 2025) e la
+  capogruppo è statunitense: il CLOUD Act la raggiunge anche per dati
+  conservati a Francoforte. Dire "dentro l'UE" e fermarsi lì sarebbe
+  fuorviante.
 - Hosting applicativo: Vercel, rete globale, capogruppo statunitense.
 - Pagamenti: Stripe, capogruppo statunitense.
 
 Base: clausole contrattuali tipo e, ove applicabile, adeguatezza del quadro
 UE-USA. **Da verificare con un legale prima della vendita**, insieme
 all'attualità delle decisioni di adeguatezza.
+
+### Accordi con i sotto-responsabili: già in essere
+
+Non c'è nulla da firmare. Entrambi i DPA si attivano accettando i termini di
+servizio, cosa avvenuta all'apertura degli account:
+
+- **Vercel** — <https://vercel.com/legal/dpa>: *"This Addendum shall become
+  legally binding upon Customer entering into the Agreement"*. Include le
+  clausole contrattuali tipo 2021 (moduli 1, 2 e 3). Elenco sotto-responsabili
+  su <https://security.vercel.com>; le modifiche si possono seguire
+  scrivendo a privacy@vercel.com, con **5 giorni** per opporsi.
+- **Neon / Databricks** — <https://neon.com/dpa>: incorporato nel Master Cloud
+  Services Agreement, senza esecuzione separata.
+
+Cosa fare davvero, che non è firmare:
+
+- [ ] Salvare una copia in PDF di entrambi i DPA con la data: davanti al
+      Garante serve dimostrare che la catena esiste, non che è stata firmata.
+- [ ] Iscriversi alle notifiche di modifica dei sotto-responsabili di Vercel
+      (privacy@vercel.com) e controllare periodicamente l'elenco Databricks.
+- [ ] Tenere allineato `apps/dashboard/src/lib/dpa.ts` a quegli elenchi: è
+      quello che i locali vedono, e il preavviso promesso decorre da lì.
 
 ## 6. Cosa deve fare chi vende il prodotto
 
@@ -112,8 +138,8 @@ all'attualità delle decisioni di adeguatezza.
       sistematico e su larga scala, quindi probabilmente non è obbligatorio,
       ma la valutazione va messa per iscritto.
 - [ ] Far validare a un legale l'accordo art. 28 e le due informative.
-- [ ] Sottoscrivere i propri accordi con i sotto-responsabili (Neon, Vercel)
-      e conservarli.
+- [ ] Conservare copia dei DPA dei sotto-responsabili (vedi §5: non vanno
+      firmati, sono già vincolanti — vanno però archiviati).
 - [ ] Scrivere la procedura di risposta alle violazioni, con i recapiti di
       chi decide.
 - [ ] Tenere il proprio registro dei trattamenti come titolare; questo

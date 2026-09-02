@@ -145,10 +145,16 @@ export default function DpaPage() {
       <Art n="7" titolo="Sotto-responsabili">
         <p>
           Il titolare autorizza in via generale il ricorso ai sotto-responsabili
-          elencati qui sotto. Il responsabile comunica con almeno{" "}
-          <strong>30 giorni</strong> di preavviso ogni aggiunta o sostituzione;
-          entro quel termine il titolare può opporsi e, se l&apos;opposizione
-          non è superabile, recedere dal servizio senza penali.
+          elencati qui sotto. Il responsabile comunica ogni aggiunta o
+          sostituzione <strong>senza ritardo e comunque entro 5 giorni</strong>{" "}
+          da quando ne viene a conoscenza. Il titolare può opporsi e, se
+          l&apos;opposizione non è superabile, recedere dal servizio senza
+          penali.
+        </p>
+        <p className="text-muted">
+          Il termine è di 5 giorni e non di 30 perché è quello che i fornitori a
+          monte concedono a noi: promettere un preavviso più lungo di quello che
+          riceviamo sarebbe un impegno che non potremmo mantenere.
         </p>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[32rem] border-collapse text-left">
@@ -179,8 +185,10 @@ export default function DpaPage() {
 
       <Art n="8" titolo="Trasferimenti extra UE">
         <p>
-          La banca dati risiede nell&apos;Unione Europea. Alcuni fornitori hanno
-          capogruppo negli Stati Uniti e possono trattarvi dati: i trasferimenti
+          La banca dati risiede fisicamente nell&apos;Unione Europea. I
+          fornitori che la gestiscono e quelli di hosting hanno capogruppo negli
+          Stati Uniti: la sede dei server non sottrae quindi i dati alla
+          giurisdizione statunitense. I trasferimenti
           avvengono sulla base delle clausole contrattuali tipo della
           Commissione europea e, ove applicabile, dell&apos;adeguatezza
           riconosciuta al quadro UE-USA.
