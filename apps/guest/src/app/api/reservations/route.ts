@@ -6,6 +6,7 @@ import { inviaEmail } from "@repo/shared/email";
 import { decryptSecret } from "@repo/shared/crypto";
 import {
   disponibilita,
+  assegnaTavoliPrenotazione,
   slotAlternativi,
   formattaOrario,
   interpretaOrario,
@@ -167,13 +168,49 @@ export async function POST(request: Request) {
   const automatica = venue.reservation_auto_confirm && disp.capienza !== null;
   const stato = automatica ? "confirmed" : "pending";
 
-  const [prenotazione] = await sql<{ id: string }[]>`
-    insert into reservations
-      (venue_id, customer_name, customer_phone, customer_email, party_size,
-       reserved_at, notes, status, confirmed_at)
-    values (${venue.id}, ${nome}, ${phone}, ${email}, ${partySize},
-            ${when}, ${notes}, ${stato}, ${automatica ? sql`now()` : null})
-    returning id`;
+  let assegnazione: {
+    prenotazione: { id: string };
+    tavoli: Awaited<ReturnType<typeof assegnaTavoliPrenotazione>>;
+    occupati: number;
+  };
+  try {
+    assegnazione = await sql.begin(async (tx) => {
+      // Serializza le assegnazioni dello stesso locale: due richieste arrivate
+      // insieme non possono occupare lo stesso tavolo prima di vedersi.
+      await tx`select pg_advisory_xact_lock(hashtext(${venue.id}))`;
+      const disponibilitaAggiornata = await disponibilita(tx, venue.id, when, partySize);
+      if (!disponibilitaAggiornata.bastano) throw new Error("NESSUN_TAVOLO");
+
+      const [prenotazione] = await tx<{ id: string }[]>`
+        insert into reservations
+          (venue_id, customer_name, customer_phone, customer_email, party_size,
+           reserved_at, notes, status, confirmed_at)
+        values (${venue.id}, ${nome}, ${phone}, ${email}, ${partySize},
+                ${when}, ${notes}, ${stato}, ${automatica ? tx`now()` : null})
+        returning id`;
+
+      const tavoli = await assegnaTavoliPrenotazione(
+        tx,
+        prenotazione.id,
+        venue.id,
+        when,
+        partySize
+      );
+      if (tavoli.length === 0) throw new Error("NESSUN_TAVOLO");
+      return { prenotazione, tavoli, occupati: disponibilitaAggiornata.occupati };
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "NESSUN_TAVOLO") {
+      return NextResponse.json(
+        { error: `Non c'è un tavolo libero adatto per ${partySize} persone in questo orario.` },
+        { status: 409 }
+      );
+    }
+    throw error;
+  }
+
+  const { prenotazione, tavoli } = assegnazione;
+  const tavoliTesto = tavoli.map((t) => t.code).join(" + ");
 
   // --- Avvisi ------------------------------------------------------------
   const quandoTesto = formattaOrario(when, fuso);
@@ -195,12 +232,13 @@ export async function POST(request: Request) {
         `Nome: ${nome}`,
         `Persone: ${partySize}`,
         `Quando: ${quandoTesto}`,
+        `Tavolo: ${tavoliTesto}`,
         phone ? `Telefono: ${phone}` : null,
         email ? `Email: ${email}` : null,
         notes ? `Richieste: ${notes}` : null,
         "",
         disp.capienza !== null
-          ? `Occupazione in quella fascia: ${disp.occupati + partySize} su ${disp.capienza} coperti.`
+          ? `Occupazione in quella fascia: ${assegnazione.occupati + partySize} su ${disp.capienza} coperti.`
           : "Capienza non impostata: il controllo automatico non è attivo.",
         "",
         automatica
@@ -236,6 +274,7 @@ export async function POST(request: Request) {
         "",
         `Quando: ${quandoTesto}`,
         `Persone: ${partySize}`,
+        `Tavolo: ${tavoliTesto}`,
         notes ? `Richieste: ${notes}` : null,
         "",
         venue.public_phone

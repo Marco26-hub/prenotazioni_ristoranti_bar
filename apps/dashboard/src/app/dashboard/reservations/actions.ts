@@ -5,7 +5,12 @@ import { db } from "@repo/shared/db";
 import { requireVenue } from "@/lib/authz";
 import { inviaEmail } from "@repo/shared/email";
 import { decryptSecret } from "@repo/shared/crypto";
-import { slotAlternativi, formattaOrario, interpretaOrario } from "@repo/shared/prenotazioni";
+import {
+  assegnaTavoliPrenotazione,
+  slotAlternativi,
+  formattaOrario,
+  interpretaOrario,
+} from "@repo/shared/prenotazioni";
 
 export interface EsitoPrenotazione {
   error?: string;
@@ -91,11 +96,29 @@ export async function confermaPrenotazione(
 
   if (!prenotazione) return { error: "Prenotazione non trovata" };
 
-  await sql`
-    update reservations
-       set status = 'confirmed', confirmed_at = now(), responded_by = ${userId},
-           decline_reason = null
-     where id = ${reservationId} and venue_id = ${venue.venueId}`;
+  const tavoli = await sql.begin(async (tx) => {
+    await tx`select pg_advisory_xact_lock(hashtext(${venue.venueId}))`;
+    const assegnati = await assegnaTavoliPrenotazione(
+      tx,
+      reservationId,
+      venue.venueId,
+      prenotazione.reserved_at,
+      prenotazione.party_size
+    );
+    if (assegnati.length === 0) return [];
+
+    await tx`
+      update reservations
+         set status = 'confirmed', confirmed_at = now(), responded_by = ${userId},
+             decline_reason = null
+       where id = ${reservationId} and venue_id = ${venue.venueId}`;
+    return assegnati;
+  });
+
+  if (tavoli.length === 0) {
+    return { error: "Nessun tavolo libero adatto in questa fascia oraria." };
+  }
+  const tavoliTesto = tavoli.map((t) => t.code).join(" + ");
 
   let avviso: string | undefined;
 
@@ -113,6 +136,7 @@ export async function confermaPrenotazione(
         "",
         `Quando: ${quando}`,
         `Persone: ${prenotazione.party_size}`,
+        `Tavolo: ${tavoliTesto}`,
         prenotazione.notes ? `Richieste: ${prenotazione.notes}` : null,
         "",
         locale?.public_phone
@@ -237,11 +261,23 @@ export async function addReservation(formData: FormData) {
   const quando = interpretaOrario(reservedAt, locale?.timezone ?? "Europe/Rome");
   if (!quando) return;
 
-  await sql`
-    insert into reservations (venue_id, customer_name, customer_phone, customer_email,
-                              party_size, reserved_at, notes, status, confirmed_at)
-    values (${venue.venueId}, ${customerName}, ${phone}, ${email}, ${partySize},
-            ${quando}, ${notes}, 'confirmed', now())`;
+  await sql.begin(async (tx) => {
+    await tx`select pg_advisory_xact_lock(hashtext(${venue.venueId}))`;
+    const [prenotazione] = await tx<{ id: string }[]>`
+      insert into reservations (venue_id, customer_name, customer_phone, customer_email,
+                                party_size, reserved_at, notes, status, confirmed_at)
+      values (${venue.venueId}, ${customerName}, ${phone}, ${email}, ${partySize},
+              ${quando}, ${notes}, 'confirmed', now())
+      returning id`;
+    const tavoli = await assegnaTavoliPrenotazione(
+      tx,
+      prenotazione.id,
+      venue.venueId,
+      quando,
+      partySize
+    );
+    if (tavoli.length === 0) throw new Error("Nessun tavolo libero adatto");
+  });
   revalidatePath("/dashboard/reservations");
 }
 

@@ -15,7 +15,7 @@ servizio (bottiglia/spina/calice/lattina), stile birra e vitigno. La nuova
 migrazione e `db/migrations/023_menu_beverage_details.sql`. L'import CSV/TSV/XLSX
 legge gli stessi campi, oltre a foto, produttore, annata, gradazione,
 allergeni ed etichette; il template aggiornato e scaricabile dalla pagina Menu.
-Le migrazioni 023 e 024 sono state applicate alla produzione il 3 settembre 2026.
+Le migrazioni 023, 024 e 025 sono state applicate alla produzione il 3 settembre 2026.
 
 Il template pubblico del menu ora usa una grafica premium editoriale: fondo
 avorio pulito, superfici calde, ombre leggere, gerarchia tipografica serif
@@ -232,6 +232,14 @@ alle 20:00, venti alle 20:15 e venti alle 20:30 in una sala da trenta.
 Quando non c'è posto il cliente riceve gli orari vicini in cui c'è davvero.
 Conferma e rifiuto con email; gli errori di invio restano scritti accanto
 alla prenotazione e visibili in gestionale.
+
+Ogni richiesta occupa subito uno o piu tavoli nel calendario. Il sistema
+sceglie il tavolo piu piccolo sufficiente oppure la combinazione con meno
+tavoli e meno posti sprecati, escludendo quelli gia impegnati nella fascia
+di 105 minuti. L'assegnazione e visibile nella card admin; annullamento,
+rifiuto e no-show liberano automaticamente la disponibilita perche non
+rientrano negli stati occupanti. La relazione multipla vive in
+`reservation_tables`; `reservations.table_id` conserva il tavolo principale.
 
 **Il calendario è la fonte di verità, l'email è solo la notifica.** Una
 prenotazione entra in calendario anche se l'email non parte o non è

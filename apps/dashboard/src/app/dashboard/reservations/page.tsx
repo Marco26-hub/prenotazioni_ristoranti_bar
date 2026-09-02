@@ -17,6 +17,7 @@ interface Riga {
   guest_notified_at: Date | null;
   guest_notify_error: string | null;
   venue_notify_error: string | null;
+  table_codes: string[];
 }
 
 /** Stati che occupano davvero un posto in sala. */
@@ -56,7 +57,13 @@ export default async function ReservationsPage({
   const righe = await sql<Riga[]>`
     select id, customer_name, customer_phone, customer_email, party_size,
            reserved_at, notes, status, decline_reason,
-           guest_notified_at, guest_notify_error, venue_notify_error
+           guest_notified_at, guest_notify_error, venue_notify_error,
+           coalesce((
+             select array_agg(t.code order by t.code)
+               from reservation_tables rt
+               join tables t on t.id = rt.table_id
+              where rt.reservation_id = reservations.id
+           ), array[]::text[]) as table_codes
       from reservations
      where venue_id = ${venue.venueId}
        and reserved_at >= ${primoDelMese}
@@ -103,6 +110,7 @@ export default async function ReservationsPage({
     avvisatoIl: r.guest_notified_at ? r.guest_notified_at.toISOString() : null,
     erroreAvviso: r.guest_notify_error,
     erroreAvvisoLocale: r.venue_notify_error,
+    tavoli: r.table_codes,
   }));
 
   const indirizzoRichieste = locale?.reservation_email ?? locale?.public_email;

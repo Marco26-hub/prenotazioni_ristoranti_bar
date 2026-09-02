@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import postgres from "postgres";
 import { createTestVenue, deleteTestVenue, type TestVenue } from "./fixtures";
 
 const GUEST_URL = process.env.E2E_GUEST_URL ?? "http://localhost:3010";
@@ -17,7 +18,8 @@ test("il tavolo mostra il menu del locale", async ({ page }) => {
   await page.goto(`${GUEST_URL}/v/${venue.slug}/t/${venue.qrToken}`);
 
   await expect(page.getByRole("heading", { name: "E2E Test Venue" })).toBeVisible();
-  await expect(page.getByText("Tavolo T1")).toBeVisible();
+  await expect(page.getByText("Codice tavolo")).toBeVisible();
+  await expect(page.getByText("T1", { exact: true })).toBeVisible();
   await expect(page.getByText(venue.menuItemName)).toBeVisible();
   await expect(page.getByText("15,00 €").first()).toBeVisible();
 });
@@ -43,6 +45,35 @@ test("la pagina prenotazioni è separata e collega il menu", async ({ page }) =>
     "href",
     `/m/${venue.slug}`
   );
+});
+
+test("una prenotazione occupa automaticamente un tavolo compatibile", async ({ page }) => {
+  const data = new Date(Date.now() + 48 * 60 * 60 * 1000);
+  data.setHours(20, 0, 0, 0);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const quando = `${data.getFullYear()}-${pad(data.getMonth() + 1)}-${pad(data.getDate())}T20:00`;
+  const nome = `Prenotazione E2E ${Date.now()}`;
+
+  await page.goto(`${GUEST_URL}/p/${venue.slug}`);
+  await page.getByLabel("Nome e cognome").fill(nome);
+  await page.getByLabel("Quante persone").fill("2");
+  await page.getByLabel("Giorno e ora").fill(quando);
+  await page.getByLabel("Telefono").fill("+393331234567");
+  await page.getByRole("button", { name: "Prenota il tavolo" }).click();
+  await expect(page.getByText(/Prenotazione ricevuta/)).toBeVisible();
+
+  const sql = postgres(process.env.DATABASE_URL!, { ssl: "require", prepare: false });
+  try {
+    const [assegnazione] = await sql<{ code: string; seats: number }[]>`
+      select t.code, t.seats
+        from reservations r
+        join reservation_tables rt on rt.reservation_id = r.id
+        join tables t on t.id = rt.table_id
+       where r.venue_id = ${venue.venueId} and r.customer_name = ${nome}`;
+    expect(assegnazione).toMatchObject({ code: "T1", seats: 4 });
+  } finally {
+    await sql.end();
+  }
 });
 
 test("un qr_token inesistente non apre nessun tavolo", async ({ page }) => {

@@ -258,6 +258,16 @@ create table reservations (
   created_at timestamptz default now()
 );
 
+-- Una prenotazione puo occupare piu tavoli accostati. table_id sopra resta
+-- il tavolo principale per compatibilita con le installazioni precedenti.
+create table reservation_tables (
+  reservation_id uuid references reservations(id) on delete cascade not null,
+  table_id uuid references tables(id) not null,
+  primary key (reservation_id, table_id)
+);
+
+create index idx_reservation_tables_table on reservation_tables (table_id);
+
 -- ------------------------------------------------------------
 -- PAGAMENTI
 -- ------------------------------------------------------------

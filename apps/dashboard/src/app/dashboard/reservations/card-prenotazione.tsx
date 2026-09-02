@@ -21,6 +21,7 @@ export interface Prenotazione {
   avvisatoIl: string | null;
   erroreAvviso: string | null;
   erroreAvvisoLocale: string | null;
+  tavoli: string[];
 }
 
 const STATO: Record<string, { etichetta: string; classe: string }> = {
@@ -81,6 +82,12 @@ export function CardPrenotazione({ p }: { p: Prenotazione }) {
 
       <p className="mt-1 text-sm text-muted">
         {p.coperti} {p.coperti === 1 ? "persona" : "persone"}
+        {p.tavoli.length > 0 && (
+          <>
+            {" · "}
+            {p.tavoli.length === 1 ? "Tavolo" : "Tavoli"} {p.tavoli.join(" + ")}
+          </>
+        )}
         {p.telefono && (
           <>
             {" · "}

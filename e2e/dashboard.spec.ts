@@ -73,7 +73,8 @@ test("il QR del tavolo punta all'app guest e apre quel tavolo", async ({ page })
   const url = (await qrUrl.textContent())!.trim();
   await page.goto(url);
   await expect(page.getByRole("heading", { name: "E2E Test Venue" })).toBeVisible();
-  await expect(page.getByText("Tavolo T1")).toBeVisible();
+  await expect(page.getByText("Codice tavolo")).toBeVisible();
+  await expect(page.getByText("T1", { exact: true })).toBeVisible();
 });
 
 test("un ordine inviato dal tavolo compare nella board cucina", async ({ page, context }) => {

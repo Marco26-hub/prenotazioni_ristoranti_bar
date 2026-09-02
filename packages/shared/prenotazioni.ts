@@ -1,5 +1,5 @@
 import "server-only";
-import type { Sql } from "postgres";
+import type { Sql, TransactionSql } from "postgres";
 
 /**
  * Logica di disponibilità delle prenotazioni.
@@ -12,6 +12,96 @@ import type { Sql } from "postgres";
 
 /** Quanto tempo si considera occupato un tavolo dopo l'orario prenotato. */
 export const DURATA_TAVOLO_MIN = 105;
+
+type QuerySql = Sql | TransactionSql;
+
+export interface TavoloPrenotazione {
+  id: string;
+  code: string;
+  seats: number;
+}
+
+/**
+ * Sceglie il minor numero di tavoli liberi e, a parita, spreca meno posti.
+ * La ricerca considera sia le vecchie assegnazioni in reservations.table_id
+ * sia la tabella ponte usata quando due o piu tavoli vengono accostati.
+ */
+export async function tavoliPerPrenotazione(
+  sql: QuerySql,
+  venueId: string,
+  quando: Date,
+  coperti: number,
+  escludiPrenotazioneId?: string
+): Promise<TavoloPrenotazione[]> {
+  const tavoli = await sql<TavoloPrenotazione[]>`
+    select t.id, t.code, t.seats
+      from tables t
+     where t.venue_id = ${venueId}
+       and t.active = true
+       and not exists (
+         select 1
+           from reservations r
+          where r.venue_id = ${venueId}
+            and r.status in ('pending', 'confirmed', 'seated')
+            and ${escludiPrenotazioneId ? sql`r.id <> ${escludiPrenotazioneId}` : sql`true`}
+            and r.reserved_at < ${quando}::timestamptz + (${DURATA_TAVOLO_MIN} || ' minutes')::interval
+            and r.reserved_at + (${DURATA_TAVOLO_MIN} || ' minutes')::interval > ${quando}
+            and (
+              r.table_id = t.id
+              or exists (
+                select 1 from reservation_tables rt
+                 where rt.reservation_id = r.id and rt.table_id = t.id
+              )
+            )
+       )
+       and not exists (
+         select 1 from table_sessions ts
+          where ts.table_id = t.id
+            and ts.status = 'open'
+            and ${quando} < now() + (${DURATA_TAVOLO_MIN} || ' minutes')::interval
+       )
+     order by t.seats, t.code`;
+
+  // Programmazione dinamica sui posti disponibili: per ogni totale conserva
+  // la combinazione con meno tavoli. Il numero di stati resta piccolo anche
+  // in sale grandi, perché le capienze possibili sono poche.
+  const combinazioni = new Map<number, TavoloPrenotazione[]>([[0, []]]);
+  for (const tavolo of tavoli) {
+    for (const [posti, scelti] of Array.from(combinazioni.entries())) {
+      const totale = posti + tavolo.seats;
+      const proposta = [...scelti, tavolo];
+      const corrente = combinazioni.get(totale);
+      if (!corrente || proposta.length < corrente.length) {
+        combinazioni.set(totale, proposta);
+      }
+    }
+  }
+
+  return Array.from(combinazioni.entries())
+    .filter(([posti]) => posti >= coperti)
+    .sort(([postiA, a], [postiB, b]) =>
+      a.length - b.length || (postiA - coperti) - (postiB - coperti)
+    )[0]?.[1] ?? [];
+}
+
+export async function assegnaTavoliPrenotazione(
+  sql: QuerySql,
+  reservationId: string,
+  venueId: string,
+  quando: Date,
+  coperti: number
+): Promise<TavoloPrenotazione[]> {
+  const tavoli = await tavoliPerPrenotazione(sql, venueId, quando, coperti, reservationId);
+  if (tavoli.length === 0) return [];
+
+  await sql`delete from reservation_tables where reservation_id = ${reservationId}`;
+  for (const tavolo of tavoli) {
+    await sql`insert into reservation_tables (reservation_id, table_id)
+      values (${reservationId}, ${tavolo.id})`;
+  }
+  await sql`update reservations set table_id = ${tavoli[0].id} where id = ${reservationId}`;
+  return tavoli;
+}
 
 export interface Disponibilita {
   /** Coperti già impegnati nella fascia che tocca l'orario richiesto. */
@@ -34,7 +124,7 @@ interface RigaOccupati {
  * fra orari.
  */
 export async function disponibilita(
-  sql: Sql,
+  sql: QuerySql,
   venueId: string,
   quando: Date,
   copertiRichiesti: number,
