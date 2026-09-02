@@ -6,12 +6,12 @@
  * passa ore, non due minuti.
  */
 :root {
-  --background: #faf7f2;
-  --surface: #ffffff;
-  --foreground: #1c1917;
-  --muted: #78716c;
-  --border: #e7e2da;
-  --accent: #b4451f;
+  --background: #f3f0ea;
+  --surface: #fffdf9;
+  --foreground: #24211e;
+  --muted: #716b63;
+  --border: #ded5c9;
+  --accent: #a64b2a;
   --accent-foreground: #ffffff;
   --success: #15803d;
   --danger: #b91c1c;
@@ -318,6 +318,59 @@ textarea {
     animation: none !important;
   }
   .scheda {
+    transition: none;
+  }
+}
+
+/* Shell gestionale: denso per lavorare, con la stessa identita del menu. */
+.dashboard-shell {
+  background:
+    linear-gradient(180deg, rgba(255, 253, 249, 0.7), transparent 22rem),
+    var(--background);
+}
+
+.dashboard-shell header {
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  box-shadow: 0 8px 24px rgba(68, 47, 31, 0.06);
+}
+
+.dashboard-shell main .bg-surface {
+  box-shadow: 0 5px 18px rgba(68, 47, 31, 0.05);
+}
+
+.dashboard-shell nav a {
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.dashboard-shell button,
+.dashboard-shell a {
+  touch-action: manipulation;
+}
+
+.dashboard-shell h1,
+.dashboard-shell h2 {
+  text-wrap: balance;
+}
+
+.dashboard-skip-link {
+  position: fixed;
+  left: 1rem;
+  top: -4rem;
+  z-index: 100;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-foreground);
+  padding: 0.7rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.dashboard-skip-link:focus-visible {
+  top: 1rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-shell nav a {
     transition: none;
   }
 }

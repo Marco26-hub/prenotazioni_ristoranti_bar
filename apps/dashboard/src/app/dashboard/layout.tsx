@@ -53,8 +53,9 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
   }
 
   return (
-    <div className="flex min-h-full flex-col">
-      <header className="sticky top-0 z-10 border-b border-border bg-surface/95 backdrop-blur">
+    <div className="dashboard-shell flex min-h-full flex-col">
+      <a href="#main-content" className="dashboard-skip-link">Vai al contenuto</a>
+      <header className="sticky top-0 z-10 border-b border-border backdrop-blur">
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-3">
           <div className="min-w-0">
             <p className="truncate font-semibold leading-tight">
@@ -96,7 +97,7 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
 
       <AvvisoConformita serveDpa={serveDpa} datiMancanti={datiMancanti} />
 
-      <div className="flex-1">{children}</div>
+      <div id="main-content" className="flex-1">{children}</div>
     </div>
   );
 }

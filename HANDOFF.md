@@ -15,7 +15,12 @@ allergeni ed etichette; il template aggiornato e scaricabile dalla pagina Menu.
 
 Il template pubblico del menu ora usa una grafica premium editoriale: fondo
 avorio materico, superfici calde, ombre leggere, gerarchia tipografica serif
-per nome locale e sezioni, e card fotografiche coerenti.
+per nome locale e sezioni, card fotografiche coerenti e tema Giorno/Night
+automatico per fascia oraria, con comando manuale.
+
+La shell del gestionale usa la stessa identita cromatica in una variante piu
+neutra e operativa: header sticky, navigazione leggibile, focus da tastiera,
+skip link e contenitori con gerarchia visiva piu chiara.
 
 Aggiornamento menu demo: la pagina pubblica del menu ha ora una griglia
 responsive più curata, immagini locali con dimensioni stabili e focus

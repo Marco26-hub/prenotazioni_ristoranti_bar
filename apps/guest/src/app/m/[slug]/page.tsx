@@ -9,6 +9,7 @@ import { Assistente } from "./assistente";
 import { AnnuncioLocale } from "../../v/[slug]/t/[token]/annuncio";
 import { annuncioAttivo } from "@/lib/annuncio";
 import { MenuItemCard } from "./menu-item-card";
+import { TemaMenu } from "./tema-menu";
 
 /**
  * Menu pubblico del locale, indicizzabile.
@@ -211,7 +212,10 @@ export default async function PublicMenuPage({
         <div className="mx-auto max-w-3xl px-4 py-5 sm:px-6">
           <nav className="mb-6 flex items-center justify-between gap-3 text-sm" aria-label="Navigazione locale">
             <Link href="/" className="text-muted underline underline-offset-4">Torna al sito</Link>
-            <a href={`/p/${slug}`} className="font-medium text-accent underline underline-offset-4">Prenota un tavolo</a>
+            <div className="flex items-center gap-2">
+              <TemaMenu />
+              <a href={`/p/${slug}`} className="font-medium text-accent underline underline-offset-4">Prenota</a>
+            </div>
           </nav>
           <div className="flex items-center gap-3">
           {venue.logo_url && (
@@ -223,6 +227,7 @@ export default async function PublicMenuPage({
             />
           )}
           <div className="min-w-0">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-accent">La nostra carta</p>
             <h1 className="text-xl font-semibold tracking-tight">{venue.name}</h1>
             {address && <p className="text-sm text-muted">{address}</p>}
             <a
@@ -257,19 +262,25 @@ export default async function PublicMenuPage({
         </div>
       </header>
 
-      <main id="menu" className="mx-auto w-full max-w-3xl flex-1 space-y-9 px-4 py-7 sm:px-6">
+      <main id="menu" className="mx-auto w-full max-w-3xl flex-1 space-y-10 px-4 py-9 sm:px-6">
+        <div className="max-w-xl">
+          <p className="text-sm leading-relaxed text-muted">
+            Sapori italiani, ingredienti scelti e piatti preparati al momento.
+            Apri una voce per scoprirne la storia, gli ingredienti e la foto.
+          </p>
+        </div>
         {categories.map((cat) => {
           const catItems = itemsByCategory.get(cat.id) ?? [];
           if (catItems.length === 0) return null;
           return (
             <section key={cat.id}>
-              <div className="mb-3 flex items-end justify-between gap-4">
-                <h2 className="text-lg font-semibold tracking-tight text-pretty">
+              <div className="mb-4 flex items-center gap-4">
+                <h2 className="menu-section-title shrink-0 font-semibold text-pretty">
                   {cat.name}
                 </h2>
-                <span className="h-px flex-1 bg-border" aria-hidden="true" />
+                <span className="menu-section-rule h-px flex-1" aria-hidden="true" />
               </div>
-              <ul className="grid gap-3 sm:grid-cols-2">
+              <ul className="grid gap-4 sm:grid-cols-2">
                 {catItems.map((item) => (
                   <MenuItemCard
                     key={item.id}
