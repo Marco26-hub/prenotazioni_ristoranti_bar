@@ -26,7 +26,7 @@ interface PublicMenuItem {
   name: string;
   description: string | null;
   price_cents: number;
-  image_url: string | null;
+  ha_foto: boolean;
 }
 
 interface VenuePublic {
@@ -47,15 +47,6 @@ interface VenuePublic {
   assistant_enabled: boolean;
 }
 
-function fotoMenu(item: PublicMenuItem, categoryName: string) {
-  if (item.image_url) return item.image_url;
-  const testo = `${item.name} ${categoryName}`.toLowerCase();
-  if (testo.includes("vino") || testo.includes("chianti") || testo.includes("docg") || testo.includes("barbera") || testo.includes("vermentino")) return "/piatti/vino-rosso.jpg";
-  if (testo.includes("bevande") || testo.includes("acqua") || testo.includes("birra") || testo.includes("caffè") || testo.includes("coca")) return "/piatti/bevande.jpg";
-  if (testo.includes("bruschetta")) return "/piatti/bruschetta.jpg";
-  if (testo.includes("dolce") || testo.includes("tiramisù") || testo.includes("sorbetto") || testo.includes("panna cotta") || testo.includes("cannolo")) return "/piatti/carbonara.jpg";
-  return "/piatti/carbonara.jpg";
-}
 
 async function loadVenue(slug: string) {
   const sql = db();
@@ -71,7 +62,8 @@ async function loadVenue(slug: string) {
      order by sort_order`;
 
   const items = await sql<PublicMenuItem[]>`
-    select id, category_id, name, description, price_cents, image_url, translations
+    select id, category_id, name, description, price_cents, translations,
+           (image_url is not null) as ha_foto
     from menu_items
     where venue_id = ${venue.id} and available = true
     order by sort_order`;
@@ -136,6 +128,8 @@ export default async function PublicMenuPage({
     .filter(Boolean)
     .join(" ");
 
+  const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://ristoranti-guest.vercel.app";
+
   // Schema.org Restaurant + Menu: è ciò che permette a Google di mostrare il
   // menu come dato strutturato e agli assistenti AI di citarlo con i prezzi
   // giusti invece di indovinare.
@@ -181,7 +175,9 @@ export default async function PublicMenuPage({
             "@type": "MenuItem",
             name: i.name,
             ...(i.description ? { description: i.description } : {}),
-            ...(i.image_url ? { image: i.image_url } : {}),
+            // Nei dati strutturati serve un indirizzo assoluto: un data
+            // URL lì dentro non è utilizzabile da nessun consumatore.
+            ...(i.ha_foto ? { image: `${base}/api/foto/${i.id}` } : {}),
             offers: {
               "@type": "Offer",
               price: (i.price_cents / 100).toFixed(2),
@@ -270,7 +266,7 @@ export default async function PublicMenuPage({
                     description={item.description}
                     priceCents={item.price_cents}
                     currency={venue.currency}
-                    imageUrl={fotoMenu(item, cat.name)}
+                    imageUrl={item.ha_foto ? `/api/foto/${item.id}` : null}
                   />
                 ))}
               </ul>

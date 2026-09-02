@@ -154,10 +154,10 @@ export function OrderMenu({
         className="rounded-xl border border-border bg-surface p-4"
       >
       <div className="flex items-start gap-3">
-        {item.image_url && (
+        {item.ha_foto && (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
-            src={item.image_url}
+            src={`/api/foto/${item.id}`}
             alt=""
             loading="lazy"
             onClick={() => setOpenDish(item)}

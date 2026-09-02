@@ -44,7 +44,7 @@ export default async function TablePage({
       description: string | null;
       price_cents: number;
       allergens: string[] | null;
-      image_url: string | null;
+      ha_foto: boolean;
       dietary_tags: string[] | null;
       ingredients: string | null;
       pairing_item_id: string | null;
@@ -58,7 +58,8 @@ export default async function TablePage({
       abv: string | null;
     }[]
   >`
-    select id, category_id, name, description, price_cents, allergens, image_url,
+    select id, category_id, name, description, price_cents, allergens,
+           (image_url is not null) as ha_foto,
            dietary_tags, ingredients, pairing_item_id, conservation, origin_note,
            kind, producer, vintage, denomination, origin, abv
     from menu_items

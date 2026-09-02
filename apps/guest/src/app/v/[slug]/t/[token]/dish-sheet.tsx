@@ -27,7 +27,7 @@ export interface DishDetail {
   description: string | null;
   ingredients: string | null;
   price_cents: number;
-  image_url: string | null;
+  ha_foto: boolean;
   allergens: string[] | null;
   dietary_tags: string[] | null;
   pairing_item_id: string | null;
@@ -169,9 +169,14 @@ export function DishSheet({
           </button>
         </div>
 
-        {dish.image_url && (
+        {dish.ha_foto && (
           /* eslint-disable-next-line @next/next/no-img-element */
-          <img src={dish.image_url} alt="" className="h-48 w-full object-cover" />
+          <img
+            src={`/api/foto/${dish.id}`}
+            alt=""
+            loading="lazy"
+            className="h-48 w-full object-cover"
+          />
         )}
 
         <div className="space-y-4 px-5 pt-4">
