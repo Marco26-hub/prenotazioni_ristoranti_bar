@@ -9,6 +9,7 @@ import { TilbyForm } from "./tilby-form";
 import { BrandForm } from "./brand-form";
 import { PrenotazioniForm } from "./prenotazioni-form";
 import { EmailForm } from "./email-form";
+import { CopertoForm } from "./coperto-form";
 import { emailConfigurata } from "@repo/shared/email";
 import { AnnuncioForm } from "./annuncio-form";
 
@@ -35,6 +36,9 @@ export default async function SettingsPage() {
       reservation_auto_confirm: boolean;
       resend_api_key: string | null;
       resend_from: string | null;
+      cover_charge_cents: number;
+      service_percent: string;
+      cover_charge_label: string | null;
       brand_color: string | null;
       public_phone: string | null;
       public_email: string | null;
@@ -58,7 +62,8 @@ export default async function SettingsPage() {
            announcement_cta_label, announcement_cta_url,
            announcement_starts_at, announcement_ends_at, announcement_enabled,
            reservation_email, reservation_capacity, reservation_auto_confirm,
-           resend_api_key, resend_from, brand_color, public_phone, public_email,
+           resend_api_key, resend_from,
+           cover_charge_cents, service_percent, cover_charge_label, brand_color, public_phone, public_email,
            tilby_shop_name, tips_enabled, tip_percents, google_review_url,
            stripe_account_id, satispay_key_id, vat_number, fiscal_code, regime_fiscale,
            address, address_zip, address_city, address_province, invoice_provider_api_key
@@ -135,6 +140,19 @@ export default async function SettingsPage() {
           email={venueRow?.reservation_email ?? null}
           capienza={venueRow?.reservation_capacity ?? null}
           autoConfirm={venueRow?.reservation_auto_confirm ?? false}
+        />
+      </section>
+
+      <section className="rounded-xl border border-border bg-surface p-4">
+        <h2 className="mb-1 font-semibold">Coperto e servizio</h2>
+        <p className="mb-3 text-sm text-muted">
+          Se il tuo locale li applica, vanno dichiarati al cliente insieme ai
+          prezzi dei piatti.
+        </p>
+        <CopertoForm
+          copertoCents={venueRow?.cover_charge_cents ?? 0}
+          servizio={Number(venueRow?.service_percent ?? 0)}
+          etichetta={venueRow?.cover_charge_label ?? null}
         />
       </section>
 

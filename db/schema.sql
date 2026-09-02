@@ -67,6 +67,11 @@ create table venues (
   -- Lingue del menu oltre all'italiano, che è sempre la base. Vuoto = nessun
   -- selettore mostrato al cliente, invece di uno che non cambia nulla.
   languages text[] not null default '{}',
+  -- Coperto a persona e servizio sull'ordinato: vanno dichiarati al cliente
+  -- insieme ai prezzi (R.D. 635/1940 art. 180), non solo in fondo al conto.
+  cover_charge_cents int not null default 0,
+  service_percent numeric(4,1) not null default 0,
+  cover_charge_label text,
   currency text default 'EUR',
   stripe_account_id text,                -- Stripe Connect account: con cui il LOCALE incassa
   -- Abbonamento alla piattaforma: con cui il locale paga NOI. Flusso opposto
@@ -161,6 +166,20 @@ create table menu_items (
   allergens text[],
   dietary_tags text[],                   -- vegetariano, vegano, senza_glutine, piccante
   ingredients text,
+  -- Come si presenta la voce: una bottiglia non si descrive come un piatto.
+  kind text not null default 'food' check (kind in ('food','wine','beer','drink')),
+  producer text,                         -- cantina o birrificio
+  vintage int,                           -- annata
+  denomination text,                     -- DOCG, DOC, IGT, DOP
+  origin text,                           -- zona o paese
+  abv numeric(4,1),                      -- gradazione
+  serving_note text,                     -- temperatura, decantazione
+  -- Il congelato va dichiarato (Reg. UE 1169/2011, D.Lgs. 109/1992);
+  -- l'abbattuto riguarda il pesce crudo (Reg. CE 853/2004). Ometterlo è
+  -- frode in commercio, non una svista di stile.
+  conservation text not null default 'fresco'
+    check (conservation in ('fresco','congelato','surgelato','abbattuto')),
+  origin_note text,                      -- origine, obbligatoria per il bovino
   -- Traduzioni parziali per lingua: {"en": {"name": ..., "description": ...}}.
   -- Un campo non tradotto ricade sull'italiano invece di sparire.
   translations jsonb not null default '{}'::jsonb,

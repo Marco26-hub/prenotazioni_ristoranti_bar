@@ -37,7 +37,29 @@ export async function closeTableInPerson(sessionId: string) {
       select sum(amount_cents) as total from payments
       where table_session_id = ${session.id} and status = 'succeeded'`;
 
-    const remaining = Number(ordered?.total ?? 0) - Number(paid?.total ?? 0);
+    const ordinato = Number(ordered?.total ?? 0);
+
+    // Coperto e servizio come li calcola l'app cliente: se qui mancassero,
+    // il conto chiuso allo staff sarebbe più basso di quello mostrato al
+    // tavolo e la cassa non tornerebbe.
+    const [supp] = await tx<
+      {
+        guest_count: number;
+        cover_charge_cents: number;
+        service_percent: string;
+      }[]
+    >`select ts.guest_count, v.cover_charge_cents, v.service_percent
+        from table_sessions ts
+        join venues v on v.id = ts.venue_id
+       where ts.id = ${session.id}`;
+
+    const supplementi =
+      ordinato > 0
+        ? (supp?.cover_charge_cents ?? 0) * (supp?.guest_count ?? 1) +
+          Math.round((ordinato * Number(supp?.service_percent ?? 0)) / 100)
+        : 0;
+
+    const remaining = ordinato + supplementi - Number(paid?.total ?? 0);
 
     if (remaining > 0) {
       await tx`

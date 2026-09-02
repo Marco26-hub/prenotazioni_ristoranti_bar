@@ -9,10 +9,76 @@ export interface UnpaidItem {
   totalCents: number;
 }
 
+export interface Supplementi {
+  copertoUnitarioCents: number;
+  coperti: number;
+  copertoTotaleCents: number;
+  servizioPercent: number;
+  servizioCents: number;
+  totaleCents: number;
+  etichettaCoperto: string;
+}
+
 /**
- * Saldo residuo di una sessione tavolo: totale ordinato meno pagamenti già
- * riusciti. Vale sia per il pagamento a saldo pieno sia come somma di
- * quanto resta dopo pagamenti parziali (split).
+ * Coperto e servizio di una sessione.
+ *
+ * Calcolati al momento della lettura e non salvati come righe d'ordine: il
+ * numero di coperti cambia mentre il tavolo è aperto — arriva un amico, uno
+ * se ne va — e una riga scritta all'apertura resterebbe sbagliata.
+ *
+ * Sta qui e non in tre query diverse perché il saldo residuo, il conto
+ * mostrato al cliente e la chiusura da parte dello staff devono dare lo
+ * stesso numero: se uno solo dimenticasse il coperto, il tavolo non si
+ * chiuderebbe mai per una differenza di due euro.
+ */
+export async function supplementiCents(sessionId: string): Promise<Supplementi> {
+  const sql = db();
+
+  const [riga] = await sql<
+    {
+      guest_count: number;
+      cover_charge_cents: number;
+      service_percent: string;
+      cover_charge_label: string | null;
+      ordinato: string | null;
+    }[]
+  >`
+    select ts.guest_count, v.cover_charge_cents, v.service_percent,
+           v.cover_charge_label,
+           (select sum(oi.quantity * oi.unit_price_cents)
+              from order_items oi
+              join orders o on o.id = oi.order_id
+             where o.table_session_id = ts.id
+               and o.status != 'cancelled' and oi.status != 'cancelled') as ordinato
+      from table_sessions ts
+      join venues v on v.id = ts.venue_id
+     where ts.id = ${sessionId}`;
+
+  const copertoUnitario = riga?.cover_charge_cents ?? 0;
+  const coperti = riga?.guest_count ?? 1;
+  const copertoTotale = copertoUnitario * coperti;
+
+  const servizioPercent = Number(riga?.service_percent ?? 0);
+  const ordinato = Number(riga?.ordinato ?? 0);
+  // Il servizio si calcola sull'ordinato, non sul coperto: sommarlo al
+  // coperto significherebbe far pagare una percentuale su una voce fissa.
+  const servizio = Math.round((ordinato * servizioPercent) / 100);
+
+  return {
+    copertoUnitarioCents: copertoUnitario,
+    coperti,
+    copertoTotaleCents: copertoTotale,
+    servizioPercent,
+    servizioCents: servizio,
+    totaleCents: copertoTotale + servizio,
+    etichettaCoperto: riga?.cover_charge_label?.trim() || "Coperto",
+  };
+}
+
+/**
+ * Saldo residuo di una sessione tavolo: totale ordinato più coperto e
+ * servizio, meno i pagamenti già riusciti. Vale sia per il pagamento a
+ * saldo pieno sia come somma di quanto resta dopo pagamenti parziali.
  */
 export async function outstandingBalanceCents(sessionId: string): Promise<number> {
   const sql = db();
@@ -32,8 +98,14 @@ export async function outstandingBalanceCents(sessionId: string): Promise<number
 
   const orderedTotal = Number(ordered?.total ?? 0);
   const paidTotal = Number(paid?.total ?? 0);
+  const extra = await supplementiCents(sessionId);
 
-  return Math.max(orderedTotal - paidTotal, 0);
+  // Il coperto si aggiunge solo se qualcosa è stato ordinato: un tavolo
+  // aperto per sbaglio non deve risultare a debito di due euro, e non
+  // chiudersi mai per quello.
+  const supplementi = orderedTotal > 0 ? extra.totaleCents : 0;
+
+  return Math.max(orderedTotal + supplementi - paidTotal, 0);
 }
 
 /**

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { formatPriceCents } from "@repo/shared";
+import { descriviBevanda, CONSERVAZIONE_ETICHETTA, type Conservazione } from "@repo/shared/bevande";
 
 export interface OpzioneCliente {
   id: string;
@@ -30,6 +31,14 @@ export interface DishDetail {
   dietary_tags: string[] | null;
   pairing_item_id: string | null;
   gruppi?: GruppoCliente[];
+  conservation?: Conservazione;
+  origin_note?: string | null;
+  kind?: string;
+  producer?: string | null;
+  vintage?: number | null;
+  denomination?: string | null;
+  origin?: string | null;
+  abv?: string | null;
 }
 
 const DIETARY_LABEL: Record<string, string> = {
@@ -164,9 +173,37 @@ export function DishSheet({
         <div className="space-y-4 px-5 pt-4">
           <div>
             <h2 className="text-xl font-semibold leading-snug">{dish.name}</h2>
+            {dish.kind && dish.kind !== "food" &&
+              descriviBevanda({
+                producer: dish.producer ?? null,
+                vintage: dish.vintage ?? null,
+                denomination: dish.denomination ?? null,
+                origin: dish.origin ?? null,
+                abv: dish.abv ?? null,
+                serving_note: null,
+              }) && (
+                <p className="mt-1 text-sm text-muted">
+                  {descriviBevanda({
+                    producer: dish.producer ?? null,
+                    vintage: dish.vintage ?? null,
+                    denomination: dish.denomination ?? null,
+                    origin: dish.origin ?? null,
+                    abv: dish.abv ?? null,
+                    serving_note: null,
+                  })}
+                </p>
+              )}
             <p className="mt-1 text-lg font-semibold tabular-nums">
               {formatPriceCents(dish.price_cents, currency)}
             </p>
+            {dish.conservation && dish.conservation !== "fresco" && (
+              <p className="mt-1 text-sm text-muted">
+                * {CONSERVAZIONE_ETICHETTA[dish.conservation].toLowerCase()}
+              </p>
+            )}
+            {dish.origin_note && (
+              <p className="mt-0.5 text-sm text-muted">Origine: {dish.origin_note}</p>
+            )}
           </div>
 
           {dish.dietary_tags && dish.dietary_tags.length > 0 && (

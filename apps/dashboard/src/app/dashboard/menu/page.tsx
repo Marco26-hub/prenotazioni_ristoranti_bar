@@ -19,6 +19,7 @@ import { TraduzioniForm } from "./traduzioni-form";
 import { LingueForm } from "./lingue-form";
 import { LINGUE, type Traduzioni } from "@repo/shared/lingue";
 import { gruppiPerPiatti } from "@repo/shared/varianti";
+import { descriviBevanda, mancanoSolfiti } from "@repo/shared/bevande";
 import { VariantiForm, type GruppoAdmin } from "./varianti-form";
 
 const AZIONE = "flex min-h-11 items-center px-1 text-sm underline";
@@ -63,7 +64,8 @@ export default async function MenuPage() {
   const items = await sql<ItemRow[]>`
     select id, category_id, name, description, ingredients, price_cents, vat_rate,
            pairing_item_id, allergens, dietary_tags, available, image_url,
-           translations
+           translations, kind, producer, vintage, denomination, origin, abv,
+           serving_note, conservation, origin_note
       from menu_items
      where venue_id = ${venue.venueId}
      order by sort_order, name`;
@@ -125,6 +127,10 @@ export default async function MenuPage() {
                   )}
                 </p>
 
+                {item.kind !== "food" && descriviBevanda(item) && (
+                  <p className="mt-0.5 text-sm text-muted">{descriviBevanda(item)}</p>
+                )}
+
                 {item.description && (
                   <p className="mt-1 line-clamp-2 text-sm text-muted">
                     {item.description}
@@ -140,6 +146,18 @@ export default async function MenuPage() {
                       {DIETA_ETICHETTA[t] ?? t}
                     </span>
                   ))}
+
+                  {item.conservation !== "fresco" && (
+                    <span className="rounded-full bg-background px-2 py-0.5 text-muted">
+                      {item.conservation}
+                    </span>
+                  )}
+
+                  {mancanoSolfiti(item.kind, item.allergens) && (
+                    <span className="rounded-full border border-amber-400 px-2 py-0.5 text-amber-700">
+                      Solfiti non dichiarati
+                    </span>
+                  )}
 
                   {item.allergens?.length ? (
                     <span className="rounded-full bg-background px-2 py-0.5 text-muted">

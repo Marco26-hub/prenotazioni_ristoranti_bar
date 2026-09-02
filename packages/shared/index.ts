@@ -6,3 +6,5 @@ export * from "./types";
 export * from "./plans";
 
 export * from "./lingue";
+
+export * from "./bevande";

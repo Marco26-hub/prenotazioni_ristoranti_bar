@@ -2,6 +2,12 @@
 
 import { useState, useTransition } from "react";
 import { updateMenuItem } from "./actions";
+import {
+  TIPO_ETICHETTA,
+  CONSERVAZIONE_ETICHETTA,
+  type TipoVoce,
+  type Conservazione,
+} from "@repo/shared/bevande";
 
 export interface EditableItem {
   id: string;
@@ -15,6 +21,15 @@ export interface EditableItem {
   allergens: string[] | null;
   dietary_tags: string[] | null;
   available: boolean;
+  kind: TipoVoce;
+  producer: string | null;
+  vintage: number | null;
+  denomination: string | null;
+  origin: string | null;
+  abv: number | string | null;
+  serving_note: string | null;
+  conservation: Conservazione;
+  origin_note: string | null;
 }
 
 const FIELD =
@@ -37,6 +52,7 @@ export function EditItemForm({
   otherItems: Array<{ id: string; name: string }>;
 }) {
   const [open, setOpen] = useState(false);
+  const [tipo, setTipo] = useState<TipoVoce>(item.kind);
   const [pending, start] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -116,6 +132,122 @@ export function EditItemForm({
           />
         </div>
       </div>
+
+      <div>
+        <label className={LABEL} htmlFor={`kind-${item.id}`}>
+          Tipo di voce
+        </label>
+        <select
+          id={`kind-${item.id}`}
+          name="kind"
+          value={tipo}
+          onChange={(e) => setTipo(e.target.value as TipoVoce)}
+          className={FIELD}
+        >
+          {(Object.keys(TIPO_ETICHETTA) as TipoVoce[]).map((k) => (
+            <option key={k} value={k}>
+              {TIPO_ETICHETTA[k]}
+            </option>
+          ))}
+        </select>
+        <p className="mt-1 text-xs text-muted">
+          Calice, bottiglia e magnum non si impostano qui: sono varianti, così
+          ognuna ha il suo prezzo e può esaurirsi da sola.
+        </p>
+      </div>
+
+      {tipo !== "food" && (
+        <div className="space-y-3 rounded-lg border border-border p-3">
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className={LABEL} htmlFor={`prod-${item.id}`}>
+                {tipo === "beer" ? "Birrificio" : "Produttore"}
+              </label>
+              <input
+                id={`prod-${item.id}`}
+                name="producer"
+                defaultValue={item.producer ?? ""}
+                className={FIELD}
+              />
+            </div>
+            <div>
+              <label className={LABEL} htmlFor={`orig-${item.id}`}>
+                Zona o paese
+              </label>
+              <input
+                id={`orig-${item.id}`}
+                name="origin"
+                defaultValue={item.origin ?? ""}
+                className={FIELD}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <label className={LABEL} htmlFor={`den-${item.id}`}>
+                Denominazione
+              </label>
+              <input
+                id={`den-${item.id}`}
+                name="denomination"
+                placeholder="DOCG"
+                defaultValue={item.denomination ?? ""}
+                className={FIELD}
+              />
+            </div>
+            <div>
+              <label className={LABEL} htmlFor={`vint-${item.id}`}>
+                Annata
+              </label>
+              <input
+                id={`vint-${item.id}`}
+                name="vintage"
+                type="number"
+                min="1900"
+                max="2100"
+                defaultValue={item.vintage ?? ""}
+                className={FIELD}
+              />
+            </div>
+            <div>
+              <label className={LABEL} htmlFor={`abv-${item.id}`}>
+                Gradazione
+              </label>
+              <input
+                id={`abv-${item.id}`}
+                name="abv"
+                type="number"
+                step="0.1"
+                min="0"
+                max="80"
+                defaultValue={item.abv ?? ""}
+                className={FIELD}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className={LABEL} htmlFor={`serv-${item.id}`}>
+              Nota di servizio
+            </label>
+            <input
+              id={`serv-${item.id}`}
+              name="servingNote"
+              placeholder="Servire a 10-12 °C · Decantare 30 minuti"
+              defaultValue={item.serving_note ?? ""}
+              className={FIELD}
+            />
+          </div>
+
+          {tipo === "wine" && (
+            <p className="text-xs text-muted">
+              Quasi ogni vino supera i 10 mg/l di solfiti e va dichiarato:
+              scrivi <strong>solfiti</strong> fra gli allergeni qui sotto.
+            </p>
+          )}
+        </div>
+      )}
 
       <div>
         <label className={LABEL} htmlFor={`cat-${item.id}`}>
@@ -205,6 +337,42 @@ export function EditItemForm({
             </option>
           ))}
         </select>
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div>
+          <label className={LABEL} htmlFor={`cons-${item.id}`}>
+            Conservazione
+          </label>
+          <select
+            id={`cons-${item.id}`}
+            name="conservation"
+            defaultValue={item.conservation}
+            className={FIELD}
+          >
+            {(Object.keys(CONSERVAZIONE_ETICHETTA) as Conservazione[]).map((c) => (
+              <option key={c} value={c}>
+                {CONSERVAZIONE_ETICHETTA[c]}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-muted">
+            Diverso da fresco: al cliente compare l&apos;asterisco con la nota
+            di legge. Ometterlo è frode in commercio.
+          </p>
+        </div>
+        <div>
+          <label className={LABEL} htmlFor={`orig2-${item.id}`}>
+            Origine (obbligatoria per la carne bovina)
+          </label>
+          <input
+            id={`orig2-${item.id}`}
+            name="originNote"
+            placeholder="Nato, allevato e macellato in Italia"
+            defaultValue={item.origin_note ?? ""}
+            className={FIELD}
+          />
+        </div>
       </div>
 
       <label className="flex min-h-11 items-center gap-2 text-sm">

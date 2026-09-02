@@ -83,6 +83,23 @@ export async function updateMenuItem(formData: FormData): Promise<{ error?: stri
   const vatRaw = Number.parseFloat(String(formData.get("vatRate") ?? ""));
   const vatRate = Number.isFinite(vatRaw) && vatRaw >= 0 && vatRaw <= 100 ? vatRaw : 10;
 
+  const KIND = ["food", "wine", "beer", "drink"];
+  const kindGrezzo = String(formData.get("kind") ?? "food");
+  const kind = KIND.includes(kindGrezzo) ? kindGrezzo : "food";
+
+  // Numeri facoltativi: vuoto significa "non lo so", non zero. Un vino
+  // senza annata dichiarata è normale; uno da 0 gradi no.
+  const numero = (chiave: string, min: number, max: number) => {
+    const grezzo = String(formData.get(chiave) ?? "").trim();
+    if (grezzo === "") return null;
+    const n = Number(grezzo);
+    return Number.isFinite(n) && n >= min && n <= max ? n : null;
+  };
+
+  const CONSERVAZIONE = ["fresco", "congelato", "surgelato", "abbattuto"];
+  const consGrezza = String(formData.get("conservation") ?? "fresco");
+  const conservation = CONSERVAZIONE.includes(consGrezza) ? consGrezza : "fresco";
+
   const categoryId = String(formData.get("categoryId") ?? "") || null;
   const pairingId = String(formData.get("pairingItemId") ?? "") || null;
 
@@ -112,6 +129,15 @@ export async function updateMenuItem(formData: FormData): Promise<{ error?: stri
       category_id = ${categoryId},
       pairing_item_id = ${pairingId},
       allergens = ${list("allergens")},
+      kind = ${kind},
+      producer = ${text("producer")},
+      origin = ${text("origin")},
+      denomination = ${text("denomination")},
+      vintage = ${numero("vintage", 1900, 2100)},
+      abv = ${numero("abv", 0, 80)},
+      serving_note = ${text("servingNote")},
+      conservation = ${conservation},
+      origin_note = ${text("originNote")},
       dietary_tags = ${list("dietaryTags")},
       available = ${formData.get("available") === "on"}
     where id = ${itemId} and venue_id = ${venue.venueId}

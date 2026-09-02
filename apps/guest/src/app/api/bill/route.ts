@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@repo/shared/db";
 import { checkRateLimit, clientKey } from "@repo/shared/rate-limit";
-import { outstandingBalanceCents, unpaidItems } from "@/lib/balance";
+import { outstandingBalanceCents, unpaidItems, supplementiCents } from "@/lib/balance";
 
 export async function GET(request: Request) {
   const { allowed } = await checkRateLimit(clientKey(request, "bill"), 60, 60);
@@ -35,9 +35,10 @@ export async function GET(request: Request) {
            tips_enabled, tip_percents, google_review_url
     from venues where id = ${session.venue_id}`;
 
-  const [balanceCents, items] = await Promise.all([
+  const [balanceCents, items, extra] = await Promise.all([
     outstandingBalanceCents(session.id),
     unpaidItems(session.id),
+    supplementiCents(session.id),
   ]);
 
   return NextResponse.json({
@@ -50,5 +51,20 @@ export async function GET(request: Request) {
     googleReviewUrl: venue?.google_review_url ?? null,
     sessionStatus: session.status,
     unpaidItems: items,
+    // Il cliente deve vedere da dove viene il totale: un conto che non torna
+    // con la somma dei piatti è il primo motivo per chiamare il cameriere.
+    coperto:
+      extra.copertoTotaleCents > 0
+        ? {
+            etichetta: extra.etichettaCoperto,
+            coperti: extra.coperti,
+            unitarioCents: extra.copertoUnitarioCents,
+            totaleCents: extra.copertoTotaleCents,
+          }
+        : null,
+    servizio:
+      extra.servizioCents > 0
+        ? { percent: extra.servizioPercent, totaleCents: extra.servizioCents }
+        : null,
   });
 }

@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { db } from "@repo/shared/db";
 import { resolveTableFromQr } from "@/lib/table";
+import { formatPriceCents } from "@repo/shared";
 import { OrderMenu } from "./order-menu";
 import { AnnuncioLocale } from "./annuncio";
 import { annuncioAttivo } from "@/lib/annuncio";
 import { gruppiPerPiatti } from "@repo/shared/varianti";
+import { notaConservazione, type Conservazione } from "@repo/shared/bevande";
 import { Bill } from "./bill";
 
 /**
@@ -46,10 +48,19 @@ export default async function TablePage({
       dietary_tags: string[] | null;
       ingredients: string | null;
       pairing_item_id: string | null;
+      conservation: Conservazione;
+      origin_note: string | null;
+      kind: string;
+      producer: string | null;
+      vintage: number | null;
+      denomination: string | null;
+      origin: string | null;
+      abv: string | null;
     }[]
   >`
     select id, category_id, name, description, price_cents, allergens, image_url,
-           dietary_tags, ingredients, pairing_item_id
+           dietary_tags, ingredients, pairing_item_id, conservation, origin_note,
+           kind, producer, vintage, denomination, origin, abv
     from menu_items
     where venue_id = ${resolved.venue.id} and available = true
     order by sort_order`;
@@ -63,6 +74,17 @@ export default async function TablePage({
     venue.id,
     items.map((i) => i.id)
   );
+  const nota = notaConservazione(items.map((i) => i.conservation));
+
+  const [supplementi] = await sql<
+    {
+      cover_charge_cents: number;
+      service_percent: string;
+      cover_charge_label: string | null;
+    }[]
+  >`select cover_charge_cents, service_percent, cover_charge_label
+      from venues where id = ${venue.id}`;
+
   const itemsConVarianti = items.map((i) => ({
     ...i,
     gruppi: varianti.get(i.id) ?? [],
@@ -109,6 +131,32 @@ export default async function TablePage({
           categories={categories}
           items={itemsConVarianti}
         />
+
+        {/* Il coperto va indicato dove il cliente sceglie, non solo in
+            fondo al conto: la norma sui prezzi lo mette alla pari di un
+            piatto (R.D. 635/1940 art. 180). */}
+        {(supplementi?.cover_charge_cents > 0 ||
+          Number(supplementi?.service_percent ?? 0) > 0) && (
+          <p className="mt-5 rounded-xl border border-border bg-surface p-3 text-sm text-muted">
+            {supplementi.cover_charge_cents > 0 && (
+              <>
+                {supplementi.cover_charge_label?.trim() || "Coperto"}{" "}
+                {formatPriceCents(supplementi.cover_charge_cents, venue.currency)} a
+                persona.
+              </>
+            )}
+            {Number(supplementi?.service_percent ?? 0) > 0 && (
+              <>
+                {supplementi.cover_charge_cents > 0 ? " " : ""}
+                Servizio {Number(supplementi.service_percent)}% sull&apos;ordinato.
+              </>
+            )}
+          </p>
+        )}
+
+        {nota && (
+          <p className="mt-3 text-xs leading-relaxed text-muted">{nota}</p>
+        )}
 
         <Bill sessionId={resolved.sessionId} privacyHref={`/privacy/${slug}`} />
       </main>
