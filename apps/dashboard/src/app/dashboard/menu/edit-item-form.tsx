@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRef } from "react";
 import { updateMenuItem } from "./actions";
+import { EtichettaForm } from "./etichetta-form";
 import {
   TIPO_ETICHETTA,
   CONSERVAZIONE_ETICHETTA,
@@ -46,11 +48,14 @@ export function EditItemForm({
   item,
   categories,
   otherItems,
+  letturaEtichettaAttiva = false,
 }: {
   item: EditableItem;
   categories: Array<{ id: string; name: string }>;
   otherItems: Array<{ id: string; name: string }>;
+  letturaEtichettaAttiva?: boolean;
 }) {
+  const formRef = useRef<HTMLFormElement>(null);
   const [open, setOpen] = useState(false);
   const [tipo, setTipo] = useState<TipoVoce>(item.kind);
   const [pending, start] = useTransition();
@@ -71,6 +76,7 @@ export function EditItemForm({
 
   return (
     <form
+      ref={formRef}
       action={(formData) => {
         setError(null);
         setMessage(null);
@@ -158,6 +164,36 @@ export function EditItemForm({
 
       {tipo !== "food" && (
         <div className="space-y-3 rounded-lg border border-border p-3">
+          {tipo === "wine" && (
+            <EtichettaForm
+              attiva={letturaEtichettaAttiva}
+              onCompila={(scheda) => {
+                // Si scrive nei campi, non nel database: l'ultima parola
+                // resta a chi guarda la bottiglia.
+                const form = formRef.current;
+                if (!form) return;
+                const scrivi = (nome: string, valore: unknown) => {
+                  if (valore === undefined || valore === null) return;
+                  const campo = form.elements.namedItem(nome);
+                  if (campo instanceof HTMLInputElement || campo instanceof HTMLTextAreaElement) {
+                    campo.value = String(valore);
+                  }
+                };
+                scrivi("name", scheda.name);
+                scrivi("producer", scheda.producer);
+                scrivi("vintage", scheda.vintage);
+                scrivi("denomination", scheda.denomination);
+                scrivi("origin", scheda.origin);
+                scrivi("abv", scheda.abv);
+                scrivi("ingredients", scheda.ingredients);
+                scrivi("description", scheda.description);
+                if (scheda.allergens?.length) {
+                  scrivi("allergens", scheda.allergens.join(", "));
+                }
+              }}
+            />
+          )}
+
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className={LABEL} htmlFor={`prod-${item.id}`}>

@@ -53,8 +53,14 @@ export default async function MenuPage() {
 
   const sql = db();
   const [venueRow] = await sql<
-    { tilby_token: string | null; languages: string[]; venue_type: string }[]
-  >`select tilby_token, languages, venue_type from venues where id = ${venue.venueId}`;
+    {
+      tilby_token: string | null;
+      languages: string[];
+      venue_type: string;
+      openrouter_api_key: string | null;
+    }[]
+  >`select tilby_token, languages, venue_type, openrouter_api_key
+      from venues where id = ${venue.venueId}`;
 
   const lingueAttive = venueRow?.languages ?? [];
 
@@ -242,6 +248,7 @@ export default async function MenuPage() {
               item={item}
               categories={categories}
               otherItems={allNames.filter((o) => o.id !== item.id)}
+              letturaEtichettaAttiva={Boolean(venueRow?.openrouter_api_key)}
             />
 
             <VariantiForm

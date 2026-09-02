@@ -17,7 +17,9 @@
     "./lingue": "./lingue.ts",
     "./varianti": "./varianti.ts",
     "./bevande": "./bevande.ts",
-    "./formati": "./formati.ts"
+    "./formati": "./formati.ts",
+    "./openrouter": "./openrouter.ts",
+    "./openrouter-tipi": "./openrouter-tipi.ts"
   },
   "dependencies": {
     "postgres": "^3.4.5",

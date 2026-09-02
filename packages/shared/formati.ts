@@ -18,7 +18,10 @@ export type TipoLocale =
   | "steak_house"
   | "paninoteca"
   | "hamburgeria"
-  | "bar";
+  | "bar"
+  | "gintoneria"
+  | "birreria"
+  | "tisaneria";
 
 export type TipoGruppo = "scelta" | "aggiunta" | "rimozione";
 
@@ -423,6 +426,150 @@ export const MODELLI: ModelloLocale[] = [
       "Sulla carne trita la cottura al sangue va sconsigliata per iscritto: è un rischio, non un gusto.",
       "Se il bun senza glutine viene tostato sulla stessa piastra, non è senza glutine.",
       "L'origine della carne bovina è obbligatoria anche per gli hamburger.",
+    ],
+  },
+  {
+    tipo: "gintoneria",
+    nome: "Gintoneria e cocktail bar",
+    descrizione: "Distillati, toniche e botaniche da comporre.",
+    categorie: ["Gin tonic", "Signature", "Classici", "Distillati lisci", "Taglieri e sfizi"],
+    gruppi: [
+      {
+        nome: "Gin",
+        categorie: ["Gin tonic"],
+        tipo: "scelta",
+        obbligatorio: true,
+        multiplo: false,
+        opzioni: [
+          ["London dry", 0],
+          ["Agrumato", 100],
+          ["Speziato", 100],
+          ["Navy strength", 300],
+        ],
+      },
+      {
+        nome: "Tonica",
+        categorie: ["Gin tonic"],
+        tipo: "scelta",
+        obbligatorio: true,
+        multiplo: false,
+        opzioni: [
+          ["Classica", 0],
+          ["Mediterranea", 100],
+          ["Al sambuco", 100],
+          ["Light", 0],
+        ],
+      },
+      {
+        nome: "Botaniche",
+        categorie: ["Gin tonic", "Signature"],
+        tipo: "aggiunta",
+        obbligatorio: false,
+        multiplo: true,
+        opzioni: [
+          ["Scorza di pompelmo", 0],
+          ["Cetriolo", 0],
+          ["Pepe rosa", 0],
+          ["Rosmarino", 0],
+          ["Bacche di ginepro", 0],
+        ],
+      },
+      {
+        nome: "Ghiaccio",
+        categorie: ["Gin tonic", "Signature", "Classici", "Distillati lisci"],
+        tipo: "scelta",
+        obbligatorio: false,
+        multiplo: false,
+        opzioni: [
+          ["Normale", 0],
+          ["Poco ghiaccio", 0],
+          ["Senza ghiaccio", 0],
+        ],
+      },
+    ],
+    promemoria: [
+      "Il gin tonic si compone: mettilo come una voce sola con gin e tonica come scelte, non come venti voci diverse.",
+      "La gradazione va indicata sui distillati: è quello che il cliente confronta.",
+      "Anidride solforosa e solfiti compaiono in vermouth e vini liquorosi: sono allergeni.",
+      "Se servi analcolici, dichiaralo chiaramente: chi guida te ne è grato e torna.",
+      "Somministrare alcol a minori di 18 anni è vietato: il servizio al tavolo non ti esonera dal controllo.",
+    ],
+  },
+  {
+    tipo: "birreria",
+    nome: "Birreria e pub",
+    descrizione: "Spina e bottiglia, formati e stili.",
+    categorie: ["Alla spina", "In bottiglia", "Cucina", "Fritti", "Distillati"],
+    gruppi: [
+      {
+        nome: "Formato",
+        categorie: ["Alla spina"],
+        tipo: "scelta",
+        obbligatorio: true,
+        multiplo: false,
+        opzioni: [
+          ["Piccola 0,2L", 0],
+          ["Media 0,4L", 200],
+          ["Pinta 0,5L", 300],
+        ],
+      },
+      {
+        nome: "Servizio",
+        categorie: ["Alla spina", "In bottiglia"],
+        tipo: "scelta",
+        obbligatorio: false,
+        multiplo: false,
+        opzioni: [
+          ["Normale", 0],
+          ["Bicchiere ghiacciato", 0],
+        ],
+      },
+    ],
+    promemoria: [
+      "Il glutine è nella birra: va dichiarato, anche se sembra scontato.",
+      "Gradazione e stile vanno in scheda: sono i due dati per cui si sceglie una birra.",
+      "Se una spina finisce, segnala il formato esaurito invece di togliere la birra: la rimetti in un tocco.",
+      "Le birre analcoliche non sono a zero alcol per legge: se scrivi 0,0% controlla l'etichetta.",
+    ],
+  },
+  {
+    tipo: "tisaneria",
+    nome: "Tisaneria e sala da tè",
+    descrizione: "Infusi, formati e accompagnamenti.",
+    categorie: ["Tè", "Tisane e infusi", "Caffetteria", "Dolci", "Salato"],
+    gruppi: [
+      {
+        nome: "Formato",
+        categorie: ["Tè", "Tisane e infusi"],
+        tipo: "scelta",
+        obbligatorio: true,
+        multiplo: false,
+        opzioni: [
+          ["Tazza", 0],
+          ["Teiera piccola", 200],
+          ["Teiera grande", 400],
+        ],
+      },
+      {
+        nome: "Accompagnamento",
+        categorie: ["Tè", "Tisane e infusi", "Caffetteria"],
+        tipo: "aggiunta",
+        obbligatorio: false,
+        multiplo: true,
+        opzioni: [
+          ["Miele", 50],
+          ["Limone", 0],
+          ["Latte", 0],
+          ["Latte vegetale", 50],
+          ["Zenzero fresco", 50],
+        ],
+      },
+    ],
+    promemoria: [
+      "Il tè contiene teina: indicalo su chi cerca l'infuso senza, la sera è la domanda più frequente.",
+      "Frutta a guscio e sedano compaiono spesso nelle tisane: sono allergeni.",
+      "Una tisana non è un integratore: evita in carta indicazioni salutistiche, sono vietate senza claim autorizzati.",
+      "Se hai pochi piatti o nessuno, togli le categorie che non usi: un menu con sezioni vuote sembra incompleto.",
     ],
   },
   {

@@ -96,6 +96,10 @@ create table venues (
   -- della piattaforma. Serve a chi vuole le conferme dal proprio dominio.
   resend_api_key text,                   -- cifrata a riposo
   resend_from text,
+  -- Chiave del locale per la lettura delle etichette vino da foto. Il costo
+  -- delle chiamate è suo, non nostro. Cifrata a riposo.
+  openrouter_api_key text,
+  openrouter_model text,
   satispay_key_id text,                  -- key_id ottenuto da /authentication_keys
   satispay_private_key text,             -- PEM, controparte della chiave pubblica registrata su Satispay
   invoice_provider text default 'invoicetronic', -- provider SDI esterno

@@ -10,6 +10,7 @@ import { BrandForm } from "./brand-form";
 import { PrenotazioniForm } from "./prenotazioni-form";
 import { EmailForm } from "./email-form";
 import { CopertoForm } from "./coperto-form";
+import { OpenRouterForm } from "./openrouter-form";
 import { emailConfigurata } from "@repo/shared/email";
 import { AnnuncioForm } from "./annuncio-form";
 
@@ -39,6 +40,8 @@ export default async function SettingsPage() {
       cover_charge_cents: number;
       service_percent: string;
       cover_charge_label: string | null;
+      openrouter_api_key: string | null;
+      openrouter_model: string | null;
       brand_color: string | null;
       public_phone: string | null;
       public_email: string | null;
@@ -63,7 +66,8 @@ export default async function SettingsPage() {
            announcement_starts_at, announcement_ends_at, announcement_enabled,
            reservation_email, reservation_capacity, reservation_auto_confirm,
            resend_api_key, resend_from,
-           cover_charge_cents, service_percent, cover_charge_label, brand_color, public_phone, public_email,
+           cover_charge_cents, service_percent, cover_charge_label,
+           openrouter_api_key, openrouter_model, brand_color, public_phone, public_email,
            tilby_shop_name, tips_enabled, tip_percents, google_review_url,
            stripe_account_id, satispay_key_id, vat_number, fiscal_code, regime_fiscale,
            address, address_zip, address_city, address_province, invoice_provider_api_key
@@ -140,6 +144,19 @@ export default async function SettingsPage() {
           email={venueRow?.reservation_email ?? null}
           capienza={venueRow?.reservation_capacity ?? null}
           autoConfirm={venueRow?.reservation_auto_confirm ?? false}
+        />
+      </section>
+
+      <section className="rounded-xl border border-border bg-surface p-4">
+        <h2 className="mb-1 font-semibold">Schede vino da foto</h2>
+        <p className="mb-3 text-sm text-muted">
+          Fotografi l&apos;etichetta e la scheda si compila da sé. Quello che
+          esce è una proposta da rileggere: in carta ci va quello che
+          confermi tu.
+        </p>
+        <OpenRouterForm
+          collegata={Boolean(venueRow?.openrouter_api_key)}
+          modello={venueRow?.openrouter_model ?? null}
         />
       </section>
 
