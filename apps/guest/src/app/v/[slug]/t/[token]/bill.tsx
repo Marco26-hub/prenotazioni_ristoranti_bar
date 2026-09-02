@@ -119,6 +119,22 @@ export function Bill({ sessionId, privacyHref }: { sessionId: string; privacyHre
       <section className="mt-8 space-y-4 rounded-xl border border-border bg-surface p-5">
         <p className="font-medium text-success">Conto saldato, grazie!</p>
 
+        <div className="grid gap-2 sm:grid-cols-2">
+          <a
+            href={`/api/receipts/${sessionId}`}
+            target="_blank"
+            rel="noreferrer"
+            className="flex min-h-12 items-center justify-center rounded-full border border-border px-5 text-center text-sm font-medium hover:bg-background focus-visible:ring-2 focus-visible:ring-accent"
+          >
+            Ricevuta di pagamento
+          </a>
+          <InvoiceRequest sessionId={sessionId} privacyHref={privacyHref} />
+        </div>
+        <p className="text-xs text-muted">
+          La ricevuta di pagamento non sostituisce lo scontrino fiscale. Per la
+          fattura elettronica inserisci i dati fiscali.
+        </p>
+
         {/* Il momento subito dopo il pagamento è quello in cui le persone
             sono più disposte a lasciare una recensione: chiederla dopo, per
             email, funziona molto meno. */}
@@ -133,7 +149,6 @@ export function Bill({ sessionId, privacyHref }: { sessionId: string; privacyHre
           </a>
         )}
 
-        <InvoiceRequest sessionId={sessionId} privacyHref={privacyHref} />
       </section>
     );
   }
@@ -369,19 +384,23 @@ function InvoiceRequest({
   };
 
   if (status === "sent") {
-    return <p className="text-sm text-success">Fattura inviata al Sistema di Interscambio.</p>;
+    return <p className="text-sm text-success sm:col-span-2">Fattura inviata al Sistema di Interscambio.</p>;
   }
 
   if (!open) {
     return (
-      <button type="button" onClick={() => setOpen(true)} className="text-sm underline">
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="min-h-12 rounded-full bg-accent px-5 text-sm font-medium text-accent-foreground"
+      >
         Richiedi fattura
       </button>
     );
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-3">
+    <form onSubmit={onSubmit} className="space-y-3 sm:col-span-2">
       <div className="flex gap-2">
         <button
           type="button"

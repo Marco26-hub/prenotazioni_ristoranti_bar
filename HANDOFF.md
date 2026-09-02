@@ -47,6 +47,12 @@ Il webhook va registrato nel pannello Invoicetronic con l'URL pubblico e il
 segreto in `INVOICETRONIC_WEBHOOK_SECRET`. La richiesta fattura raccoglie
 anche l'email del cliente e invia una copia tramite Resend quando configurato.
 
+Dopo il saldo il cliente puo aprire `/api/receipts/[sessionId]`: una ricevuta
+di pagamento dettagliata, stampabile o salvabile in PDF, con righe ordinate,
+coperto/servizio, mancia e metodo di pagamento. E indicata esplicitamente come
+documento di cortesia non fiscale; lo scontrino fiscale richiede ancora il
+registratore telematico o l'integrazione con la cassa del locale.
+
 ---
 
 ## 1. Cos'è
