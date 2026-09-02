@@ -37,7 +37,7 @@ export default async function TablesPage() {
     <main className="mx-auto max-w-2xl space-y-6 px-4 py-5">
       <h1 className="text-lg font-semibold">Gestione tavoli</h1>
 
-      <ul className="grid grid-cols-2 gap-4">
+      <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {tablesWithQr.map((t) => (
           <li key={t.id} className="rounded border p-4 text-center">
             <p className="mb-2 font-medium">
@@ -48,7 +48,7 @@ export default async function TablesPage() {
             <a
               href={t.qrDataUrl}
               download={`qr-tavolo-${t.code}.png`}
-              className="mt-2 block text-sm underline"
+              className="mt-2 inline-block min-h-11 py-2 text-sm underline"
             >
               Scarica PNG
             </a>

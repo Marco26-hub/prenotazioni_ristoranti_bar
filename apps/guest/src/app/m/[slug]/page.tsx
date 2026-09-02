@@ -230,7 +230,7 @@ export default async function PublicMenuPage({ params }: PageProps<"/m/[slug]">)
           {address && <p>{address}</p>}
           {venue.public_phone && (
             <p>
-              <a href={`tel:${venue.public_phone}`} className="underline underline-offset-2">
+              <a href={`tel:${venue.public_phone}`} className="inline-block py-1.5 underline underline-offset-2">
                 {venue.public_phone}
               </a>
             </p>

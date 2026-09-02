@@ -31,7 +31,7 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
               await signOut({ redirectTo: "/login" });
             }}
           >
-            <button type="submit" className="shrink-0 text-sm text-muted underline">
+            <button type="submit" className="flex min-h-11 shrink-0 items-center px-2 text-sm text-muted underline">
               Esci
             </button>
           </form>
@@ -45,7 +45,7 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
               <li key={item.href}>
                 <Link
                   href={item.href}
-                  className="block whitespace-nowrap rounded-full px-3 py-1.5 text-sm text-muted hover:bg-background hover:text-foreground"
+                  className="flex min-h-11 items-center whitespace-nowrap rounded-full px-3 text-sm text-muted hover:bg-background hover:text-foreground"
                 >
                   {item.label}
                 </Link>

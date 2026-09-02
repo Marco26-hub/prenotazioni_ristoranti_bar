@@ -81,7 +81,7 @@ export function DishSheet({
             type="button"
             onClick={onClose}
             aria-label="Chiudi"
-            className="h-10 w-10 rounded-full border border-border text-lg leading-none"
+            className="h-11 w-11 rounded-full border border-border text-lg leading-none"
           >
             ×
           </button>
@@ -152,7 +152,7 @@ export function DishSheet({
                 <button
                   type="button"
                   onClick={onAddPairing}
-                  className="min-h-10 shrink-0 rounded-full border border-accent px-4 text-sm font-medium"
+                  className="min-h-11 shrink-0 rounded-full border border-accent px-4 text-sm font-medium"
                 >
                   Aggiungi
                 </button>

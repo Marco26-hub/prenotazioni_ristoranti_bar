@@ -107,22 +107,22 @@ export default async function TablePage({
           {(venue.public_phone || venue.public_email) && (
             <p className="flex flex-wrap gap-x-3">
               {venue.public_phone && (
-                <a href={`tel:${venue.public_phone}`} className="underline underline-offset-2">
+                <a href={`tel:${venue.public_phone}`} className="inline-block py-1.5 underline underline-offset-2">
                   {venue.public_phone}
                 </a>
               )}
               {venue.public_email && (
-                <a href={`mailto:${venue.public_email}`} className="underline underline-offset-2">
+                <a href={`mailto:${venue.public_email}`} className="inline-block py-1.5 underline underline-offset-2">
                   {venue.public_email}
                 </a>
               )}
             </p>
           )}
           <p className="flex gap-4 pt-1">
-            <a href="/privacy" className="underline underline-offset-2">
+            <a href="/privacy" className="inline-block py-1.5 underline underline-offset-2">
               Privacy
             </a>
-            <a href="/termini" className="underline underline-offset-2">
+            <a href="/termini" className="inline-block py-1.5 underline underline-offset-2">
               Termini
             </a>
           </p>
