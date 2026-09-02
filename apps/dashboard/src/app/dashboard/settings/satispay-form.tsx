@@ -17,17 +17,17 @@ export function SatispayForm() {
         name="activationToken"
         placeholder="Codice attivazione (dalla Dashboard Satispay Business)"
         required
-        className="w-full rounded border p-2"
+        className="min-h-11 w-full rounded-lg border border-border bg-background px-3"
       />
       <button
         type="submit"
         disabled={pending}
-        className="w-full rounded bg-black py-2 text-white disabled:opacity-50"
+        className="min-h-11 w-full rounded-full bg-accent font-medium text-accent-foreground active:scale-95 disabled:opacity-50"
       >
         {pending ? "Attivazione..." : "Connetti Satispay"}
       </button>
-      {state?.error && <p className="text-sm text-red-600">{state.error}</p>}
-      {state?.success && <p className="text-sm text-green-700">Satispay connesso.</p>}
+      {state?.error && <p className="text-sm text-danger">{state.error}</p>}
+      {state?.success && <p className="text-sm text-success">Satispay connesso.</p>}
     </form>
   );
 }

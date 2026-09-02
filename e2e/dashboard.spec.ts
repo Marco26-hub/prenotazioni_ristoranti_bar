@@ -40,7 +40,7 @@ test("password sbagliata viene rifiutata", async ({ page }) => {
 
 test("login corretto porta alla dashboard del proprio locale", async ({ page }) => {
   await login(page);
-  await expect(page.getByRole("heading", { name: "E2E Test Venue" })).toBeVisible();
+  await expect(page.getByText("E2E Test Venue")).toBeVisible();
   await expect(page.getByText(venue.email)).toBeVisible();
 });
 
@@ -50,7 +50,7 @@ test("tutti i link di navigazione portano a una pagina che carica", async ({ pag
   const pages = [
     { link: "Ordini", heading: "Ordini in corso" },
     { link: "Menu", heading: "Menu" },
-    { link: "Gestione tavoli", heading: "Gestione tavoli" },
+    { link: "QR e tavoli", heading: "Gestione tavoli" },
     { link: "Prenotazioni", heading: "Prenotazioni" },
     { link: "Impostazioni", heading: /Impostazioni/ },
   ];
@@ -63,7 +63,7 @@ test("tutti i link di navigazione portano a una pagina che carica", async ({ pag
 
 test("il QR del tavolo punta all'app guest e apre quel tavolo", async ({ page }) => {
   await login(page);
-  await page.getByRole("link", { name: "Gestione tavoli", exact: true }).click();
+  await page.getByRole("link", { name: "QR e tavoli", exact: true }).click();
 
   const qrUrl = page.getByText(new RegExp(`/v/${venue.slug}/t/`));
   await expect(qrUrl).toBeVisible();
@@ -79,7 +79,7 @@ test("un ordine inviato dal tavolo compare nella board cucina", async ({ page, c
   // Ordine dal lato cliente.
   const guest = await context.newPage();
   await guest.goto(`${GUEST_URL}/v/${venue.slug}/t/${venue.qrToken}`);
-  await guest.getByRole("button", { name: "+" }).first().click();
+  await guest.getByRole("button", { name: /^Aggiungi / }).first().click();
   await guest.getByRole("button", { name: "Ordina" }).click();
   await expect(guest.getByText("Ordine inviato in cucina.")).toBeVisible();
   await guest.close();
@@ -94,7 +94,7 @@ test("un ordine inviato dal tavolo compare nella board cucina", async ({ page, c
 test("lo stato di una comanda avanza e resta salvato", async ({ page, context }) => {
   const guest = await context.newPage();
   await guest.goto(`${GUEST_URL}/v/${venue.slug}/t/${venue.qrToken}`);
-  await guest.getByRole("button", { name: "+" }).first().click();
+  await guest.getByRole("button", { name: /^Aggiungi / }).first().click();
   await guest.getByRole("button", { name: "Ordina" }).click();
   await expect(guest.getByText("Ordine inviato in cucina.")).toBeVisible();
   await guest.close();

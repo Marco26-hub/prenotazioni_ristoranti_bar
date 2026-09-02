@@ -1,27 +1,60 @@
 import Link from "next/link";
+import { auth, signOut } from "@/auth";
 
 const NAV = [
   { href: "/dashboard", label: "Tavoli" },
   { href: "/dashboard/orders", label: "Ordini" },
   { href: "/dashboard/menu", label: "Menu" },
-  { href: "/dashboard/tables", label: "Gestione tavoli" },
+  { href: "/dashboard/tables", label: "QR e tavoli" },
   { href: "/dashboard/reservations", label: "Prenotazioni" },
   { href: "/dashboard/settings", label: "Impostazioni" },
 ];
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default async function DashboardLayout({ children }: LayoutProps<"/dashboard">) {
+  const session = await auth();
+  const venue = session?.venues[0];
+
   return (
-    <div>
-      <nav className="border-b">
-        <div className="mx-auto flex max-w-4xl gap-4 overflow-x-auto p-4 text-sm">
-          {NAV.map((item) => (
-            <Link key={item.href} href={item.href} className="whitespace-nowrap hover:underline">
-              {item.label}
-            </Link>
-          ))}
+    <div className="flex min-h-full flex-col">
+      <header className="sticky top-0 z-10 border-b border-border bg-surface/95 backdrop-blur">
+        <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-3">
+          <div className="min-w-0">
+            <p className="truncate font-semibold leading-tight">
+              {venue?.venueName ?? "Gestionale"}
+            </p>
+            <p className="truncate text-xs text-muted">{session?.user.email}</p>
+          </div>
+          <form
+            action={async () => {
+              "use server";
+              await signOut({ redirectTo: "/login" });
+            }}
+          >
+            <button type="submit" className="shrink-0 text-sm text-muted underline">
+              Esci
+            </button>
+          </form>
         </div>
-      </nav>
-      {children}
+
+        {/* Su telefono la nav scorre in orizzontale invece di andare a capo:
+            in sala si usa con una mano sola. */}
+        <nav className="mx-auto max-w-4xl overflow-x-auto px-4 pb-2">
+          <ul className="flex gap-1">
+            {NAV.map((item) => (
+              <li key={item.href}>
+                <Link
+                  href={item.href}
+                  className="block whitespace-nowrap rounded-full px-3 py-1.5 text-sm text-muted hover:bg-background hover:text-foreground"
+                >
+                  {item.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </header>
+
+      <div className="flex-1">{children}</div>
     </div>
   );
 }

@@ -31,13 +31,13 @@ export default async function MenuPage() {
   }
 
   return (
-    <main className="mx-auto max-w-2xl space-y-8 p-4">
-      <h1 className="text-xl font-semibold">Menu</h1>
+    <main className="mx-auto max-w-2xl space-y-6 px-4 py-5">
+      <h1 className="text-lg font-semibold">Menu</h1>
 
       {categories.map((cat) => (
         <section key={cat.id}>
-          <h2 className="mb-2 font-medium">{cat.name}</h2>
-          <ul className="divide-y rounded border">
+          <h2 className="mb-2 font-semibold">{cat.name}</h2>
+          <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
             {(itemsByCategory.get(cat.id) ?? []).map((item) => (
               <MenuItemRow key={item.id} item={item} />
             ))}
@@ -47,8 +47,8 @@ export default async function MenuPage() {
 
       {itemsByCategory.get(null) && (
         <section>
-          <h2 className="mb-2 font-medium">Senza categoria</h2>
-          <ul className="divide-y rounded border">
+          <h2 className="mb-2 font-semibold">Senza categoria</h2>
+          <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
             {itemsByCategory.get(null)!.map((item) => (
               <MenuItemRow key={item.id} item={item} />
             ))}
@@ -56,20 +56,20 @@ export default async function MenuPage() {
         </section>
       )}
 
-      <section className="rounded border p-4">
-        <h2 className="mb-2 font-medium">Aggiungi categoria</h2>
+      <section className="rounded-xl border border-border bg-surface p-4">
+        <h2 className="mb-2 font-semibold">Aggiungi categoria</h2>
         <form action={addCategory} className="flex gap-2">
-          <input name="name" placeholder="Nome categoria" required className="flex-1 rounded border p-2" />
-          <button type="submit" className="rounded bg-black px-4 py-2 text-white">
+          <input name="name" placeholder="Nome categoria" required className="min-h-11 flex-1 rounded-lg border border-border bg-background px-3" />
+          <button type="submit" className="min-h-11 rounded-full bg-accent px-5 font-medium text-accent-foreground active:scale-95">
             Aggiungi
           </button>
         </form>
       </section>
 
-      <section className="rounded border p-4">
-        <h2 className="mb-2 font-medium">Aggiungi piatto</h2>
+      <section className="rounded-xl border border-border bg-surface p-4">
+        <h2 className="mb-2 font-semibold">Aggiungi piatto</h2>
         <form action={addMenuItem} className="space-y-2">
-          <input name="name" placeholder="Nome piatto" required className="w-full rounded border p-2" />
+          <input name="name" placeholder="Nome piatto" required className="min-h-11 w-full rounded-lg border border-border bg-background px-3" />
           <input
             name="price"
             type="number"
@@ -77,9 +77,9 @@ export default async function MenuPage() {
             min="0"
             placeholder="Prezzo (€)"
             required
-            className="w-full rounded border p-2"
+            className="min-h-11 w-full rounded-lg border border-border bg-background px-3"
           />
-          <select name="categoryId" className="w-full rounded border p-2">
+          <select name="categoryId" className="min-h-11 w-full rounded-lg border border-border bg-background px-3">
             <option value="">Nessuna categoria</option>
             {categories.map((cat) => (
               <option key={cat.id} value={cat.id}>
@@ -87,7 +87,7 @@ export default async function MenuPage() {
               </option>
             ))}
           </select>
-          <button type="submit" className="w-full rounded bg-black py-2 text-white">
+          <button type="submit" className="min-h-11 w-full rounded-full bg-accent font-medium text-accent-foreground active:scale-95">
             Aggiungi piatto
           </button>
         </form>
@@ -103,7 +103,7 @@ function MenuItemRow({
 }) {
   return (
     <li className="flex items-center justify-between p-3">
-      <span className={item.available ? "" : "text-gray-400 line-through"}>
+      <span className={item.available ? "" : "text-muted line-through"}>
         {item.name} — {formatPriceCents(item.price_cents)}
       </span>
       <div className="flex gap-2 text-sm">
@@ -123,7 +123,7 @@ function MenuItemRow({
             await deleteMenuItem(item.id);
           }}
         >
-          <button type="submit" className="text-red-600 underline">
+          <button type="submit" className="text-danger underline">
             Elimina
           </button>
         </form>

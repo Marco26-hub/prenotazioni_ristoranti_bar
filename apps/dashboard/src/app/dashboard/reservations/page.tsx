@@ -24,18 +24,18 @@ export default async function ReservationsPage() {
     order by reserved_at asc`;
 
   return (
-    <main className="mx-auto max-w-2xl space-y-8 p-4">
-      <h1 className="text-xl font-semibold">Prenotazioni</h1>
+    <main className="mx-auto max-w-2xl space-y-6 px-4 py-5">
+      <h1 className="text-lg font-semibold">Prenotazioni</h1>
 
-      <ul className="divide-y rounded border">
+      <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
         {reservations.map((r) => (
           <li key={r.id} className="flex items-center justify-between p-3">
             <div>
-              <p className={r.status === "cancelled" ? "text-gray-400 line-through" : ""}>
+              <p className={r.status === "cancelled" ? "text-muted line-through" : ""}>
                 {new Date(r.reserved_at).toLocaleString("it-IT")} — {r.customer_name} (
                 {r.party_size} persone)
               </p>
-              {r.customer_phone && <p className="text-sm text-gray-500">{r.customer_phone}</p>}
+              {r.customer_phone && <p className="text-sm text-muted">{r.customer_phone}</p>}
             </div>
             {r.status !== "cancelled" && (
               <form
@@ -44,7 +44,7 @@ export default async function ReservationsPage() {
                   await cancelReservation(r.id);
                 }}
               >
-                <button type="submit" className="text-sm text-red-600 underline">
+                <button type="submit" className="text-sm text-danger underline">
                   Annulla
                 </button>
               </form>
@@ -52,25 +52,25 @@ export default async function ReservationsPage() {
           </li>
         ))}
         {reservations.length === 0 && (
-          <li className="p-3 text-sm text-gray-500">Nessuna prenotazione.</li>
+          <li className="p-3 text-sm text-muted">Nessuna prenotazione.</li>
         )}
       </ul>
 
-      <section className="rounded border p-4">
-        <h2 className="mb-2 font-medium">Nuova prenotazione</h2>
+      <section className="rounded-xl border border-border bg-surface p-4">
+        <h2 className="mb-2 font-semibold">Nuova prenotazione</h2>
         <form action={addReservation} className="space-y-2">
-          <input name="customerName" placeholder="Nome cliente" required className="w-full rounded border p-2" />
-          <input name="phone" placeholder="Telefono (opzionale)" className="w-full rounded border p-2" />
+          <input name="customerName" placeholder="Nome cliente" required className="min-h-11 w-full rounded-lg border border-border bg-background px-3" />
+          <input name="phone" placeholder="Telefono (opzionale)" className="min-h-11 w-full rounded-lg border border-border bg-background px-3" />
           <input
             name="partySize"
             type="number"
             min="1"
             placeholder="Numero persone"
             required
-            className="w-full rounded border p-2"
+            className="min-h-11 w-full rounded-lg border border-border bg-background px-3"
           />
-          <input name="reservedAt" type="datetime-local" required className="w-full rounded border p-2" />
-          <button type="submit" className="w-full rounded bg-black py-2 text-white">
+          <input name="reservedAt" type="datetime-local" required className="min-h-11 w-full rounded-lg border border-border bg-background px-3" />
+          <button type="submit" className="min-h-11 w-full rounded-full bg-accent font-medium text-accent-foreground active:scale-95">
             Prenota
           </button>
         </form>

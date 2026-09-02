@@ -107,92 +107,111 @@ export function OrderMenu({
     }
   };
 
+  const renderItem = (item: MenuItem) => {
+    const inCart = cart[item.id];
+    return (
+      <li
+        key={item.id}
+        className="flex items-start gap-3 rounded-xl border border-border bg-surface p-4"
+      >
+        <div className="min-w-0 flex-1">
+          <p className="font-medium leading-snug">{item.name}</p>
+          {item.description && (
+            <p className="mt-0.5 text-sm leading-snug text-muted">{item.description}</p>
+          )}
+          <p className="mt-1.5 font-semibold tabular-nums">
+            {formatPriceCents(item.price_cents, currency)}
+          </p>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2">
+          {inCart && (
+            <>
+              <button
+                type="button"
+                onClick={() => removeItem(item.id)}
+                aria-label={`Togli ${item.name}`}
+                className="h-11 w-11 rounded-full border border-border text-xl leading-none active:scale-95"
+              >
+                −
+              </button>
+              <span className="w-5 text-center font-semibold tabular-nums">
+                {inCart.quantity}
+              </span>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={() => addItem(item)}
+            aria-label={`Aggiungi ${item.name}`}
+            className="h-11 w-11 rounded-full bg-accent text-xl leading-none text-accent-foreground active:scale-95"
+          >
+            +
+          </button>
+        </div>
+      </li>
+    );
+  };
+
+  const uncategorised = itemsByCategory.get(null) ?? [];
+
   return (
-    <div className="space-y-8 pb-32">
+    <div className="space-y-7 pb-28">
       {categories.map((cat) => {
         const catItems = itemsByCategory.get(cat.id) ?? [];
         if (catItems.length === 0) return null;
         return (
           <section key={cat.id}>
-            <h2 className="mb-2 text-lg font-medium">{cat.name}</h2>
-            <ul className="space-y-2">
-              {catItems.map((item) => (
-                <li key={item.id} className="flex items-center justify-between rounded border p-3">
-                  <div>
-                    <p className="font-medium">{item.name}</p>
-                    {item.description && (
-                      <p className="text-sm text-gray-500">{item.description}</p>
-                    )}
-                    <p className="text-sm">{formatPriceCents(item.price_cents, currency)}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {cart[item.id] && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => removeItem(item.id)}
-                          className="h-8 w-8 rounded border"
-                        >
-                          −
-                        </button>
-                        <span>{cart[item.id].quantity}</span>
-                      </>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => addItem(item)}
-                      className="h-8 w-8 rounded border"
-                    >
-                      +
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <h2 className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-muted">
+              {cat.name}
+            </h2>
+            <ul className="space-y-2.5">{catItems.map(renderItem)}</ul>
           </section>
         );
       })}
 
-      {itemsByCategory.get(null)?.length ? (
+      {uncategorised.length > 0 && (
         <section>
-          <ul className="space-y-2">
-            {itemsByCategory.get(null)!.map((item) => (
-              <li key={item.id} className="flex items-center justify-between rounded border p-3">
-                <div>
-                  <p className="font-medium">{item.name}</p>
-                  <p className="text-sm">{formatPriceCents(item.price_cents, currency)}</p>
-                </div>
-                <button type="button" onClick={() => addItem(item)} className="h-8 w-8 rounded border">
-                  +
-                </button>
-              </li>
-            ))}
-          </ul>
+          <ul className="space-y-2.5">{uncategorised.map(renderItem)}</ul>
         </section>
-      ) : null}
+      )}
+
+      {items.length === 0 && (
+        <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted">
+          Il menu non è ancora disponibile. Chiedi al personale.
+        </p>
+      )}
 
       {lines.length > 0 && (
-        <div className="fixed inset-x-0 bottom-0 border-t bg-white p-4">
-          <div className="mx-auto flex max-w-2xl items-center justify-between">
-            <span>
-              {lines.reduce((n, l) => n + l.quantity, 0)} articoli —{" "}
-              {formatPriceCents(totalCents, currency)}
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-surface/95 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
+          <div className="mx-auto flex max-w-2xl items-center justify-between gap-3">
+            <span className="text-sm">
+              <strong className="tabular-nums">
+                {lines.reduce((n, l) => n + l.quantity, 0)}
+              </strong>{" "}
+              articoli
+              <span className="block font-semibold tabular-nums">
+                {formatPriceCents(totalCents, currency)}
+              </span>
             </span>
             <button
               type="button"
               onClick={submitOrder}
               disabled={submitting}
-              className="rounded bg-black px-4 py-2 text-white disabled:opacity-50"
+              className="min-h-12 rounded-full bg-accent px-7 font-medium text-accent-foreground active:scale-95 disabled:opacity-50"
             >
               {submitting ? "Invio..." : "Ordina"}
             </button>
           </div>
-          {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+          {error && <p className="mx-auto mt-2 max-w-2xl text-sm text-danger">{error}</p>}
         </div>
       )}
 
       {submitted && (
-        <p className="fixed inset-x-0 top-0 bg-green-600 p-2 text-center text-white">
+        <p
+          role="status"
+          className="fixed inset-x-0 top-0 z-30 bg-success p-3 text-center text-sm font-medium text-white"
+        >
           Ordine inviato in cucina.
         </p>
       )}

@@ -54,23 +54,35 @@ export function LiveBoard() {
   };
 
   if (items.length === 0) {
-    return <p className="p-4 text-sm text-gray-500">Nessun ordine in corso.</p>;
+    return (
+      <p className="mt-4 rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted">
+        Nessun ordine in corso.
+      </p>
+    );
   }
 
   return (
-    <ul className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2">
+    <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
       {items.map((item) => (
-        <li key={item.id} className="rounded border p-3">
-          <p className="font-medium">
-            Tavolo {item.table_code} — {item.quantity}× {item.item_name}
+        <li
+          key={item.id}
+          className={`rounded-xl border bg-surface p-4 ${
+            item.status === "ready" ? "border-success" : "border-border"
+          }`}
+        >
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="font-semibold">Tavolo {item.table_code}</p>
+            <span className="shrink-0 text-xs text-muted">{STATUS_LABEL[item.status]}</span>
+          </div>
+          <p className="mt-1 text-lg leading-snug">
+            <strong className="tabular-nums">{item.quantity}×</strong> {item.item_name}
           </p>
-          {item.notes && <p className="text-sm text-gray-500">{item.notes}</p>}
-          <p className="mt-1 text-sm text-gray-600">{STATUS_LABEL[item.status]}</p>
+          {item.notes && <p className="mt-0.5 text-sm italic text-muted">{item.notes}</p>}
           {NEXT_STATUS[item.status] && (
             <button
               type="button"
               onClick={() => advance(item)}
-              className="mt-2 rounded bg-black px-3 py-1 text-sm text-white"
+              className="mt-3 min-h-11 w-full rounded-full bg-accent px-4 text-sm font-medium text-accent-foreground active:scale-95"
             >
               Segna: {STATUS_LABEL[NEXT_STATUS[item.status]!] ?? "Servito"}
             </button>

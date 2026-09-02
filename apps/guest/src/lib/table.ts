@@ -1,8 +1,24 @@
 import "server-only";
 import { db } from "@repo/shared/db";
 
+export interface ResolvedVenue {
+  id: string;
+  name: string;
+  slug: string;
+  currency: string;
+  logo_url: string | null;
+  brand_color: string | null;
+  public_phone: string | null;
+  public_email: string | null;
+  vat_number: string | null;
+  address: string | null;
+  address_zip: string | null;
+  address_city: string | null;
+  address_province: string | null;
+}
+
 export interface ResolvedTable {
-  venue: { id: string; name: string; slug: string; currency: string };
+  venue: ResolvedVenue;
   table: { id: string; code: string; seats: number };
   sessionId: string;
 }
@@ -18,9 +34,11 @@ export async function resolveTableFromQr(
 ): Promise<ResolvedTable | null> {
   const sql = db();
 
-  const [venue] = await sql<
-    { id: string; name: string; slug: string; currency: string }[]
-  >`select id, name, slug, currency from venues where slug = ${slug}`;
+  const [venue] = await sql<ResolvedVenue[]>`
+    select id, name, slug, currency, logo_url, brand_color,
+           public_phone, public_email, vat_number,
+           address, address_zip, address_city, address_province
+    from venues where slug = ${slug}`;
   if (!venue) return null;
 
   const [table] = await sql<

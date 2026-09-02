@@ -113,8 +113,8 @@ export function Bill({ sessionId }: { sessionId: string }) {
 
   if (paid) {
     return (
-      <section className="mt-8 rounded border p-4">
-        <p className="mb-3 text-green-700">Conto saldato, grazie!</p>
+      <section className="mt-8 rounded-xl border border-border bg-surface p-5">
+        <p className="mb-3 font-medium text-success">Conto saldato, grazie!</p>
         <InvoiceRequest sessionId={sessionId} />
       </section>
     );
@@ -129,14 +129,16 @@ export function Bill({ sessionId }: { sessionId: string }) {
     : bill.balanceCents;
 
   return (
-    <section className="mt-8 rounded border p-4">
-      <h2 className="mb-2 text-lg font-medium">Conto</h2>
-      <p className="mb-4">
-        Totale: {formatPriceCents(bill.balanceCents, bill.currency)}
-      </p>
+    <section className="mt-8 rounded-xl border border-border bg-surface p-5">
+      <div className="mb-4 flex items-baseline justify-between">
+        <h2 className="text-base font-semibold">Il conto</h2>
+        <span className="text-xl font-semibold tabular-nums">
+          {formatPriceCents(bill.balanceCents, bill.currency)}
+        </span>
+      </div>
 
       {!bill.stripeAccountId && !bill.satispayEnabled && (
-        <p className="text-sm text-red-600">
+        <p className="rounded-lg bg-background p-3 text-sm text-muted">
           Pagamento online non ancora attivo per questo locale — chiedi al personale.
         </p>
       )}
@@ -144,7 +146,7 @@ export function Bill({ sessionId }: { sessionId: string }) {
       {(bill.stripeAccountId || bill.satispayEnabled) && !clientSecret && (
         <div className="space-y-3">
           {bill.unpaidItems.length > 1 && (
-            <div className="rounded border p-3">
+            <div className="rounded-lg border border-border p-3">
               <div className="mb-2 flex gap-2">
                 <button
                   type="button"
@@ -152,14 +154,14 @@ export function Bill({ sessionId }: { sessionId: string }) {
                     setSplitMode(false);
                     setSelectedItems([]);
                   }}
-                  className={`rounded border px-3 py-1 text-sm ${!splitMode ? "bg-black text-white" : ""}`}
+                  className={`rounded border px-3 py-1 text-sm ${!splitMode ? "bg-accent text-accent-foreground" : ""}`}
                 >
                   Pago tutto
                 </button>
                 <button
                   type="button"
                   onClick={() => setSplitMode(true)}
-                  className={`rounded border px-3 py-1 text-sm ${splitMode ? "bg-black text-white" : ""}`}
+                  className={`rounded border px-3 py-1 text-sm ${splitMode ? "bg-accent text-accent-foreground" : ""}`}
                 >
                   Pago solo i miei piatti
                 </button>
@@ -201,8 +203,8 @@ export function Bill({ sessionId }: { sessionId: string }) {
                   key={cents}
                   type="button"
                   onClick={() => setTipCents(cents)}
-                  className={`rounded border px-3 py-1 text-sm ${
-                    tipCents === cents ? "bg-black text-white" : ""
+                  className={`min-h-10 rounded-full border border-border px-4 text-sm ${
+                    tipCents === cents ? "bg-accent text-accent-foreground" : ""
                   }`}
                 >
                   {cents === 0 ? "Nessuna" : formatPriceCents(cents, bill.currency)}
@@ -216,14 +218,14 @@ export function Bill({ sessionId }: { sessionId: string }) {
               type="button"
               onClick={startCheckout}
               disabled={splitMode && selectedItems.length === 0}
-              className="w-full rounded bg-black py-2 text-white disabled:opacity-50"
+              className="min-h-12 w-full rounded-full bg-accent font-medium text-accent-foreground active:scale-95 disabled:opacity-50"
             >
               Paga con carta — {formatPriceCents(payableCents + tipCents, bill.currency)}
             </button>
           )}
 
           {bill.satispayEnabled && splitMode && (
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-muted">
               Satispay al momento accetta solo il pagamento dell&apos;intero conto.
             </p>
           )}
@@ -232,13 +234,13 @@ export function Bill({ sessionId }: { sessionId: string }) {
             <button
               type="button"
               onClick={startSatispayCheckout}
-              className="w-full rounded border border-black py-2 text-black"
+              className="min-h-12 w-full rounded-full border border-border font-medium active:scale-95"
             >
               Paga con Satispay — {formatPriceCents(bill.balanceCents + tipCents, bill.currency)}
             </button>
           )}
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && <p className="text-sm text-danger">{error}</p>}
         </div>
       )}
 
@@ -316,7 +318,7 @@ function InvoiceRequest({ sessionId }: { sessionId: string }) {
   };
 
   if (status === "sent") {
-    return <p className="text-sm text-green-700">Fattura inviata al Sistema di Interscambio.</p>;
+    return <p className="text-sm text-success">Fattura inviata al Sistema di Interscambio.</p>;
   }
 
   if (!open) {
@@ -353,21 +355,21 @@ function InvoiceRequest({ sessionId }: { sessionId: string }) {
             required
             value={firstName}
             onChange={(e) => setFirstName(e.target.value)}
-            className="w-full rounded border p-2"
+            className="min-h-12 w-full rounded-lg border border-border bg-background px-3"
           />
           <input
             placeholder="Cognome"
             required
             value={lastName}
             onChange={(e) => setLastName(e.target.value)}
-            className="w-full rounded border p-2"
+            className="min-h-12 w-full rounded-lg border border-border bg-background px-3"
           />
           <input
             placeholder="Codice fiscale"
             required
             value={fiscalCode}
             onChange={(e) => setFiscalCode(e.target.value.toUpperCase())}
-            className="w-full rounded border p-2"
+            className="min-h-12 w-full rounded-lg border border-border bg-background px-3"
           />
         </>
       ) : (
@@ -377,20 +379,20 @@ function InvoiceRequest({ sessionId }: { sessionId: string }) {
             required
             value={companyName}
             onChange={(e) => setCompanyName(e.target.value)}
-            className="w-full rounded border p-2"
+            className="min-h-12 w-full rounded-lg border border-border bg-background px-3"
           />
           <input
             placeholder="Partita IVA"
             required
             value={vatNumber}
             onChange={(e) => setVatNumber(e.target.value)}
-            className="w-full rounded border p-2"
+            className="min-h-12 w-full rounded-lg border border-border bg-background px-3"
           />
         </>
       )}
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <p className="text-xs text-gray-500">
+      {error && <p className="text-sm text-danger">{error}</p>}
+      <p className="text-xs text-muted">
         I dati inseriti sono usati per emettere la fattura e trasmetterla al
         Sistema di Interscambio.{" "}
         <a href="/privacy" className="underline">
@@ -401,7 +403,7 @@ function InvoiceRequest({ sessionId }: { sessionId: string }) {
       <button
         type="submit"
         disabled={status === "sending"}
-        className="w-full rounded bg-black py-2 text-white disabled:opacity-50"
+        className="min-h-12 w-full rounded-full bg-accent font-medium text-accent-foreground active:scale-95 disabled:opacity-50"
       >
         {status === "sending" ? "Invio..." : "Invia richiesta fattura"}
       </button>
@@ -438,11 +440,11 @@ function PaymentForm({ onSuccess }: { onSuccess: () => void }) {
   return (
     <form onSubmit={onSubmit} className="space-y-3">
       <PaymentElement />
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
       <button
         type="submit"
         disabled={!stripe || submitting}
-        className="w-full rounded bg-black py-2 text-white disabled:opacity-50"
+        className="min-h-12 w-full rounded-full bg-accent font-medium text-accent-foreground active:scale-95 disabled:opacity-50"
       >
         {submitting ? "Elaborazione..." : "Conferma pagamento"}
       </button>

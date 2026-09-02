@@ -42,8 +42,10 @@ function LoginForm() {
   };
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center p-4">
-      <h1 className="mb-6 text-xl font-semibold">Accesso staff</h1>
+    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-5 py-10">
+      <div className="rounded-2xl border border-border bg-surface p-6">
+      <h1 className="mb-1 text-xl font-semibold tracking-tight">Accesso staff</h1>
+      <p className="mb-6 text-sm text-muted">Gestisci tavoli, ordini e menu del tuo locale.</p>
       <form onSubmit={onSubmit} className="space-y-4">
         <div>
           <label className="mb-1 block text-sm">Email</label>
@@ -52,7 +54,7 @@ function LoginForm() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded border p-2"
+            className="min-h-11 w-full rounded-lg border border-border bg-background px-3"
           />
         </div>
         <div>
@@ -62,22 +64,23 @@ function LoginForm() {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded border p-2"
+            className="min-h-11 w-full rounded-lg border border-border bg-background px-3"
           />
         </div>
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-danger">{error}</p>}
         <button
           type="submit"
           disabled={submitting}
-          className="w-full rounded bg-black py-2 text-white disabled:opacity-50"
+          className="min-h-11 w-full rounded-full bg-accent font-medium text-accent-foreground active:scale-95 disabled:opacity-50"
         >
           {submitting ? "Accesso..." : "Accedi"}
         </button>
       </form>
 
-      <a href="/registrati" className="mt-4 text-center text-sm underline">
+      <a href="/registrati" className="mt-5 block text-center text-sm text-muted underline">
         Registra un nuovo locale
       </a>
+      </div>
     </main>
   );
 }

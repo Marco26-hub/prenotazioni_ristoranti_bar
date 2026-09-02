@@ -34,8 +34,8 @@ export default async function TablesPage() {
   );
 
   return (
-    <main className="mx-auto max-w-2xl space-y-8 p-4">
-      <h1 className="text-xl font-semibold">Gestione tavoli</h1>
+    <main className="mx-auto max-w-2xl space-y-6 px-4 py-5">
+      <h1 className="text-lg font-semibold">Gestione tavoli</h1>
 
       <ul className="grid grid-cols-2 gap-4">
         {tablesWithQr.map((t) => (
@@ -52,7 +52,7 @@ export default async function TablesPage() {
             >
               Scarica PNG
             </a>
-            <p className="mt-1 break-all text-xs text-gray-500">{t.url}</p>
+            <p className="mt-1 break-all text-xs text-muted">{t.url}</p>
 
             <form action={updateTable} className="mt-3 flex gap-1">
               <input type="hidden" name="tableId" value={t.id} />
@@ -60,16 +60,16 @@ export default async function TablesPage() {
                 name="code"
                 defaultValue={t.code}
                 required
-                className="w-full min-w-0 rounded border p-1 text-sm"
+                className="min-h-10 w-full min-w-0 rounded-lg border border-border bg-background px-2 text-sm"
               />
               <input
                 name="seats"
                 type="number"
                 min="1"
                 defaultValue={t.seats}
-                className="w-14 rounded border p-1 text-sm"
+                className="min-h-10 w-14 rounded-lg border border-border bg-background px-2 text-sm"
               />
-              <button type="submit" className="rounded border px-2 text-sm">
+              <button type="submit" className="min-h-10 rounded-lg border border-border px-3 text-sm">
                 Salva
               </button>
             </form>
@@ -101,7 +101,7 @@ export default async function TablesPage() {
                   await deleteTable(t.id);
                 }}
               >
-                <button type="submit" className="text-red-600 underline">
+                <button type="submit" className="text-danger underline">
                   Elimina
                 </button>
               </form>
@@ -110,24 +110,24 @@ export default async function TablesPage() {
         ))}
       </ul>
 
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-muted">
         Rigenerando il QR gli adesivi già stampati per quel tavolo smettono di
         funzionare e vanno ristampati. Un tavolo con ordini a storico non viene
         cancellato ma solo disattivato, per non perdere i dati contabili.
       </p>
 
-      <section className="rounded border p-4">
-        <h2 className="mb-2 font-medium">Aggiungi tavolo</h2>
+      <section className="rounded-xl border border-border bg-surface p-4">
+        <h2 className="mb-2 font-semibold">Aggiungi tavolo</h2>
         <form action={addTable} className="flex gap-2">
-          <input name="code" placeholder="Codice (es. T3)" required className="flex-1 rounded border p-2" />
+          <input name="code" placeholder="Codice (es. T3)" required className="min-h-11 flex-1 rounded-lg border border-border bg-background px-3" />
           <input
             name="seats"
             type="number"
             min="1"
             defaultValue={2}
-            className="w-20 rounded border p-2"
+            className="min-h-11 w-20 rounded-lg border border-border bg-background px-3"
           />
-          <button type="submit" className="rounded bg-black px-4 py-2 text-white">
+          <button type="submit" className="min-h-11 rounded-full bg-accent px-5 font-medium text-accent-foreground active:scale-95">
             Aggiungi
           </button>
         </form>

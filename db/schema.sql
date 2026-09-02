@@ -31,6 +31,13 @@ create table venues (
   owner_id uuid references users(id) not null,
   name text not null,
   slug text unique not null,             -- usato in URL QR: /v/{slug}/t/{table_code}
+  -- White label: il cliente finale deve vedere il marchio del locale.
+  -- Il logo è una data URL (limite applicativo 200 KB) per non dipendere
+  -- da un object storage esterno; se servono immagini grandi va spostato.
+  logo_url text,
+  brand_color text,                      -- hex, es. "#b4451f"
+  public_phone text,                     -- mostrato al cliente, obbligo trasparenza
+  public_email text,
   vat_number text,                       -- p.iva, per fattura elettronica
   fiscal_code text,                      -- codice fiscale, richiesto in FatturaPA CedentePrestatore
   sdi_code text,                         -- codice destinatario SDI

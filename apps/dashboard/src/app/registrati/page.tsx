@@ -13,7 +13,7 @@ export default function SignupPage() {
   if (state?.success) {
     return (
       <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 p-4">
-        <h1 className="text-xl font-semibold">Locale creato</h1>
+        <h1 className="text-lg font-semibold">Locale creato</h1>
         <p className="text-sm">
           Ora puoi accedere e trovare i QR dei tavoli già pronti da stampare in
           Gestione tavoli.
@@ -26,22 +26,24 @@ export default function SignupPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center p-4">
-      <h1 className="mb-6 text-xl font-semibold">Registra il tuo locale</h1>
+    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-5 py-10">
+      <div className="rounded-2xl border border-border bg-surface p-6">
+      <h1 className="mb-1 text-xl font-semibold tracking-tight">Registra il tuo locale</h1>
+      <p className="mb-6 text-sm text-muted">Bastano un minuto e il numero di tavoli: i QR li generiamo noi.</p>
 
       <form action={formAction} className="space-y-3">
         <input
           name="venueName"
           placeholder="Nome del locale"
           required
-          className="w-full rounded border p-2"
+          className="min-h-11 w-full rounded-lg border border-border bg-background px-3"
         />
         <input
           name="email"
           type="email"
           placeholder="Email"
           required
-          className="w-full rounded border p-2"
+          className="min-h-11 w-full rounded-lg border border-border bg-background px-3"
         />
         <input
           name="password"
@@ -49,7 +51,7 @@ export default function SignupPage() {
           placeholder="Password (min 8 caratteri)"
           required
           minLength={8}
-          className="w-full rounded border p-2"
+          className="min-h-11 w-full rounded-lg border border-border bg-background px-3"
         />
         <div>
           <label className="mb-1 block text-sm">Quanti tavoli</label>
@@ -60,27 +62,28 @@ export default function SignupPage() {
             max="200"
             defaultValue={10}
             required
-            className="w-full rounded border p-2"
+            className="min-h-11 w-full rounded-lg border border-border bg-background px-3"
           />
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-muted">
             Creiamo subito un QR per ogni tavolo. Potrai aggiungerne o toglierne dopo.
           </p>
         </div>
 
-        {state?.error && <p className="text-sm text-red-600">{state.error}</p>}
+        {state?.error && <p className="text-sm text-danger">{state.error}</p>}
 
         <button
           type="submit"
           disabled={pending}
-          className="w-full rounded bg-black py-2 text-white disabled:opacity-50"
+          className="min-h-11 w-full rounded-full bg-accent font-medium text-accent-foreground active:scale-95 disabled:opacity-50"
         >
           {pending ? "Creazione..." : "Crea locale"}
         </button>
       </form>
 
-      <Link href="/login" className="mt-4 text-center text-sm underline">
+      <Link href="/login" className="mt-5 block text-center text-sm text-muted underline">
         Ho già un account
       </Link>
+      </div>
     </main>
   );
 }

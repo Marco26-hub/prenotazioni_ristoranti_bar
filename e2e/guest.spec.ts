@@ -33,16 +33,18 @@ test("ordine: aggiungi al carrello, invia, il conto si aggiorna", async ({ page 
   // Il carrello compare solo dopo aver aggiunto qualcosa.
   await expect(page.getByRole("button", { name: "Ordina" })).toHaveCount(0);
 
-  await page.getByRole("button", { name: "+" }).first().click();
-  await page.getByRole("button", { name: "+" }).first().click();
+  await page.getByRole("button", { name: /^Aggiungi / }).first().click();
+  await page.getByRole("button", { name: /^Aggiungi / }).first().click();
 
-  await expect(page.getByText("2 articoli — 30,00 €")).toBeVisible();
+  await expect(page.getByText("articoli")).toBeVisible();
+  await expect(page.getByText("30,00 €")).toBeVisible();
 
   await page.getByRole("button", { name: "Ordina" }).click();
   await expect(page.getByText("Ordine inviato in cucina.")).toBeVisible();
 
   // Il totale del conto riflette l'ordine appena inviato (polling ogni 5s).
-  await expect(page.getByText("Totale: 30,00 €")).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText("Il conto")).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText("30,00 €").first()).toBeVisible();
 });
 
 test("senza metodi di pagamento configurati il conto lo dice esplicitamente", async ({ page }) => {

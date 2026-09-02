@@ -30,11 +30,11 @@ export function ConnectStripeButton({ label }: { label: string }) {
         type="button"
         onClick={onClick}
         disabled={loading}
-        className="rounded bg-black px-4 py-2 text-sm text-white disabled:opacity-50"
+        className="min-h-11 rounded-full bg-accent px-5 text-sm font-medium text-accent-foreground disabled:opacity-50"
       >
         {loading ? "Attendere..." : label}
       </button>
-      {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+      {error && <p className="mt-1 text-sm text-danger">{error}</p>}
     </div>
   );
 }
