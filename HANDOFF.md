@@ -18,6 +18,12 @@ foto ingrandita, descrizione e prezzo, con chiusura tramite pulsante o tasto
 Escape. Se una voce non ha ancora una foto nel database, usa un fallback locale
 coerente con la categoria.
 
+Il gestionale ha ora `/dashboard/invoices`: elenco delle fatture del locale,
+stato, numero, data, importo, identificativo SDI/Invoicetronic e stampa della
+lista. Il download XML compare quando `xml_url` è disponibile; il recupero
+automatico del documento dal provider e la sincronizzazione webhook degli
+stati restano da completare.
+
 ---
 
 ## 1. Cos'è

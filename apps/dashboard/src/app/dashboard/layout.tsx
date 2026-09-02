@@ -12,6 +12,7 @@ const NAV = [
   { href: "/dashboard/menu", label: "Menu" },
   { href: "/dashboard/tables", label: "QR e tavoli" },
   { href: "/dashboard/reservations", label: "Prenotazioni" },
+  { href: "/dashboard/invoices", label: "Fatture" },
   { href: "/dashboard/staff", label: "Personale" },
   { href: "/dashboard/settings", label: "Impostazioni" },
   { href: "/dashboard/billing", label: "Abbonamento" },
