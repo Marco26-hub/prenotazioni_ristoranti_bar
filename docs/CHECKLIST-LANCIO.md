@@ -12,11 +12,22 @@ un'azione che solo il titolare dell'attività può fare.
       bottone non compare (meglio assente che rotto).
 - [ ] **Dati del locale** — indirizzo, telefono, P.IVA. Compaiono al cliente e
       sono richiesti dall'informativa privacy, che indica il ristorante come
-      titolare del trattamento.
+      titolare del trattamento. Finché mancano, il gestionale lo segnala in
+      cima a ogni pagina.
+- [ ] **Allergeni su ogni piatto.** Obbligatori: la sanzione per omessa
+      indicazione va da 3.000 a 24.000 € (D.Lgs. 231/2017). Il menu conta
+      quanti ne mancano.
+- [ ] **Conservazione dichiarata** dove il prodotto non è fresco. Ometterlo
+      è frode in commercio, non una svista di stile.
+- [ ] **Coperto e servizio**, se il locale li applica. Vanno dichiarati
+      insieme ai prezzi, non solo in fondo al conto.
 - [ ] **Stampare i QR** — da *QR e tavoli*, un PNG per tavolo.
 
 ## 2. Per incassare davvero
 
+- [ ] ⚠️ **Sandbox Stripe rivendicata.** Finché non lo è, Connect non
+      funziona: la chiave provvisoria non ha i permessi e nessun pagamento
+      reale è possibile.
 - [ ] ⚠️ **Account Stripe della piattaforma.** Servono le chiavi come variabili
       d'ambiente su Vercel:
       - progetto `ristoranti-guest`: `STRIPE_SECRET_KEY`,
@@ -58,15 +69,27 @@ Con chiavi **test** il flusso è dimostrabile subito, senza verifica.
       commit (ormai inutile perché ruotata).
 - [ ] **Cancellare "Trattoria Demo"** quando non serve più come vetrina.
 
-## 6. Cosa manca ancora al prodotto
+## 6. Email
 
-Nessuna di queste blocca il lancio, ma i concorrenti ce le hanno:
+- [ ] ⚠️ **Chiave Resend** (`RESEND_API_KEY`, `RESEND_FROM`). Senza, nessuna
+      email parte: le prenotazioni arrivano solo in gestionale e il cliente
+      non riceve conferme né rifiuti. Il gestionale lo dichiara in cima alla
+      pagina Prenotazioni invece di far finta di aver avvisato qualcuno.
+- [ ] Facoltativo: mittente del dominio del locale, da *Impostazioni →
+      Email ai clienti*. Richiede due record DNS: quasi nessun ristoratore
+      lo farà, e va bene così.
 
-- Fidelizzazione clienti, upselling durante l'ordine, analytics di conversione
-- Controllo capienza sulle prenotazioni (oggi si può prenotare più dei posti)
-- Prenotazione online per il cliente (oggi la inserisce lo staff)
-- Recupero password via email (serve un provider email)
-- Nessun monitoraggio degli errori in produzione (niente Sentry o simili)
+## 7. Cosa manca ancora al prodotto
+
+Nessuna di queste blocca il lancio, ma i concorrenti ce le hanno. Elenco
+completo e ordinato per impatto sulla vendita in [`../HANDOFF.md`](../HANDOFF.md),
+sezione 5.2. In sintesi: buoni pasto, scontrino fiscale, comanda del
+cameriere, asporto, caparra anti no-show, stampa termica, fidelity,
+multi-locale.
+
+Debiti tecnici: nessun monitoraggio degli errori in produzione, nessuna
+esportazione dati per i diritti degli interessati, conservazione delle
+prenotazioni dichiarata ma non applicata da un job.
 
 ## Verifiche rapide dopo ogni deploy
 
