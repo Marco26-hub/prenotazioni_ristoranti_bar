@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { AllergeniFlag } from "./allergeni-flag";
+import { useEffect, useState, useTransition } from "react";
 import { useRef } from "react";
 import { updateMenuItem } from "./actions";
 import { EtichettaForm } from "./etichetta-form";
@@ -54,18 +55,30 @@ export function EditItemForm({
   categories,
   otherItems,
   letturaEtichettaAttiva = false,
+  apriSubito = false,
 }: {
   item: EditableItem;
   categories: Array<{ id: string; name: string }>;
   otherItems: Array<{ id: string; name: string }>;
   letturaEtichettaAttiva?: boolean;
+  /** La copia appena creata si apre da sola: serve a essere modificata. */
+  apriSubito?: boolean;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(apriSubito);
   const [tipo, setTipo] = useState<TipoVoce>(item.kind);
   const [pending, start] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const nomeRef = useRef<HTMLInputElement>(null);
+
+  // Su una copia appena fatta il nome è "Copia di …": selezionarlo permette
+  // di riscriverlo subito, senza cancellarlo a mano carattere per carattere.
+  useEffect(() => {
+    if (!apriSubito) return;
+    nomeRef.current?.focus();
+    nomeRef.current?.select();
+  }, [apriSubito]);
 
   if (!open) {
     return (
@@ -103,6 +116,7 @@ export function EditItemForm({
           Nome
         </label>
         <input
+          ref={nomeRef}
           id={`name-${item.id}`}
           name="name"
           defaultValue={item.name}
@@ -110,6 +124,14 @@ export function EditItemForm({
           className={FIELD}
         />
       </div>
+
+      {apriSubito && (
+        <p className="rounded-lg border border-accent bg-accent/10 p-3 text-sm">
+          Questa è una copia indipendente: nome, descrizione, ingredienti,
+          prezzo, foto, allergeni, varianti e categoria si cambiano tutti da
+          qui. Modificarla non tocca il piatto di partenza.
+        </p>
+      )}
 
       <div className="grid grid-cols-2 gap-2">
         <div>
@@ -192,8 +214,15 @@ export function EditItemForm({
                 scrivi("abv", scheda.abv);
                 scrivi("ingredients", scheda.ingredients);
                 scrivi("description", scheda.description);
+                // Gli allergeni ora sono caselle: l'input nascosto non va
+                // scritto a mano, altrimenti la spunta e il valore divergono.
                 if (scheda.allergens?.length) {
-                  scrivi("allergens", scheda.allergens.join(", "));
+                  form.dispatchEvent(
+                    new CustomEvent("allergeni-suggeriti", {
+                      detail: scheda.allergens,
+                      bubbles: true,
+                    })
+                  );
                 }
               }}
             />
@@ -405,18 +434,7 @@ export function EditItemForm({
         />
       </div>
 
-      <div>
-        <label className={LABEL} htmlFor={`all-${item.id}`}>
-          Allergeni — separati da virgola. Obbligatori per legge se presenti
-        </label>
-        <input
-          id={`all-${item.id}`}
-          name="allergens"
-          defaultValue={(item.allergens ?? []).join(", ")}
-          placeholder="glutine, uova, latte"
-          className={FIELD}
-        />
-      </div>
+      <AllergeniFlag valori={item.allergens} />
 
       <div>
         <label className={LABEL} htmlFor={`diet-${item.id}`}>

@@ -61,14 +61,22 @@ export function VariantiForm({
         className="mt-3 flex min-h-11 items-center border-t border-border pt-3 text-sm underline"
       >
         {gruppi.length > 0
-          ? `Varianti e aggiunte (${gruppi.length})`
-          : "Aggiungi varianti o supplementi"}
+          ? `Scelte di questo piatto (${gruppi.length})`
+          : "Aggiungi scelte a questo piatto"}
       </button>
     );
   }
 
   return (
     <div className="mt-3 space-y-3 border-t border-border pt-3">
+      <div>
+        <h3 className="font-medium">Scelte di questo piatto</h3>
+        <p className="mt-0.5 text-xs text-muted">
+          Quello che il cliente sceglie quando ordina <em>questo</em> piatto.
+          Per aggiungere un&apos;altra portata usa il bottone in fondo alla
+          categoria.
+        </p>
+      </div>
       {gruppi.map((g) => (
         <div key={g.id} className="rounded-lg border border-border p-3">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -163,22 +171,40 @@ export function VariantiForm({
         className="space-y-2 rounded-lg border border-dashed border-border p-3"
       >
         <input type="hidden" name="itemId" value={itemId} />
-        <input
-          name="name"
-          placeholder="Nome del gruppo: Quanti pezzi, Cottura, Aggiunte…"
-          required
-          className={`${CAMPO} w-full`}
-        />
-        <select
-          name="kind"
-          defaultValue="scelta"
-          aria-label="Tipo di gruppo"
-          className={`${CAMPO} w-full`}
-        >
-          <option value="scelta">Scelta — una fra più opzioni</option>
-          <option value="aggiunta">Aggiunta — extra a pagamento</option>
-          <option value="rimozione">Rimozione — cosa togliere</option>
-        </select>
+
+        {/* Senza intestazione questo riquadro sembrava servisse ad aggiungere
+            un piatto: chi lo apriva scriveva lì il nome di una portata. */}
+        <div>
+          <h4 className="font-medium">Nuovo gruppo di scelte</h4>
+          <p className="mt-0.5 text-xs text-muted">
+            Non serve ad aggiungere piatti — quello si fa in fondo alla
+            categoria. Qui aggiungi le scelte che il cliente fa{" "}
+            <em>su questo piatto</em>: la cottura, la porzione, gli ingredienti
+            extra.
+          </p>
+        </div>
+
+        <label className="block text-xs font-medium text-muted">
+          Come si chiama il gruppo
+          <input
+            name="name"
+            placeholder="Cottura · Porzione · Aggiungi · Togli"
+            required
+            className={`${CAMPO} mt-1 w-full`}
+          />
+        </label>
+        <label className="block text-xs font-medium text-muted">
+          Che tipo di scelta
+          <select
+            name="kind"
+            defaultValue="scelta"
+            className={`${CAMPO} mt-1 w-full`}
+          >
+            <option value="scelta">Scelta — una fra più opzioni, es. la cottura</option>
+            <option value="aggiunta">Aggiunta — extra a pagamento, es. bacon +1,50</option>
+            <option value="rimozione">Rimozione — cosa togliere, es. senza cipolla</option>
+          </select>
+        </label>
 
         <div className="flex flex-wrap gap-4">
           <label className="flex min-h-11 items-center gap-2 text-sm">

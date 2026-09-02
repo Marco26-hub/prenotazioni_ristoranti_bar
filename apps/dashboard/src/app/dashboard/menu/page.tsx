@@ -47,7 +47,11 @@ const DIETA_ETICHETTA: Record<string, string> = {
   piccante: "Piccante",
 };
 
-export default async function MenuPage() {
+export default async function MenuPage({
+  searchParams,
+}: PageProps<"/dashboard/menu">) {
+  const params = await searchParams;
+  const daAprire = Array.isArray(params.modifica) ? params.modifica[0] : params.modifica;
   const session = await auth();
   const venue = session?.venues[0];
   if (!venue) return <main className="p-4">Nessun locale associato.</main>;
@@ -115,7 +119,8 @@ export default async function MenuPage() {
         {list.map((item, index) => (
           <li
             key={item.id}
-            className={`rounded-xl border bg-surface p-4 ${
+            id={`piatto-${item.id}`}
+            className={`scroll-mt-20 rounded-xl border bg-surface p-4 ${
               item.available ? "border-border" : "border-dashed border-border opacity-70"
             }`}
           >
@@ -294,6 +299,7 @@ export default async function MenuPage() {
               categories={categories}
               otherItems={allNames.filter((o) => o.id !== item.id)}
               letturaEtichettaAttiva={Boolean(venueRow?.openrouter_api_key)}
+              apriSubito={item.id === daAprire}
             />
 
             <VariantiForm

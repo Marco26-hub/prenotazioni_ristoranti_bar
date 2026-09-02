@@ -1,6 +1,9 @@
 "use server";
 
+import { normalizzaAllergeni } from "@repo/shared/allergeni";
+
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { db } from "@repo/shared/db";
 import { requireVenue, requireRole } from "@/lib/authz";
 
@@ -68,6 +71,8 @@ export async function duplicateMenuItem(itemId: string) {
   const { venue } = await requireRole(["owner", "manager"]);
   const sql = db();
 
+  let nuovoId: string | null = null;
+
   await sql.begin(async (tx) => {
     const [source] = await tx<
       { id: string; category_id: string | null; sort_order: number | null }[]
@@ -104,6 +109,7 @@ export async function duplicateMenuItem(itemId: string) {
        where id = ${source.id} and venue_id = ${venue.venueId}
       returning id`;
     if (!copy) return;
+    nuovoId = copy.id;
 
     const groups = await tx<
       {
@@ -147,6 +153,10 @@ export async function duplicateMenuItem(itemId: string) {
   });
 
   revalidatePath("/dashboard/menu");
+
+  // Una copia che compare chiusa in mezzo alle altre sembra intoccabile: il
+  // punto di duplicare è cambiarla, quindi la scheda si apre già pronta.
+  if (nuovoId) redirect(`/dashboard/menu?modifica=${nuovoId}#piatto-${nuovoId}`);
 }
 
 /**
@@ -174,6 +184,13 @@ export async function updateMenuItem(formData: FormData): Promise<{ error?: stri
 
   // Allergeni e diciture dietetiche arrivano come lista separata da virgole:
   // è il modo in cui un ristoratore le scrive davvero.
+  const listaAllergeni = (fd: FormData) => {
+    const grezzo = String(fd.get("allergens") ?? "").trim();
+    if (!grezzo) return null;
+    const puliti = normalizzaAllergeni(grezzo.split(","));
+    return puliti.length > 0 ? puliti : null;
+  };
+
   const list = (key: string) => {
     const raw = String(formData.get(key) ?? "").trim();
     if (!raw) return null;
@@ -232,7 +249,7 @@ export async function updateMenuItem(formData: FormData): Promise<{ error?: stri
       vat_rate = ${vatRate},
       category_id = ${categoryId},
       pairing_item_id = ${pairingId},
-      allergens = ${list("allergens")},
+      allergens = ${listaAllergeni(formData)},
       kind = ${kind},
       producer = ${text("producer")},
       origin = ${text("origin")},

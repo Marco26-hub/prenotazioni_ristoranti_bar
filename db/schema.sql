@@ -113,7 +113,14 @@ create table venues (
   invoice_provider text default 'invoicetronic', -- provider SDI esterno
   invoice_provider_api_key text,         -- da cifrare a livello applicativo prima di salvare
   invoice_counter int default 0,         -- numerazione progressiva fatture, azzerare a inizio anno
-  created_at timestamptz default now()
+  created_at timestamptz default now(),
+  tilby_token text,
+  tilby_shop_name text,
+  dpa_accepted_at timestamptz,
+  dpa_version text,
+  reservation_email text,
+  reservation_auto_confirm boolean default false not null,
+  reservation_capacity integer
 );
 
 create table venue_staff (
@@ -164,7 +171,8 @@ create table menu_categories (
   id uuid primary key default gen_random_uuid(),
   venue_id uuid references venues(id) on delete cascade not null,
   name text not null,
-  sort_order int default 0
+  sort_order int default 0,
+  translations jsonb default '{}'::jsonb not null
 );
 
 create table menu_items (
@@ -206,6 +214,39 @@ create table menu_items (
   pairing_item_id uuid references menu_items(id) on delete set null, -- abbinamento suggerito (anche upselling)
   available boolean default true,
   sort_order int default 0
+);
+
+-- Varianti: gruppi di scelta legati al singolo piatto (cottura, porzione,
+-- aggiunte, rimozioni). Il prezzo dei supplementi vive qui e viene
+-- ricalcolato server-side: il browser manda solo gli id delle opzioni.
+create table menu_option_groups (
+  id uuid default gen_random_uuid() not null,
+  venue_id uuid not null,
+  menu_item_id uuid not null,
+  name text not null,
+  required boolean default false not null,
+  min_choices integer default 0 not null,
+  max_choices integer default 1 not null,
+  sort_order integer default 0 not null,
+  translations jsonb default '{}'::jsonb not null,
+  kind text default 'scelta'::text not null,
+  primary key (id),
+  foreign key (venue_id) references venues(id) on delete cascade,
+  foreign key (menu_item_id) references menu_items(id) on delete cascade,
+  constraint scelte_coerenti check (((min_choices >= 0) and (max_choices >= 1) and (min_choices <= max_choices))),
+  constraint menu_option_groups_kind_check check ((kind = any (array['scelta'::text, 'aggiunta'::text, 'rimozione'::text])))
+);
+
+create table menu_options (
+  id uuid default gen_random_uuid() not null,
+  group_id uuid not null,
+  name text not null,
+  price_delta_cents integer default 0 not null,
+  available boolean default true not null,
+  sort_order integer default 0 not null,
+  translations jsonb default '{}'::jsonb not null,
+  primary key (id),
+  foreign key (group_id) references menu_option_groups(id) on delete cascade
 );
 
 -- ------------------------------------------------------------
@@ -255,7 +296,15 @@ create table reservations (
   deposit_amount_cents int default 0,
   deposit_payment_id uuid,               -- fk a payments, aggiunta dopo
   table_id uuid references tables(id),
-  created_at timestamptz default now()
+  created_at timestamptz default now(),
+  notes text,
+  decline_reason text,
+  confirmed_at timestamptz,
+  responded_by uuid,
+  guest_notified_at timestamptz,
+  guest_notify_error text,
+  venue_notified_at timestamptz,
+  venue_notify_error text
 );
 
 -- Una prenotazione puo occupare piu tavoli accostati. table_id sopra resta

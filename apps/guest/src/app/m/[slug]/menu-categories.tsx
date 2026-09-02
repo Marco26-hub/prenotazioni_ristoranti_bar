@@ -1,15 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { MenuItemCard } from "./menu-item-card";
+import { MenuItemCard, type DettaglioVoce } from "./menu-item-card";
 
-interface CategoryItem {
-  id: string;
-  name: string;
-  description: string | null;
-  priceCents: number;
-  imageUrl: string | null;
-}
+/**
+ * La voce porta con sé tutto ciò che la scheda mostra: allergeni,
+ * ingredienti e conservazione sono obbligatori per legge, quindi passano di
+ * qui insieme al nome invece di essere caricati a parte.
+ */
+type CategoryItem = Omit<DettaglioVoce, "currency"> & { id: string };
 
 interface Category {
   id: string;
@@ -90,14 +89,7 @@ export function MenuCategories({
             </div>
             <ul className="grid gap-4 sm:grid-cols-2">
               {category.items.map((item) => (
-                <MenuItemCard
-                  key={item.id}
-                  name={item.name}
-                  description={item.description}
-                  priceCents={item.priceCents}
-                  currency={currency}
-                  imageUrl={item.imageUrl}
-                />
+                <MenuItemCard key={item.id} {...item} currency={currency} />
               ))}
             </ul>
           </section>

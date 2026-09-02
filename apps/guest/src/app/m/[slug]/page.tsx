@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@repo/shared/db";
 import { headers } from "next/headers";
 import { scegliLingua, traduci, type Traduzioni } from "@repo/shared/lingue";
+import { notaConservazione, type Conservazione } from "@repo/shared/bevande";
 import { SelettoreLingua } from "./selettore-lingua";
 import { Assistente } from "./assistente";
 import { AnnuncioLocale } from "../../v/[slug]/t/[token]/annuncio";
@@ -27,8 +28,22 @@ interface PublicMenuItem {
   category_id: string | null;
   name: string;
   description: string | null;
+  ingredients: string | null;
   price_cents: number;
   ha_foto: boolean;
+  // Obbligatori per legge sul menu: allergeni (Reg. UE 1169/2011) e stato
+  // di conservazione (D.Lgs. 109/1992, Reg. CE 853/2004 per il crudo).
+  allergens: string[] | null;
+  dietary_tags: string[] | null;
+  conservation: Conservazione;
+  origin_note: string | null;
+  kind: string;
+  producer: string | null;
+  vintage: number | null;
+  denomination: string | null;
+  origin: string | null;
+  abv: string | null;
+  serving_note: string | null;
 }
 
 interface VenuePublic {
@@ -71,7 +86,9 @@ async function loadVenue(slug: string) {
      order by sort_order`;
 
   const items = await sql<PublicMenuItem[]>`
-    select id, category_id, name, description, price_cents, translations,
+    select id, category_id, name, description, ingredients, price_cents,
+           translations, allergens, dietary_tags, conservation, origin_note,
+           kind, producer, vintage, denomination, origin, abv, serving_note,
            (image_url is not null) as ha_foto
     from menu_items
     where venue_id = ${venue.id} and available = true
@@ -139,6 +156,10 @@ export default async function PublicMenuPage({
 
   const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://ristoranti-guest.vercel.app";
 
+  // Costruita su ciò che c'è davvero: una nota che dichiara surgelati dove
+  // non ce ne sono è falsa quanto ometterli dove ci sono.
+  const notaLegale = notaConservazione(items.map((i) => i.conservation));
+
   // Schema.org Restaurant + Menu: è ciò che permette a Google di mostrare il
   // menu come dato strutturato e agli assistenti AI di citarlo con i prezzi
   // giusti invece di indovinare.
@@ -197,8 +218,20 @@ export default async function PublicMenuPage({
         id: item.id,
         name: item.name,
         description: item.description,
+        ingredients: item.ingredients,
         priceCents: item.price_cents,
         imageUrl: item.ha_foto ? `/api/foto/${item.id}` : null,
+        allergens: item.allergens,
+        dietaryTags: item.dietary_tags,
+        conservation: item.conservation,
+        originNote: item.origin_note,
+        kind: item.kind,
+        producer: item.producer,
+        vintage: item.vintage,
+        denomination: item.denomination,
+        origin: item.origin,
+        abv: item.abv,
+        servingNote: item.serving_note,
       })),
     }))
     .filter((category) => category.items.length > 0);
@@ -255,6 +288,16 @@ export default async function PublicMenuPage({
       <MenuCategories categories={categorieConVoci} currency={venue.currency} />
 
       <footer id="informazioni" className="mx-auto w-full max-w-5xl scroll-mt-20 px-4 pb-10 pt-2 sm:px-6">
+        {notaLegale && (
+          <p className="border-t border-border pt-6 text-xs leading-relaxed text-muted">
+            {notaLegale}
+          </p>
+        )}
+        <p className="pt-3 text-xs leading-relaxed text-muted">
+          Per allergie e intolleranze chiedi sempre al personale prima di
+          ordinare: le informazioni sugli allergeni sono riportate su ogni
+          piatto ai sensi del Reg. UE 1169/2011.
+        </p>
         <div className="grid gap-8 border-t border-border py-8 text-sm sm:grid-cols-3">
           <section aria-labelledby="footer-locale">
             <h2 id="footer-locale" className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-muted">

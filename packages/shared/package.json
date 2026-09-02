@@ -19,7 +19,8 @@
     "./bevande": "./bevande.ts",
     "./formati": "./formati.ts",
     "./openrouter": "./openrouter.ts",
-    "./openrouter-tipi": "./openrouter-tipi.ts"
+    "./openrouter-tipi": "./openrouter-tipi.ts",
+    "./allergeni": "./allergeni.ts"
   },
   "dependencies": {
     "postgres": "^3.4.5",

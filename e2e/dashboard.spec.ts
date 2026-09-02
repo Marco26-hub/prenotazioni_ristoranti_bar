@@ -66,14 +66,18 @@ test("il menu modifica il prezzo e duplica una voce completa", async ({ page }) 
   await login(page);
   await page.getByRole("link", { name: "Menu", exact: true }).click();
 
-  const price = page.getByLabel(`Prezzo di ${venue.menuItemName}`);
+  // `exact` serve perché getByLabel cerca per sottostringa e l'etichetta del
+  // bottone — "Salva prezzo di X" — contiene quella del campo.
+  const price = page.getByLabel(`Prezzo di ${venue.menuItemName}`, { exact: true });
   await price.fill("17.50");
   await page.getByRole("button", { name: `Salva prezzo di ${venue.menuItemName}` }).click();
   await expect(price).toHaveValue("17.50");
 
   await page.getByRole("button", { name: `Duplica ${venue.menuItemName}` }).click();
   await expect(page.getByText(`Copia di ${venue.menuItemName}`, { exact: true })).toBeVisible();
-  await expect(page.getByLabel(`Prezzo di Copia di ${venue.menuItemName}`)).toHaveValue("17.50");
+  await expect(
+    page.getByLabel(`Prezzo di Copia di ${venue.menuItemName}`, { exact: true })
+  ).toHaveValue("17.50");
 });
 
 test("il QR del tavolo punta all'app guest e apre quel tavolo", async ({ page }) => {
