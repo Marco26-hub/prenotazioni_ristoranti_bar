@@ -29,7 +29,7 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
           <form
             action={async () => {
               "use server";
-              await signOut({ redirectTo: "/login" });
+              await signOut({ redirectTo: "/" });
             }}
           >
             <button type="submit" className="flex min-h-11 shrink-0 items-center px-3 text-sm text-muted underline">

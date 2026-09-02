@@ -46,7 +46,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -55,4 +55,253 @@ input,
 select,
 textarea {
   font-size: 16px;
+}
+
+/* ==========================================================================
+   Pagina commerciale
+   --------------------------------------------------------------------------
+   Stili confinati sotto [data-landing]: il gestionale deve restare sobrio,
+   qui serve invece un colpo d'occhio. Tutto in CSS — una landing che carica
+   una libreria di animazioni si presenta lenta proprio a chi deve convincere.
+   ========================================================================== */
+
+@property --angolo {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+[data-landing] {
+  --grana: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+}
+
+/* --- Aurora: tre masse di colore che si spostano lentamente ---------------
+   Sta dietro a tutto, non intercetta i click e non entra nel flusso. */
+.aurora {
+  position: absolute;
+  inset: -30% -10% auto;
+  height: 70vh;
+  pointer-events: none;
+  z-index: 0;
+  filter: blur(80px);
+  opacity: 0.55;
+}
+
+.aurora span {
+  position: absolute;
+  display: block;
+  border-radius: 50%;
+  mix-blend-mode: screen;
+  animation: deriva 22s ease-in-out infinite alternate;
+}
+
+.aurora span:nth-child(1) {
+  width: 46vw;
+  height: 46vw;
+  left: 2%;
+  top: 10%;
+  background: radial-gradient(circle, var(--accent), transparent 68%);
+}
+.aurora span:nth-child(2) {
+  width: 38vw;
+  height: 38vw;
+  right: 6%;
+  top: 0;
+  background: radial-gradient(circle, #e0a458, transparent 68%);
+  animation-duration: 28s;
+  animation-delay: -6s;
+}
+.aurora span:nth-child(3) {
+  width: 34vw;
+  height: 34vw;
+  left: 38%;
+  top: 34%;
+  background: radial-gradient(circle, #8b5cf6, transparent 70%);
+  animation-duration: 34s;
+  animation-delay: -12s;
+  opacity: 0.7;
+}
+
+@keyframes deriva {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(6vw, 4vh, 0) scale(1.18);
+  }
+}
+
+/* La grana toglie alle sfumature l'aspetto piatto da gradiente CSS. */
+.grana::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: var(--grana);
+  opacity: 0.045;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+}
+
+/* --- Titoli editoriali ----------------------------------------------------
+   Il serif è riservato ai titoli: dà al prodotto un'aria da insegna invece
+   che da pannello di controllo, ma sui testi lunghi si legge peggio. */
+.display {
+  font-family: var(--font-serif), ui-serif, Georgia, serif;
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+/* --- Titolo in sfumatura -------------------------------------------------- */
+.titolo-sfumato {
+  background: linear-gradient(
+    180deg,
+    var(--foreground) 30%,
+    color-mix(in oklab, var(--foreground) 55%, var(--accent))
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-wrap: balance;
+}
+
+/* --- Vetro --------------------------------------------------------------- */
+.vetro {
+  background: color-mix(in oklab, var(--surface) 72%, transparent);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+}
+
+/* --- Scheda con bordo che si accende al passaggio ------------------------- */
+.scheda {
+  position: relative;
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.35s;
+}
+
+.scheda::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    130deg,
+    color-mix(in oklab, var(--accent) 70%, transparent),
+    transparent 40%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.35s;
+}
+
+.scheda:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 40px -24px color-mix(in oklab, var(--accent) 60%, transparent);
+}
+.scheda:hover::before {
+  opacity: 1;
+}
+
+/* --- Bordo conico rotante, per il piano consigliato ----------------------- */
+.bordo-vivo {
+  position: relative;
+  isolation: isolate;
+}
+.bordo-vivo::before {
+  content: "";
+  position: absolute;
+  inset: -1.5px;
+  border-radius: inherit;
+  z-index: -1;
+  background: conic-gradient(
+    from var(--angolo),
+    var(--accent),
+    #e0a458,
+    #8b5cf6,
+    var(--accent)
+  );
+  animation: gira 6s linear infinite;
+}
+@keyframes gira {
+  to {
+    --angolo: 360deg;
+  }
+}
+
+/* --- Marquee ------------------------------------------------------------- */
+.nastro {
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+.nastro > div {
+  animation: scorri 38s linear infinite;
+}
+@keyframes scorri {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* --- Comparsa allo scorrimento -------------------------------------------
+   Applicata solo dove il browser sa animare sulla timeline di scorrimento:
+   altrove il contenuto resta semplicemente visibile, mai nascosto per
+   sempre da uno stato iniziale che nessuna animazione verrà a togliere. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .compare {
+      animation: sali linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 26%;
+    }
+  }
+}
+
+@keyframes sali {
+  from {
+    opacity: 0;
+    transform: translateY(26px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* --- Mockup del telefono -------------------------------------------------- */
+.telefono {
+  border-radius: 2.2rem;
+  background: var(--surface);
+  border: 8px solid color-mix(in oklab, var(--foreground) 88%, transparent);
+  box-shadow:
+    0 40px 80px -32px rgb(0 0 0 / 0.55),
+    0 0 0 1px color-mix(in oklab, var(--border) 60%, transparent);
+  animation: fluttua 7s ease-in-out infinite alternate;
+}
+@keyframes fluttua {
+  from {
+    transform: translateY(0) rotate(-1.2deg);
+  }
+  to {
+    transform: translateY(-14px) rotate(1deg);
+  }
+}
+
+/* Chi ha chiesto meno movimento non deve vedere nulla muoversi. */
+@media (prefers-reduced-motion: reduce) {
+  .aurora span,
+  .nastro > div,
+  .bordo-vivo::before,
+  .telefono {
+    animation: none !important;
+  }
+  .scheda {
+    transition: none;
+  }
 }

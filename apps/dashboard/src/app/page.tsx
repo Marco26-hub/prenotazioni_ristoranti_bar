@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { PLANS, TRIAL_DAYS, formatPriceCents } from "@repo/shared";
+import { MockupTelefono } from "./mockup-telefono";
 
 /**
  * Pagina commerciale per il ristoratore.
@@ -18,6 +19,19 @@ export const metadata: Metadata = {
     "Menu QR, ordine e pagamento al tavolo, conto alla romana, prenotazioni online e fattura elettronica. Con il marchio del tuo locale e senza commissioni sui tuoi incassi.",
   alternates: { canonical: "/" },
 };
+
+const NASTRO = [
+  "Menu QR",
+  "Ordine al tavolo",
+  "Conto alla romana",
+  "Apple Pay",
+  "Satispay",
+  "Prenotazioni online",
+  "Fattura elettronica",
+  "Allergeni a norma",
+  "Il tuo marchio",
+  "Zero commissioni",
+];
 
 const COME_FUNZIONA = [
   {
@@ -42,16 +56,18 @@ const COME_FUNZIONA = [
   },
 ];
 
+/** `ampio` marca le celle che occupano due colonne nella griglia bento. */
 const FUNZIONI = [
   {
     titolo: "Menu sempre aggiornato",
     testo:
-      "Aggiungi, modifica, riordina e nascondi i piatti in tempo reale. Finito il branzino, lo togli e sparisce da tutti i tavoli.",
+      "Aggiungi, modifica, riordina e nascondi i piatti in tempo reale. Finito il branzino, lo togli e sparisce da tutti i tavoli nello stesso istante.",
+    ampio: true,
   },
   {
     titolo: "Allergeni a norma",
     testo:
-      "Ogni piatto ha il suo campo allergeni, come richiede il Reg. UE 1169/2011. Il cliente li legge da solo, senza chiedere.",
+      "Campo dedicato su ogni piatto, come richiede il Reg. UE 1169/2011. Il cliente li legge da solo.",
   },
   {
     titolo: "Conto alla romana",
@@ -61,55 +77,56 @@ const FUNZIONI = [
   {
     titolo: "Prenotazioni online",
     testo:
-      "Una pagina di prenotazione da mettere sul tuo sito e sui social. Le richieste arrivano direttamente in gestionale.",
+      "Una pagina da mettere sul tuo sito e sui social. Le richieste arrivano dritte in gestionale.",
   },
   {
     titolo: "Il tuo marchio",
     testo:
-      "Logo, colori e dati del locale su tutte le pagine che vede il cliente. Non compare il nostro nome.",
+      "Logo, colori e dati del locale su ogni pagina che vede il cliente. Il nostro nome non compare mai.",
+    ampio: true,
   },
   {
     titolo: "Fattura elettronica",
     testo:
-      "Il cliente inserisce i dati dal tavolo e la fattura parte allo SDI. Serve un intermediario accreditato, che colleghi tu.",
+      "Il cliente inserisce i dati dal tavolo e la fattura parte allo SDI, tramite un intermediario che colleghi tu.",
   },
   {
-    titolo: "Menu trovabile su Google",
+    titolo: "Trovabile su Google e dalle AI",
     testo:
-      "Il menu ha una pagina pubblica con dati strutturati: è quello che motori di ricerca e assistenti AI leggono e citano.",
+      "Il menu ha una pagina pubblica con dati strutturati: è quello che motori di ricerca e assistenti leggono e citano.",
   },
   {
     titolo: "Accessi separati",
     testo:
-      "Titolare, responsabile, sala e cucina vedono solo quello che serve. Chi è in sala non tocca incassi e dati fiscali.",
+      "Titolare, responsabile, sala e cucina vedono solo il proprio. Chi è in sala non tocca incassi e dati fiscali.",
   },
   {
     titolo: "Importazione del menu",
-    testo:
-      "Carichi il menu da CSV o TSV, oppure lo importi dalla cassa Tilby se la usi. Non si ribatte tutto a mano.",
+    testo: "Da file CSV o TSV, oppure dalla cassa Tilby. Non si ribatte tutto a mano.",
   },
 ];
 
-const CONFRONTO = [
+const CONFRONTO: Array<[string, string, string]> = [
   ["Canone", "39 €/mese", "29–99 €/mese"],
   ["Costo di attivazione", "Nessuno", "Fino a 500 €"],
   ["Commissione sui tuoi incassi", "Nessuna", "Spesso 1,9–2%"],
   ["Il tuo marchio sulle pagine cliente", "Incluso", "Raro, o a pagamento"],
   ["Fattura elettronica dal tavolo", "Inclusa", "Quasi mai"],
+  ["Prenotazioni online incluse", "Sì", "Spesso a parte"],
 ];
 
-function Sezione({
-  titolo,
-  children,
-}: {
-  titolo: string;
-  children: React.ReactNode;
-}) {
+const SERVE = [
+  "Un account Stripe del locale, per incassare. La verifica è di Stripe.",
+  "I dati del locale: indirizzo, telefono, partita IVA.",
+  "Il menu, da caricare da file o scrivere in gestionale.",
+  "Una stampa dei QR, uno per tavolo, che generi tu.",
+];
+
+function Titolo({ children }: { children: React.ReactNode }) {
   return (
-    <section className="border-t border-border py-12">
-      <h2 className="mb-6 text-xl font-semibold tracking-tight">{titolo}</h2>
+    <h2 className="compare display text-3xl sm:text-4xl">
       {children}
-    </section>
+    </h2>
   );
 }
 
@@ -121,148 +138,288 @@ export default async function LandingPage() {
   const annuale = PLANS.find((p) => p.interval === "year");
 
   return (
-    <main className="mx-auto max-w-3xl px-4 pb-16">
-      <section className="py-14 text-center">
-        <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
-          I tuoi clienti ordinano e pagano dal tavolo.
-          <br className="hidden sm:block" /> Tu servi, non rincorri il POS.
-        </h1>
-        <p className="mx-auto mt-4 max-w-xl text-lg text-muted">
-          Menu QR, ordine, pagamento e prenotazioni per ristoranti e bar. Con il
-          marchio del tuo locale, senza commissioni sui tuoi incassi.
-        </p>
+    <div data-landing className="relative overflow-x-clip">
+      <header className="sticky top-0 z-30 border-b border-border/60 vetro">
+        <nav className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
+          <span className="flex items-center gap-2 font-semibold tracking-tight">
+            <span
+              aria-hidden
+              className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-sm text-accent-foreground"
+            >
+              ▦
+            </span>
+            Tavolo
+          </span>
+          <div className="flex items-center gap-1">
+            <Link
+              href="/login"
+              className="flex min-h-11 items-center rounded-full px-4 text-sm font-medium"
+            >
+              Accedi
+            </Link>
+            <Link
+              href="/registrati"
+              className="flex min-h-11 items-center rounded-full bg-accent px-4 text-sm font-medium text-accent-foreground"
+            >
+              Prova gratis
+            </Link>
+          </div>
+        </nav>
+      </header>
 
-        <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <Link
-            href="/registrati"
-            className="flex min-h-12 items-center rounded-full bg-accent px-6 font-medium text-accent-foreground active:scale-95"
-          >
-            Provalo {TRIAL_DAYS} giorni gratis
-          </Link>
-          <a
-            href="https://ristoranti-guest.vercel.app/m/trattoria-da-luca"
-            className="flex min-h-12 items-center rounded-full border border-border px-6 font-medium"
-          >
-            Guarda un menu vero
-          </a>
+      {/* ---------------------------------------------------------------- */}
+      <section className="grana relative overflow-hidden px-4 pb-16 pt-14 sm:pt-20">
+        <div aria-hidden className="aurora">
+          <span />
+          <span />
+          <span />
         </div>
 
-        <p className="mt-4 text-sm text-muted">
-          Nessuna carta richiesta per la prova. Nessun costo di attivazione.
-        </p>
-      </section>
-
-      <Sezione titolo="Come funziona">
-        <ol className="space-y-4">
-          {COME_FUNZIONA.map((p, i) => (
-            <li key={p.titolo} className="flex gap-4">
+        <div className="relative z-10 mx-auto max-w-5xl">
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="vetro mx-auto mb-6 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium">
               <span
                 aria-hidden
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-semibold text-accent-foreground"
+                className="h-1.5 w-1.5 rounded-full bg-accent"
+              />
+              Per ristoranti e bar in Italia
+            </p>
+
+            <h1 className="titolo-sfumato display text-[2.75rem] leading-[1.03] sm:text-7xl">
+              I tuoi clienti ordinano e pagano dal tavolo.
+            </h1>
+
+            <p className="mx-auto mt-5 max-w-xl text-pretty text-lg text-muted sm:text-xl">
+              Tu servi, non rincorri il POS. Menu QR, ordine, pagamento e
+              prenotazioni — con il marchio del tuo locale e senza commissioni
+              sui tuoi incassi.
+            </p>
+
+            <div className="mt-9 flex flex-wrap justify-center gap-3">
+              <Link
+                href="/registrati"
+                className="flex min-h-12 items-center rounded-full bg-accent px-7 font-medium text-accent-foreground shadow-[0_14px_34px_-14px_var(--accent)] transition-transform active:scale-95"
+              >
+                Provalo {TRIAL_DAYS} giorni gratis
+              </Link>
+              <a
+                href="https://ristoranti-guest.vercel.app/m/trattoria-da-luca"
+                className="vetro flex min-h-12 items-center rounded-full px-7 font-medium"
+              >
+                Guarda un menu vero
+              </a>
+            </div>
+
+            <p className="mt-4 text-sm text-muted">
+              Nessuna carta per la prova. Nessun costo di attivazione.
+            </p>
+          </div>
+
+          <div className="relative mt-14 sm:mt-16">
+            <MockupTelefono />
+          </div>
+        </div>
+      </section>
+
+      {/* ---------------------------------------------------------------- */}
+      <div className="nastro overflow-hidden border-y border-border py-3">
+        <div className="flex w-max gap-8 whitespace-nowrap text-sm text-muted">
+          {[0, 1].map((giro) => (
+            // Due copie identiche: la seconda entra da destra mentre la prima
+            // esce, così lo scorrimento non mostra mai uno stacco.
+            <div key={giro} aria-hidden={giro === 1} className="flex gap-8">
+              {NASTRO.map((v) => (
+                <span key={v} className="flex items-center gap-8">
+                  {v}
+                  <span className="text-accent">◆</span>
+                </span>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ---------------------------------------------------------------- */}
+      <section className="mx-auto max-w-5xl px-4 py-20">
+        <Titolo>Quattro passaggi, nessuna attesa</Titolo>
+        <ol className="mt-10 grid gap-5 sm:grid-cols-2">
+          {COME_FUNZIONA.map((p, i) => (
+            <li
+              key={p.titolo}
+              className="compare scheda vetro rounded-2xl p-5"
+              style={{ animationDelay: `${i * 60}ms` }}
+            >
+              <span
+                aria-hidden
+                className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-sm font-semibold text-accent-foreground"
               >
                 {i + 1}
               </span>
-              <div>
-                <p className="font-medium">{p.titolo}</p>
-                <p className="text-muted">{p.testo}</p>
-              </div>
+              <p className="font-medium">{p.titolo}</p>
+              <p className="mt-1 text-sm leading-relaxed text-muted">{p.testo}</p>
             </li>
           ))}
         </ol>
-      </Sezione>
+      </section>
 
-      <Sezione titolo="Cosa c'è dentro">
-        <ul className="grid gap-4 sm:grid-cols-2">
+      {/* ---------------------------------------------------------------- */}
+      <section className="mx-auto max-w-5xl px-4 pb-20">
+        <Titolo>Tutto quello che serve, già dentro</Titolo>
+        <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {FUNZIONI.map((f) => (
-            <li key={f.titolo} className="rounded-xl border border-border bg-surface p-4">
+            <li
+              key={f.titolo}
+              className={`compare scheda vetro rounded-2xl p-5 ${
+                f.ampio ? "sm:col-span-2 lg:col-span-1 xl:col-span-2" : ""
+              }`}
+            >
               <p className="font-medium">{f.titolo}</p>
-              <p className="mt-1 text-sm text-muted">{f.testo}</p>
+              <p className="mt-1.5 text-sm leading-relaxed text-muted">{f.testo}</p>
             </li>
           ))}
         </ul>
-      </Sezione>
+      </section>
 
-      <Sezione titolo="Quanto costa">
-        <div className="grid gap-4 sm:grid-cols-2">
-          {[mensile, annuale].map(
-            (plan) =>
-              plan && (
-                <div key={plan.key} className="rounded-xl border border-border bg-surface p-5">
-                  <p className="text-sm text-muted">{plan.label}</p>
-                  <p className="mt-1 text-2xl font-semibold tabular-nums">
-                    {formatPriceCents(plan.amountCents, "EUR")}
-                    <span className="text-base font-normal text-muted"> {plan.cadence}</span>
+      {/* ---------------------------------------------------------------- */}
+      <section className="relative overflow-hidden px-4 py-20">
+        <div className="mx-auto max-w-5xl">
+          <Titolo>Un prezzo solo, scritto sul sito</Titolo>
+          <p className="compare mt-3 max-w-xl text-muted">
+            Nessun preventivo da chiedere, nessuna percentuale nascosta sul tuo
+            incassato.
+          </p>
+
+          <div className="mt-10 grid gap-5 sm:grid-cols-2">
+            {mensile && (
+              <div className="compare scheda vetro rounded-2xl p-6">
+                <p className="text-sm text-muted">{mensile.label}</p>
+                <p className="mt-2 text-4xl font-semibold tabular-nums tracking-tight">
+                  {formatPriceCents(mensile.amountCents, "EUR")}
+                  <span className="text-base font-normal text-muted">
+                    {" "}
+                    {mensile.cadence}
+                  </span>
+                </p>
+                <p className="mt-2 text-sm text-muted">{mensile.note}</p>
+              </div>
+            )}
+
+            {annuale && (
+              <div className="compare bordo-vivo rounded-2xl">
+                <div className="scheda h-full rounded-2xl bg-surface p-6">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm text-muted">{annuale.label}</p>
+                    <span className="rounded-full bg-accent px-2.5 py-1 text-[11px] font-medium text-accent-foreground">
+                      Consigliato
+                    </span>
+                  </div>
+                  <p className="mt-2 text-4xl font-semibold tabular-nums tracking-tight">
+                    {formatPriceCents(annuale.amountCents, "EUR")}
+                    <span className="text-base font-normal text-muted">
+                      {" "}
+                      {annuale.cadence}
+                    </span>
                   </p>
-                  {plan.note && <p className="mt-1 text-sm text-muted">{plan.note}</p>}
+                  <p className="mt-2 text-sm text-muted">{annuale.note}</p>
                 </div>
-              )
-          )}
-        </div>
+              </div>
+            )}
+          </div>
 
-        <div className="mt-6 overflow-x-auto">
-          <table className="w-full min-w-[30rem] border-collapse text-sm">
-            <thead>
-              <tr className="border-b border-border text-left">
-                <th className="py-2 pr-4 font-medium" />
-                <th className="py-2 pr-4 font-medium">Noi</th>
-                <th className="py-2 font-medium text-muted">Gli altri in Italia</th>
-              </tr>
-            </thead>
-            <tbody>
-              {CONFRONTO.map(([voce, noi, altri]) => (
-                <tr key={voce} className="border-b border-border">
-                  <td className="py-2 pr-4">{voce}</td>
-                  <td className="py-2 pr-4 font-medium">{noi}</td>
-                  <td className="py-2 text-muted">{altri}</td>
+          <div className="compare mt-8 overflow-x-auto">
+            <table className="w-full min-w-[34rem] border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-border text-left">
+                  <th className="py-3 pr-4 font-medium" />
+                  <th className="py-3 pr-4 font-medium">Noi</th>
+                  <th className="py-3 font-medium text-muted">
+                    Gli altri in Italia
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {CONFRONTO.map(([voce, noi, altri]) => (
+                  <tr key={voce} className="border-b border-border/70">
+                    <td className="py-3 pr-4">{voce}</td>
+                    <td className="py-3 pr-4 font-medium text-accent">{noi}</td>
+                    <td className="py-3 text-muted">{altri}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <p className="compare mt-4 text-sm text-muted">
+            Prezzi IVA esclusa. Le commissioni sulle carte sono quelle di
+            Stripe e vanno dal cliente direttamente a te: non passano da noi.
+            La colonna di destra riporta i listini pubblici dei concorrenti
+            italiani a settembre 2026; molti non pubblicano i propri prezzi.
+          </p>
         </div>
+      </section>
 
-        <p className="mt-4 text-sm text-muted">
-          Prezzi IVA esclusa. Le commissioni sulle carte sono quelle di Stripe e
-          vanno dal cliente direttamente a te: non passano da noi. La colonna di
-          destra riporta i listini pubblici dei concorrenti italiani a settembre
-          2026; molti non pubblicano i propri prezzi.
-        </p>
-      </Sezione>
-
-      <Sezione titolo="Cosa serve per partire">
-        <ul className="space-y-2 text-muted">
-          <li>— Un account Stripe del locale, per incassare. La verifica è di Stripe.</li>
-          <li>— I dati del locale: indirizzo, telefono, partita IVA.</li>
-          <li>— Il menu, che puoi caricare da file o riscrivere in gestionale.</li>
-          <li>— Una stampa dei QR, uno per tavolo, che generi tu dal gestionale.</li>
+      {/* ---------------------------------------------------------------- */}
+      <section className="mx-auto max-w-5xl px-4 pb-20">
+        <Titolo>Cosa serve per partire</Titolo>
+        <ul className="compare mt-8 grid gap-3 sm:grid-cols-2">
+          {SERVE.map((v) => (
+            <li key={v} className="flex gap-3 text-muted">
+              <span aria-hidden className="mt-1 text-accent">
+                ✓
+              </span>
+              {v}
+            </li>
+          ))}
         </ul>
-        <p className="mt-4 text-muted">
-          Per la fattura elettronica serve in più un intermediario SDI accreditato;
-          per il collegamento alla cassa Tilby, l&apos;adesione al loro programma
-          per sviluppatori.
-        </p>
-      </Sezione>
-
-      <section className="border-t border-border py-12 text-center">
-        <h2 className="text-xl font-semibold tracking-tight">
-          Provalo sul tuo menu, non sul nostro
-        </h2>
-        <p className="mx-auto mt-2 max-w-md text-muted">
-          {TRIAL_DAYS} giorni per caricare i tuoi piatti, stampare i QR e far
-          provare il servizio a un tavolo vero.
-        </p>
-        <Link
-          href="/registrati"
-          className="mt-6 inline-flex min-h-12 items-center rounded-full bg-accent px-6 font-medium text-accent-foreground active:scale-95"
-        >
-          Comincia la prova
-        </Link>
-        <p className="mt-4 text-sm text-muted">
-          Hai già un account?{" "}
-          <Link href="/login" className="underline underline-offset-2">
-            Accedi
-          </Link>
+        <p className="compare mt-5 text-sm text-muted">
+          Per la fattura elettronica serve in più un intermediario SDI
+          accreditato; per il collegamento alla cassa Tilby, l&apos;adesione al
+          loro programma per sviluppatori.
         </p>
       </section>
-    </main>
+
+      {/* ---------------------------------------------------------------- */}
+      <section className="grana relative overflow-hidden px-4 py-24 text-center">
+        <div aria-hidden className="aurora" style={{ opacity: 0.35 }}>
+          <span />
+          <span />
+          <span />
+        </div>
+
+        <div className="relative z-10 mx-auto max-w-xl">
+          <h2 className="titolo-sfumato display text-4xl sm:text-5xl">
+            Provalo sul tuo menu, non sul nostro
+          </h2>
+          <p className="mt-4 text-lg text-muted">
+            {TRIAL_DAYS} giorni per caricare i tuoi piatti, stampare i QR e far
+            provare il servizio a un tavolo vero.
+          </p>
+          <Link
+            href="/registrati"
+            className="mt-8 inline-flex min-h-12 items-center rounded-full bg-accent px-7 font-medium text-accent-foreground shadow-[0_14px_34px_-14px_var(--accent)] transition-transform active:scale-95"
+          >
+            Comincia la prova
+          </Link>
+          <p className="mt-4 text-sm text-muted">
+            Hai già un account?{" "}
+            <Link href="/login" className="underline underline-offset-4">
+              Accedi
+            </Link>
+          </p>
+        </div>
+      </section>
+
+      <footer className="border-t border-border px-4 py-8">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 text-sm text-muted">
+          <span>Ordini e pagamenti al tavolo per ristoranti e bar.</span>
+          <a
+            href="https://ristoranti-guest.vercel.app/privacy"
+            className="underline underline-offset-4"
+          >
+            Privacy
+          </a>
+        </div>
+      </footer>
+    </div>
   );
 }
