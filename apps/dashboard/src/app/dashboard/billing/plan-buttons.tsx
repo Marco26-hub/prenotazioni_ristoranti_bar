@@ -13,6 +13,7 @@ export function PlanButtons({
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [periodo, setPeriodo] = useState<"month" | "year">("month");
 
   // Il redirect avviene qui e non lato server perché la Server Action è
   // invocata da un bottone: un redirect() server-side dentro una action
@@ -39,23 +40,47 @@ export function PlanButtons({
           {pending ? "Apertura…" : "Gestisci abbonamento e fatture"}
         </button>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {PLANS.map((plan) => (
-            <button
-              key={plan.key}
-              type="button"
-              disabled={pending}
-              onClick={() => go(() => startSubscription(plan.key))}
-              className="flex min-h-24 flex-col items-start justify-center rounded-xl border border-accent px-4 py-3 text-left disabled:opacity-60"
-            >
-              <span className="text-sm text-muted">{plan.label}</span>
-              <span className="text-xl font-semibold tabular-nums">
-                {formatPriceCents(plan.amountCents, "EUR")}
-                <span className="text-sm font-normal text-muted"> {plan.cadence}</span>
-              </span>
-              {plan.note && <span className="mt-1 text-xs text-muted">{plan.note}</span>}
-            </button>
-          ))}
+        <div className="space-y-4">
+          <div className="flex gap-1">
+            {(["month", "year"] as const).map((i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setPeriodo(i)}
+                className={`flex min-h-11 flex-1 items-center justify-center rounded-full text-sm ${
+                  periodo === i
+                    ? "bg-accent text-accent-foreground"
+                    : "border border-border text-muted"
+                }`}
+              >
+                {i === "month" ? "Mensile" : "Annuale — due mesi in omaggio"}
+              </button>
+            ))}
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            {PLANS.filter((p) => p.interval === periodo).map((plan) => (
+              <button
+                key={plan.key}
+                type="button"
+                disabled={pending}
+                onClick={() => go(() => startSubscription(plan.key))}
+                className="flex flex-col items-start rounded-xl border border-accent p-4 text-left disabled:opacity-60"
+              >
+                <span className="text-sm font-medium">{plan.label}</span>
+                <span className="mt-1 text-2xl font-semibold tabular-nums">
+                  {formatPriceCents(plan.amountCents, "EUR")}
+                </span>
+                <span className="text-xs text-muted">{plan.cadence}</span>
+                <span className="mt-2 text-xs leading-relaxed text-muted">
+                  {plan.descrizione}
+                </span>
+                {plan.note && (
+                  <span className="mt-2 text-xs font-medium text-accent">{plan.note}</span>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 

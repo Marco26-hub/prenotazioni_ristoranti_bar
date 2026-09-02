@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { db } from "@repo/shared/db";
-import { isEntitled } from "@repo/shared";
+import { hasModulo } from "@repo/shared";
 import { BookingForm } from "./booking-form";
 
 /**
@@ -24,6 +24,7 @@ interface VenueRow {
   address_province: string | null;
   subscription_status: string;
   subscription_period_end: Date | null;
+  modules: string[] | null;
 }
 
 async function loadVenue(slug: string): Promise<VenueRow | null> {
@@ -31,7 +32,7 @@ async function loadVenue(slug: string): Promise<VenueRow | null> {
   const [venue] = await sql<VenueRow[]>`
     select id, name, logo_url, brand_color, public_phone, public_email,
            address, address_zip, address_city, address_province,
-           subscription_status, subscription_period_end
+           subscription_status, subscription_period_end, modules
       from venues where slug = ${slug}`;
   return venue ?? null;
 }
@@ -63,7 +64,12 @@ export default async function BookingPage({ params }: PageProps<"/p/[slug]">) {
   const venue = await loadVenue(slug);
   if (!venue) notFound();
 
-  const attivo = isEntitled(venue.subscription_status, venue.subscription_period_end);
+  const attivo = hasModulo(
+    "prenotazioni",
+    venue.subscription_status,
+    venue.subscription_period_end,
+    venue.modules
+  );
 
   const address = [venue.address, venue.address_zip, venue.address_city, venue.address_province]
     .filter(Boolean)

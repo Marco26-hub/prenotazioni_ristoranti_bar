@@ -81,6 +81,22 @@ export async function POST(request: Request) {
 
   const eventAt = new Date(event.created * 1000);
 
+  // I moduli stanno nei metadata del Price, non del codice: cambiare il
+  // listino su Stripe non deve richiedere un deploy. Il metadata della
+  // Subscription fa da ripiego per gli abbonamenti creati a mano.
+  const price = sub.items?.data?.[0]?.price as
+    | { metadata?: Record<string, string> }
+    | undefined;
+  const moduliGrezzi = price?.metadata?.moduli ?? sub.metadata?.moduli ?? "";
+  const moduli = moduliGrezzi
+    .split(",")
+    .map((m) => m.trim())
+    .filter((m) => m === "ordini" || m === "prenotazioni");
+
+  // Un abbonamento chiuso non dà accesso a nulla: azzerare qui evita di
+  // dover ricordare altrove che 'canceled' vale come nessun modulo.
+  const moduliFinali = status === "canceled" ? [] : moduli;
+
   // Stripe non garantisce l'ordine di consegna. Senza questo confronto un
   // "updated" consegnato in ritardo potrebbe sovrascrivere il "deleted" che
   // lo segue e riattivare un abbonamento disdetto.
@@ -89,6 +105,7 @@ export async function POST(request: Request) {
       subscription_id = ${sub.id},
       subscription_status = ${status},
       subscription_plan = ${sub.metadata?.plan ?? null},
+      modules = ${moduliFinali},
       subscription_period_end = ${periodEnd},
       subscription_updated_at = ${eventAt},
       billing_customer_id = coalesce(billing_customer_id, ${customerId})

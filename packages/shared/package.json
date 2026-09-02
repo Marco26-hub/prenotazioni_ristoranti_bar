@@ -11,7 +11,9 @@
     "./crypto": "./crypto.ts",
     "./satispay": "./satispay/index.ts",
     "./tilby": "./tilby/index.ts",
-    "./plans": "./plans.ts"
+    "./plans": "./plans.ts",
+    "./email": "./email.ts",
+    "./prenotazioni": "./prenotazioni.ts"
   },
   "dependencies": {
     "postgres": "^3.4.5",

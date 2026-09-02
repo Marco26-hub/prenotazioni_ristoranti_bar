@@ -76,6 +76,10 @@ create table venues (
   subscription_plan text,
   subscription_period_end timestamptz,
   subscription_updated_at timestamptz,   -- gli eventi Stripe arrivano fuori ordine
+  -- Moduli acquistati: il prodotto si vende a pezzi (solo ordini, solo
+  -- prenotazioni, o entrambi). Popolato dal webhook leggendo i metadata
+  -- del Price, così il listino resta su Stripe e non nel codice.
+  modules text[] not null default '{}',
   trial_ends_at timestamptz,
   satispay_key_id text,                  -- key_id ottenuto da /authentication_keys
   satispay_private_key text,             -- PEM, controparte della chiave pubblica registrata su Satispay

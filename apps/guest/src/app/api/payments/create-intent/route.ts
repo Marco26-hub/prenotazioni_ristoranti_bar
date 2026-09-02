@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@repo/shared/db";
 import { checkRateLimit, clientKey } from "@repo/shared/rate-limit";
-import { isEntitled } from "@repo/shared";
+import { hasModulo } from "@repo/shared";
 import { stripeClient } from "@/lib/stripe";
 import { outstandingBalanceCents } from "@/lib/balance";
 
@@ -38,11 +38,20 @@ export async function POST(request: Request) {
       currency: string;
       subscription_status: string;
       subscription_period_end: Date | null;
+      modules: string[] | null;
     }[]
-  >`select stripe_account_id, currency, subscription_status, subscription_period_end
+  >`select stripe_account_id, currency, subscription_status, subscription_period_end,
+           modules
       from venues where id = ${session.venue_id}`;
 
-  if (!isEntitled(venue?.subscription_status, venue?.subscription_period_end)) {
+  if (
+    !hasModulo(
+      "ordini",
+      venue?.subscription_status,
+      venue?.subscription_period_end,
+      venue?.modules
+    )
+  ) {
     return NextResponse.json(
       { error: "Pagamento dal tavolo non attivo per questo locale — chiedi al personale" },
       { status: 402 }

@@ -107,12 +107,13 @@ const FUNZIONI = [
 ];
 
 const CONFRONTO: Array<[string, string, string]> = [
-  ["Canone", "39 €/mese", "29–99 €/mese"],
+  ["Canone", "da 19 €/mese", "29–99 €/mese"],
   ["Costo di attivazione", "Nessuno", "Fino a 500 €"],
   ["Commissione sui tuoi incassi", "Nessuna", "Spesso 1,9–2%"],
   ["Il tuo marchio sulle pagine cliente", "Incluso", "Raro, o a pagamento"],
   ["Fattura elettronica dal tavolo", "Inclusa", "Quasi mai"],
   ["Prenotazioni online incluse", "Sì", "Spesso a parte"],
+  ["Compri solo il modulo che ti serve", "Sì", "Quasi mai"],
 ];
 
 const SERVE = [
@@ -134,8 +135,7 @@ export default async function LandingPage() {
   const session = await auth();
   if (session?.user) redirect("/dashboard");
 
-  const mensile = PLANS.find((p) => p.interval === "month");
-  const annuale = PLANS.find((p) => p.interval === "year");
+  const mensili = PLANS.filter((p) => p.interval === "month");
 
   return (
     <div data-landing className="relative overflow-x-clip">
@@ -289,42 +289,46 @@ export default async function LandingPage() {
             incassato.
           </p>
 
-          <div className="mt-10 grid gap-5 sm:grid-cols-2">
-            {mensile && (
-              <div className="compare scheda vetro rounded-2xl p-6">
-                <p className="text-sm text-muted">{mensile.label}</p>
-                <p className="mt-2 text-4xl font-semibold tabular-nums tracking-tight">
-                  {formatPriceCents(mensile.amountCents, "EUR")}
-                  <span className="text-base font-normal text-muted">
-                    {" "}
-                    {mensile.cadence}
-                  </span>
-                </p>
-                <p className="mt-2 text-sm text-muted">{mensile.note}</p>
-              </div>
-            )}
-
-            {annuale && (
-              <div className="compare bordo-vivo rounded-2xl">
-                <div className="scheda h-full rounded-2xl bg-surface p-6">
+          <div className="mt-10 grid gap-5 sm:grid-cols-3">
+            {mensili.map((plan) => (
+              <div
+                key={plan.key}
+                className={`compare rounded-2xl p-6 ${
+                  plan.moduli.length > 1 ? "bordo-vivo" : "scheda vetro"
+                }`}
+              >
+                <div
+                  className={
+                    plan.moduli.length > 1 ? "h-full rounded-2xl bg-surface p-5" : ""
+                  }
+                >
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm text-muted">{annuale.label}</p>
-                    <span className="rounded-full bg-accent px-2.5 py-1 text-[11px] font-medium text-accent-foreground">
-                      Consigliato
-                    </span>
+                    <p className="text-sm text-muted">{plan.label}</p>
+                    {plan.moduli.length > 1 && (
+                      <span className="rounded-full bg-accent px-2.5 py-1 text-[11px] font-medium text-accent-foreground">
+                        Consigliato
+                      </span>
+                    )}
                   </div>
-                  <p className="mt-2 text-4xl font-semibold tabular-nums tracking-tight">
-                    {formatPriceCents(annuale.amountCents, "EUR")}
-                    <span className="text-base font-normal text-muted">
-                      {" "}
-                      {annuale.cadence}
-                    </span>
+                  <p className="mt-2 text-3xl font-semibold tabular-nums tracking-tight">
+                    {formatPriceCents(plan.amountCents, "EUR")}
+                    <span className="text-base font-normal text-muted"> al mese</span>
                   </p>
-                  <p className="mt-2 text-sm text-muted">{annuale.note}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-muted">
+                    {plan.descrizione}
+                  </p>
+                  {plan.note && (
+                    <p className="mt-2 text-sm font-medium text-accent">{plan.note}</p>
+                  )}
                 </div>
               </div>
-            )}
+            ))}
           </div>
+
+          <p className="compare mt-4 text-sm text-muted">
+            Sull&apos;annuale due mesi sono in omaggio. Hai già la tua cassa?
+            Prendi solo quello che ti manca: i moduli si comprano separati.
+          </p>
 
           <div className="compare mt-8 overflow-x-auto">
             <table className="w-full min-w-[34rem] border-collapse text-sm">
@@ -355,6 +359,32 @@ export default async function LandingPage() {
             La colonna di destra riporta i listini pubblici dei concorrenti
             italiani a settembre 2026; molti non pubblicano i propri prezzi.
           </p>
+        </div>
+      </section>
+
+      {/* ---------------------------------------------------------------- */}
+      <section className="mx-auto max-w-5xl px-4 pb-20">
+        <Titolo>Solo prenotazioni, se è quello che ti serve</Titolo>
+        <div className="compare scheda vetro mt-8 rounded-2xl p-6">
+          <p className="leading-relaxed text-muted">
+            Una pagina di prenotazione da mettere sul tuo sito e nei profili
+            social. Il cliente sceglie giorno, ora e persone; tu ricevi la
+            richiesta per email e la confermi o la rifiuti dal calendario.
+          </p>
+          <ul className="mt-4 grid gap-2 text-sm text-muted sm:grid-cols-2">
+            <li>— Controllo capienza: se quell&apos;ora è piena, il sistema lo dice subito</li>
+            <li>— Rifiutando, al cliente arrivano gli orari vicini in cui c&apos;è posto</li>
+            <li>— Calendario del mese con coperti e richieste da confermare</li>
+            <li>— Conferma automatica, se preferisci non rispondere a mano</li>
+            <li>— Arrivi e no-show segnati, per sapere su chi contare</li>
+            <li>— Funziona da sola: non serve il resto del gestionale</li>
+          </ul>
+          <a
+            href="https://ristoranti-guest.vercel.app/p/trattoria-da-luca"
+            className="mt-6 inline-flex min-h-12 items-center rounded-full border border-border px-6 font-medium"
+          >
+            Prova la pagina di prenotazione
+          </a>
         </div>
       </section>
 

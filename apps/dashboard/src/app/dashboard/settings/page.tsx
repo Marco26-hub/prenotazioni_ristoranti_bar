@@ -7,6 +7,7 @@ import { SatispayForm } from "./satispay-form";
 import { PasswordForm } from "./password-form";
 import { TilbyForm } from "./tilby-form";
 import { BrandForm } from "./brand-form";
+import { PrenotazioniForm } from "./prenotazioni-form";
 import { AnnuncioForm } from "./annuncio-form";
 
 export default async function SettingsPage() {
@@ -27,6 +28,9 @@ export default async function SettingsPage() {
       announcement_starts_at: Date | null;
       announcement_ends_at: Date | null;
       announcement_enabled: boolean;
+      reservation_email: string | null;
+      reservation_capacity: number | null;
+      reservation_auto_confirm: boolean;
       brand_color: string | null;
       public_phone: string | null;
       public_email: string | null;
@@ -48,7 +52,8 @@ export default async function SettingsPage() {
   >`select name, logo_url,
            announcement_title, announcement_body, announcement_image_url,
            announcement_cta_label, announcement_cta_url,
-           announcement_starts_at, announcement_ends_at, announcement_enabled, brand_color, public_phone, public_email,
+           announcement_starts_at, announcement_ends_at, announcement_enabled,
+           reservation_email, reservation_capacity, reservation_auto_confirm, brand_color, public_phone, public_email,
            tilby_shop_name, tips_enabled, tip_percents, google_review_url,
            stripe_account_id, satispay_key_id, vat_number, fiscal_code, regime_fiscale,
            address, address_zip, address_city, address_province, invoice_provider_api_key
@@ -112,6 +117,19 @@ export default async function SettingsPage() {
             ends_at: venueRow?.announcement_ends_at ?? null,
             enabled: venueRow?.announcement_enabled ?? false,
           }}
+        />
+      </section>
+
+      <section className="rounded-xl border border-border bg-surface p-4">
+        <h2 className="mb-1 font-semibold">Prenotazioni</h2>
+        <p className="mb-3 text-sm text-muted">
+          Regola come arrivano e come vengono accettate le richieste dalla tua
+          pagina pubblica di prenotazione.
+        </p>
+        <PrenotazioniForm
+          email={venueRow?.reservation_email ?? null}
+          capienza={venueRow?.reservation_capacity ?? null}
+          autoConfirm={venueRow?.reservation_auto_confirm ?? false}
         />
       </section>
 

@@ -39,9 +39,10 @@ export async function createTestVenue(): Promise<TestVenue> {
 
     const [venue] = await sql<{ id: string }[]>`
       insert into venues (owner_id, name, slug, currency,
-                          subscription_status, subscription_period_end)
+                          subscription_status, subscription_period_end, modules)
       values (${user.id}, 'E2E Test Venue', ${slug}, 'EUR',
-              'active', now() + interval '30 days')
+              'active', now() + interval '30 days',
+              array['ordini','prenotazioni'])
       returning id`;
 
     await sql`insert into venue_staff (venue_id, user_id, role)

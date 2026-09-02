@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@repo/shared/db";
 import { checkRateLimit, clientKey } from "@repo/shared/rate-limit";
-import { isEntitled } from "@repo/shared";
+import { hasModulo } from "@repo/shared";
 
 interface CreateOrderBody {
   sessionId: string;
@@ -41,11 +41,22 @@ export async function POST(request: Request) {
   // clienti non possono ordinare. Il controllo sta qui e non solo in UI
   // perché questo endpoint è pubblico.
   const [venueSub] = await sql<
-    { subscription_status: string; subscription_period_end: Date | null }[]
-  >`select subscription_status, subscription_period_end
+    {
+      subscription_status: string;
+      subscription_period_end: Date | null;
+      modules: string[] | null;
+    }[]
+  >`select subscription_status, subscription_period_end, modules
       from venues where id = ${session.venue_id}`;
 
-  if (!isEntitled(venueSub?.subscription_status, venueSub?.subscription_period_end)) {
+  if (
+    !hasModulo(
+      "ordini",
+      venueSub?.subscription_status,
+      venueSub?.subscription_period_end,
+      venueSub?.modules
+    )
+  ) {
     return NextResponse.json(
       { error: "Ordine dal tavolo non attivo per questo locale — chiedi al personale" },
       { status: 402 }

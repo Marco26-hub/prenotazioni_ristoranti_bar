@@ -14,13 +14,22 @@ export interface BillingResult {
  * Il Price sta su Stripe, non nel codice: cambiare listino non deve
  * richiedere un deploy, e soprattutto il prezzo addebitato non deve poter
  * divergere da quello configurato nell'account.
+ *
+ * Con sei combinazioni di modulo e periodicità, una variabile per ciascuna
+ * diventa ingestibile: STRIPE_PRICES le tiene in un unico oggetto
+ * `{"chiave-piano": "price_..."}`.
  */
 function priceIdFor(planKey: string): string | null {
-  const env =
-    planKey === "annuale"
-      ? process.env.STRIPE_PRICE_YEARLY
-      : process.env.STRIPE_PRICE_MONTHLY;
-  return env && env.startsWith("price_") ? env : null;
+  const grezzo = process.env.STRIPE_PRICES;
+  if (!grezzo) return null;
+  try {
+    const mappa = JSON.parse(grezzo) as Record<string, string>;
+    const id = mappa[planKey];
+    return typeof id === "string" && id.startsWith("price_") ? id : null;
+  } catch {
+    console.error("[billing] STRIPE_PRICES non è un JSON valido");
+    return null;
+  }
 }
 
 function appUrl(): string {
@@ -60,7 +69,7 @@ export async function startSubscription(planKey: string): Promise<BillingResult>
   if (!priceId) {
     return {
       error:
-        "Listino non ancora configurato. Servono le variabili STRIPE_PRICE_MONTHLY e STRIPE_PRICE_YEARLY.",
+        "Listino non ancora configurato per questo piano. Controlla la variabile STRIPE_PRICES.",
     };
   }
 
@@ -88,7 +97,11 @@ export async function startSubscription(planKey: string): Promise<BillingResult>
       line_items: [{ price: priceId, quantity: 1 }],
       // Senza questi metadata il webhook non saprebbe quale locale attivare.
       subscription_data: {
-        metadata: { venue_id: venue.venueId, plan: plan.key },
+        metadata: {
+          venue_id: venue.venueId,
+          plan: plan.key,
+          moduli: plan.moduli.join(","),
+        },
         ...(neverSubscribed ? { trial_period_days: TRIAL_DAYS } : {}),
       },
       metadata: { venue_id: venue.venueId, plan: plan.key },
