@@ -2,6 +2,7 @@ import { db } from "@repo/shared/db";
 import { auth } from "@/auth";
 import { formatPriceCents } from "@repo/shared";
 import { addCategory, addMenuItem, toggleItemAvailable, deleteMenuItem } from "./actions";
+import { ImportForm } from "./import-form";
 
 export default async function MenuPage() {
   const session = await auth();
@@ -55,6 +56,11 @@ export default async function MenuPage() {
           </ul>
         </section>
       )}
+
+      <section className="rounded-xl border border-border bg-surface p-4">
+        <h2 className="mb-2 font-semibold">Importa il menu da file</h2>
+        <ImportForm />
+      </section>
 
       <section className="rounded-xl border border-border bg-surface p-4">
         <h2 className="mb-2 font-semibold">Aggiungi categoria</h2>

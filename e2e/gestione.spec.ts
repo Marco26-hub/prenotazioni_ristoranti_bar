@@ -104,6 +104,16 @@ test("la registrazione crea locale, tavoli e categorie", async ({ page }) => {
   const email = `e2e-signup-${suffix}@test.local`;
   const name = `E2E Signup ${suffix}`;
 
+  // La registrazione ha un rate limit di 5/ora per IP. È corretto in
+  // produzione, ma in locale tutte le esecuzioni condividono lo stesso IP e
+  // dopo cinque run il test fallirebbe per il limite, non per un difetto.
+  const reset = postgres(process.env.DATABASE_URL!, { ssl: "require", prepare: false });
+  try {
+    await reset`delete from rate_limits where bucket_key like 'signup:%'`;
+  } finally {
+    await reset.end();
+  }
+
   await page.goto(`${DASHBOARD_URL}/registrati`);
   await page.locator('input[name="venueName"]').fill(name);
   await page.locator('input[name="email"]').fill(email);

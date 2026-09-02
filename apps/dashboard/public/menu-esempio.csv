@@ -1,0 +1,25 @@
+categoria,nome,prezzo,descrizione,iva
+Antipasti,Bruschetta al pomodoro,6.00,"Pane casereccio, pomodoro e basilico",10
+Antipasti,Tagliere di salumi e formaggi,14.00,Selezione del territorio con confetture,10
+Antipasti,Burrata e alici,11.00,Burrata pugliese con alici del Cantabrico,10
+Primi,Carbonara,13.00,"Guanciale, uovo e pecorino romano",10
+Primi,Cacio e pepe,12.00,Tonnarelli mantecati al pecorino,10
+Primi,Amatriciana,12.50,"Guanciale, pomodoro e pecorino",10
+Primi,Risotto ai funghi porcini,15.00,,10
+Secondi,Tagliata di manzo,22.00,Con rucola e scaglie di grana,10
+Secondi,Saltimbocca alla romana,18.00,"Vitello, prosciutto crudo e salvia",10
+Secondi,Baccalà in guazzetto,19.00,Con pomodorini e olive taggiasche,10
+Contorni,Patate al forno,5.00,,10
+Contorni,Cicoria ripassata,6.00,Aglio e peperoncino,10
+Contorni,Insalata mista,5.00,,10
+Dolci,Tiramisù,6.50,Fatto in casa,10
+Dolci,Panna cotta ai frutti di bosco,6.00,,10
+Dolci,Cannolo siciliano,6.00,,10
+Bevande,Acqua naturale 0.75L,2.50,,10
+Bevande,Acqua frizzante 0.75L,2.50,,10
+Bevande,Coca-Cola 0.33L,3.50,,10
+Bevande,Birra artigianale 0.33L,6.00,Bionda del birrificio locale,10
+Bevande,Caffè,1.50,,10
+Vini,Vino della casa rosso 0.5L,8.00,,22
+Vini,Vino della casa bianco 0.5L,8.00,,22
+Vini,Chianti DOCG bottiglia,24.00,,22

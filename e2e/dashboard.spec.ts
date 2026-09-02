@@ -52,12 +52,13 @@ test("tutti i link di navigazione portano a una pagina che carica", async ({ pag
     { link: "Menu", heading: "Menu" },
     { link: "QR e tavoli", heading: "Gestione tavoli" },
     { link: "Prenotazioni", heading: "Prenotazioni" },
-    { link: "Impostazioni", heading: /Impostazioni/ },
+    { link: "Impostazioni", heading: /^Impostazioni/ },
   ];
 
   for (const p of pages) {
     await page.getByRole("link", { name: p.link, exact: true }).click();
-    await expect(page.getByRole("heading", { name: p.heading })).toBeVisible();
+    // exact: altrimenti "Menu" matcha anche "Importa il menu da file".
+    await expect(page.getByRole("heading", { name: p.heading, exact: true })).toBeVisible();
   }
 });
 

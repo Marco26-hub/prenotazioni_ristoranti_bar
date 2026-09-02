@@ -28,3 +28,22 @@ export async function cancelReservation(reservationId: string) {
     where id = ${reservationId} and venue_id = ${venue.venueId}`;
   revalidatePath("/dashboard/reservations");
 }
+
+type ReservationStatus = "confirmed" | "seated" | "no_show" | "cancelled";
+
+/**
+ * Segnare arrivo e no-show serve al locale per sapere su chi può contare:
+ * il no-show è anche il presupposto per addebitare la caparra, quando sarà
+ * attiva.
+ */
+export async function setReservationStatus(
+  reservationId: string,
+  status: ReservationStatus
+) {
+  const { venue } = await requireVenue();
+  const sql = db();
+  await sql`
+    update reservations set status = ${status}
+    where id = ${reservationId} and venue_id = ${venue.venueId}`;
+  revalidatePath("/dashboard/reservations");
+}
