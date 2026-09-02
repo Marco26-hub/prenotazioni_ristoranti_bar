@@ -106,6 +106,19 @@ export default async function PublicMenuPage({ params }: PageProps<"/m/[slug]">)
     "@context": "https://schema.org",
     "@type": "Restaurant",
     name: venue.name,
+    acceptsReservations: "True",
+    potentialAction: {
+      "@type": "ReserveAction",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: `/p/${slug}`,
+        actionPlatform: [
+          "http://schema.org/DesktopWebPlatform",
+          "http://schema.org/MobileWebPlatform",
+        ],
+      },
+      result: { "@type": "FoodEstablishmentReservation", name: `Tavolo da ${venue.name}` },
+    },
     ...(venue.public_phone ? { telephone: venue.public_phone } : {}),
     ...(venue.public_email ? { email: venue.public_email } : {}),
     ...(venue.address
@@ -167,6 +180,12 @@ export default async function PublicMenuPage({ params }: PageProps<"/m/[slug]">)
           <div className="min-w-0">
             <h1 className="text-xl font-semibold tracking-tight">{venue.name}</h1>
             {address && <p className="text-sm text-muted">{address}</p>}
+            <a
+              href={`/p/${slug}`}
+              className="mt-3 inline-flex min-h-11 items-center rounded-full bg-accent px-5 text-sm font-medium text-accent-foreground"
+            >
+              Prenota un tavolo
+            </a>
           </div>
         </div>
       </header>
