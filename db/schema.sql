@@ -67,6 +67,9 @@ create table venues (
   -- Lingue del menu oltre all'italiano, che è sempre la base. Vuoto = nessun
   -- selettore mostrato al cliente, invece di uno che non cambia nulla.
   languages text[] not null default '{}',
+  -- Formato del locale: pizzeria e steak house non compilano il menu allo
+  -- stesso modo. Serve a proporre categorie, scelte e promemoria giusti.
+  venue_type text not null default 'ristorante',
   -- Coperto a persona e servizio sull'ordinato: vanno dichiarati al cliente
   -- insieme ai prezzi (R.D. 635/1940 art. 180), non solo in fondo al conto.
   cover_charge_cents int not null default 0,

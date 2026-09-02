@@ -21,6 +21,7 @@ import { LINGUE, type Traduzioni } from "@repo/shared/lingue";
 import { gruppiPerPiatti } from "@repo/shared/varianti";
 import { descriviBevanda, mancanoSolfiti } from "@repo/shared/bevande";
 import { VariantiForm, type GruppoAdmin } from "./varianti-form";
+import { ModelloForm } from "./modello-form";
 
 const AZIONE = "flex min-h-11 items-center px-1 text-sm underline";
 
@@ -52,8 +53,8 @@ export default async function MenuPage() {
 
   const sql = db();
   const [venueRow] = await sql<
-    { tilby_token: string | null; languages: string[] }[]
-  >`select tilby_token, languages from venues where id = ${venue.venueId}`;
+    { tilby_token: string | null; languages: string[]; venue_type: string }[]
+  >`select tilby_token, languages, venue_type from venues where id = ${venue.venueId}`;
 
   const lingueAttive = venueRow?.languages ?? [];
 
@@ -399,6 +400,15 @@ export default async function MenuPage() {
         {categories.length === 0 && (
           <AggiungiPiatto categoryId={null} categoryName="nessuna categoria" />
         )}
+      </section>
+
+      <section className="space-y-3 border-t border-border pt-6">
+        <h2 className="font-semibold">Che locale sei</h2>
+        <p className="text-sm text-muted">
+          Imposta categorie e scelte tipiche del tuo formato, e ti ricorda
+          quello che in quel formato si dimentica.
+        </p>
+        <ModelloForm tipoAttuale={venueRow?.venue_type ?? "ristorante"} />
       </section>
 
       <section className="space-y-3 border-t border-border pt-6">

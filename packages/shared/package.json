@@ -16,7 +16,8 @@
     "./prenotazioni": "./prenotazioni.ts",
     "./lingue": "./lingue.ts",
     "./varianti": "./varianti.ts",
-    "./bevande": "./bevande.ts"
+    "./bevande": "./bevande.ts",
+    "./formati": "./formati.ts"
   },
   "dependencies": {
     "postgres": "^3.4.5",

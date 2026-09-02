@@ -16,9 +16,12 @@ export interface Opzione {
   available: boolean;
 }
 
+export type TipoGruppo = "scelta" | "aggiunta" | "rimozione";
+
 export interface GruppoOpzioni {
   id: string;
   name: string;
+  kind: TipoGruppo;
   required: boolean;
   min_choices: number;
   max_choices: number;
@@ -29,6 +32,7 @@ interface RigaGruppo {
   id: string;
   menu_item_id: string;
   name: string;
+  kind: TipoGruppo;
   required: boolean;
   min_choices: number;
   max_choices: number;
@@ -52,7 +56,7 @@ export async function gruppiPerPiatti(
   if (itemIds.length === 0) return perPiatto;
 
   const gruppi = await sql<RigaGruppo[]>`
-    select id, menu_item_id, name, required, min_choices, max_choices
+    select id, menu_item_id, name, kind, required, min_choices, max_choices
       from menu_option_groups
      where venue_id = ${venueId} and menu_item_id in ${sql(itemIds)}
      order by sort_order, name`;
@@ -77,6 +81,7 @@ export async function gruppiPerPiatti(
     lista.push({
       id: g.id,
       name: g.name,
+      kind: g.kind,
       required: g.required,
       min_choices: g.min_choices,
       max_choices: g.max_choices,
@@ -136,7 +141,14 @@ export function calcolaPrezzo(
       if (!o.available) return { errore: `${o.name} non è disponibile` };
       totale += o.price_delta_cents;
       usati.add(o.id);
-      scelte.push({ gruppo: g.name, opzione: o.name, supplemento: o.price_delta_cents });
+      scelte.push({
+        gruppo: g.name,
+        // Una rimozione stampata come "Cipolla" direbbe al cuoco di
+        // aggiungerla: l'etichetta si risolve qui, una volta sola, prima
+        // di finire scritta sulla comanda.
+        opzione: g.kind === "rimozione" ? `Senza ${o.name.toLowerCase()}` : o.name,
+        supplemento: o.price_delta_cents,
+      });
     }
   }
 

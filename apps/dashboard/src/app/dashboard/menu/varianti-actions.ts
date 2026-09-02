@@ -24,6 +24,10 @@ export async function creaGruppo(formData: FormData): Promise<EsitoVariante> {
   const obbligatorio = formData.get("required") === "on";
   const multiplo = formData.get("multiple") === "on";
 
+  const TIPI = ["scelta", "aggiunta", "rimozione"];
+  const tipoGrezzo = String(formData.get("kind") ?? "scelta");
+  const tipo = TIPI.includes(tipoGrezzo) ? tipoGrezzo : "scelta";
+
   if (!itemId || !nome) return { error: "Serve un nome per il gruppo" };
 
   const sql = db();
@@ -33,8 +37,9 @@ export async function creaGruppo(formData: FormData): Promise<EsitoVariante> {
 
   await sql`
     insert into menu_option_groups
-      (venue_id, menu_item_id, name, required, min_choices, max_choices, sort_order)
-    values (${venue.venueId}, ${itemId}, ${nome}, ${obbligatorio},
+      (venue_id, menu_item_id, name, kind, required, min_choices, max_choices,
+       sort_order)
+    values (${venue.venueId}, ${itemId}, ${nome}, ${tipo}, ${obbligatorio},
             ${obbligatorio ? 1 : 0}, ${multiplo ? 10 : 1},
             coalesce((select max(sort_order) + 1 from menu_option_groups
                        where menu_item_id = ${itemId}), 0))`;

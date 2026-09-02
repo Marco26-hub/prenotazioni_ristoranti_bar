@@ -14,6 +14,7 @@ export interface OpzioneCliente {
 export interface GruppoCliente {
   id: string;
   name: string;
+  kind?: "scelta" | "aggiunta" | "rimozione";
   required: boolean;
   min_choices: number;
   max_choices: number;
@@ -104,7 +105,10 @@ export function DishSheet({
     gruppi
       .flatMap((g) => g.opzioni)
       .filter((o) => idScelti.includes(o.id))
-      .map((o) => o.name)
+      .map((o) => {
+        const g = gruppi.find((x) => x.opzioni.some((y) => y.id === o.id));
+        return g?.kind === "rimozione" ? `Senza ${o.name.toLowerCase()}` : o.name;
+      })
       .join(" · ") || null;
 
   function aggiungi() {
@@ -269,7 +273,9 @@ export function DishSheet({
                         }`}
                       >
                         <span>
-                          {o.name}
+                          {g.kind === "rimozione"
+                            ? `Senza ${o.name.toLowerCase()}`
+                            : o.name}
                           {!o.available && (
                             <span className="ml-2 text-xs text-muted">esaurito</span>
                           )}

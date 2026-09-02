@@ -1,0 +1,482 @@
+/**
+ * Modelli di menu per formato di locale.
+ *
+ * Una pizzeria e una steak house non compilano il menu allo stesso modo:
+ * cambiano le categorie, i gruppi di scelte e gli obblighi che il
+ * ristoratore dimentica. Partire da una pagina vuota significa che il menu
+ * verrà caricato male, o non verrà caricato affatto.
+ *
+ * I promemoria non sono decorazione: sono le cose per cui un locale prende
+ * una sanzione o perde un cliente, raccolte per formato.
+ */
+
+export type TipoLocale =
+  | "ristorante"
+  | "pizzeria"
+  | "pizza_al_trancio"
+  | "piadineria"
+  | "steak_house"
+  | "paninoteca"
+  | "hamburgeria"
+  | "bar";
+
+export type TipoGruppo = "scelta" | "aggiunta" | "rimozione";
+
+export interface GruppoModello {
+  nome: string;
+  /** Categorie a cui applicarlo. Vuoto = tutte. */
+  categorie: string[];
+  tipo: TipoGruppo;
+  obbligatorio: boolean;
+  multiplo: boolean;
+  /** [nome, supplemento in centesimi] */
+  opzioni: Array<[string, number]>;
+}
+
+export interface ModelloLocale {
+  tipo: TipoLocale;
+  nome: string;
+  descrizione: string;
+  categorie: string[];
+  gruppi: GruppoModello[];
+  /** Quello che in quel formato si dimentica sempre. */
+  promemoria: string[];
+}
+
+const COTTURA_CARNE: GruppoModello = {
+  nome: "Cottura",
+  categorie: [],
+  tipo: "scelta",
+  obbligatorio: true,
+  multiplo: false,
+  opzioni: [
+    ["Al sangue", 0],
+    ["Media", 0],
+    ["Ben cotta", 0],
+  ],
+};
+
+export const MODELLI: ModelloLocale[] = [
+  {
+    tipo: "ristorante",
+    nome: "Ristorante",
+    descrizione: "Con carta dei vini, portate e menu degustazione.",
+    categorie: ["Antipasti", "Primi", "Secondi", "Contorni", "Dolci", "Vini", "Bevande"],
+    gruppi: [
+      {
+        nome: "Formato",
+        categorie: ["Vini"],
+        tipo: "scelta",
+        obbligatorio: true,
+        multiplo: false,
+        opzioni: [
+          ["Calice", 0],
+          ["Bottiglia 0,75L", 0],
+          ["Magnum 1,5L", 0],
+        ],
+      },
+      {
+        nome: "Porzione",
+        categorie: ["Primi"],
+        tipo: "scelta",
+        obbligatorio: false,
+        multiplo: false,
+        opzioni: [
+          ["Mezza porzione", -400],
+          ["Porzione intera", 0],
+        ],
+      },
+    ],
+    promemoria: [
+      "Ogni vino con più di 10 mg/l di solfiti va dichiarato: praticamente tutti.",
+      "Il calice e la bottiglia sono due prezzi dello stesso vino: mettili come formato, non come due voci.",
+      "Il pesce servito crudo va abbattuto e dichiarato (Reg. CE 853/2004).",
+      "Se hai un menu degustazione, caricalo come piatto unico con le scelte dentro.",
+    ],
+  },
+  {
+    tipo: "pizzeria",
+    nome: "Pizzeria",
+    descrizione: "Impasti, formati e ingredienti da aggiungere o togliere.",
+    categorie: ["Antipasti e fritti", "Pizze classiche", "Pizze speciali", "Dolci", "Bevande", "Birre"],
+    gruppi: [
+      {
+        nome: "Impasto",
+        categorie: ["Pizze classiche", "Pizze speciali"],
+        tipo: "scelta",
+        obbligatorio: true,
+        multiplo: false,
+        opzioni: [
+          ["Classico", 0],
+          ["Integrale", 100],
+          ["Maturazione 48 ore", 150],
+          ["Senza glutine", 300],
+        ],
+      },
+      {
+        nome: "Formato",
+        categorie: ["Pizze classiche", "Pizze speciali"],
+        tipo: "scelta",
+        obbligatorio: false,
+        multiplo: false,
+        opzioni: [
+          ["Normale", 0],
+          ["Baby", -300],
+          ["Maxi", 400],
+        ],
+      },
+      {
+        nome: "Aggiungi",
+        categorie: ["Pizze classiche", "Pizze speciali"],
+        tipo: "aggiunta",
+        obbligatorio: false,
+        multiplo: true,
+        opzioni: [
+          ["Bufala", 250],
+          ["Nduja", 200],
+          ["Funghi porcini", 300],
+          ["Prosciutto crudo", 300],
+          ["Burrata", 300],
+        ],
+      },
+      {
+        nome: "Togli",
+        categorie: ["Pizze classiche", "Pizze speciali"],
+        tipo: "rimozione",
+        obbligatorio: false,
+        multiplo: true,
+        opzioni: [
+          ["Cipolla", 0],
+          ["Origano", 0],
+          ["Basilico", 0],
+          ["Aglio", 0],
+        ],
+      },
+      {
+        nome: "Cottura",
+        categorie: ["Pizze classiche", "Pizze speciali"],
+        tipo: "scelta",
+        obbligatorio: false,
+        multiplo: false,
+        opzioni: [
+          ["Normale", 0],
+          ["Ben cotta", 0],
+          ["Poco cotta", 0],
+        ],
+      },
+    ],
+    promemoria: [
+      "L'impasto senza glutine richiede piano e forno separati: se non puoi garantirlo, non offrirlo.",
+      "La mozzarella surgelata va dichiarata come tutto il resto.",
+      "Le rimozioni servono anche a chi ha un'intolleranza: meglio una casella che una nota scritta a mano.",
+      "Il glutine è un allergene: indicalo su tutte le pizze, non solo su quelle speciali.",
+    ],
+  },
+  {
+    tipo: "pizza_al_trancio",
+    nome: "Pizza al trancio",
+    descrizione: "Vendita a trancio o a peso, da asporto e sul posto.",
+    categorie: ["Pizze al trancio", "Fritti", "Bevande"],
+    gruppi: [
+      {
+        nome: "Formato",
+        categorie: ["Pizze al trancio"],
+        tipo: "scelta",
+        obbligatorio: true,
+        multiplo: false,
+        opzioni: [
+          ["Trancio", 0],
+          ["Mezzo trancio", -200],
+          ["Teglia intera", 1800],
+        ],
+      },
+      {
+        nome: "Servizio",
+        categorie: ["Pizze al trancio"],
+        tipo: "scelta",
+        obbligatorio: false,
+        multiplo: false,
+        opzioni: [
+          ["Da mangiare qui", 0],
+          ["Da asporto", 0],
+          ["Riscaldare", 0],
+        ],
+      },
+    ],
+    promemoria: [
+      "Se vendi a peso, il prezzo al chilo va esposto: qui puoi caricare solo prezzi fissi per formato.",
+      "L'asporto ha un'IVA diversa dal consumo sul posto: controlla l'aliquota su ogni voce.",
+      "Un trancio esposto in vetrina resta soggetto all'obbligo sugli allergeni.",
+    ],
+  },
+  {
+    tipo: "piadineria",
+    nome: "Piadineria",
+    descrizione: "Impasti, farciture componibili e aggiunte.",
+    categorie: ["Piadine", "Crescioni", "Insalate", "Dolci", "Bevande"],
+    gruppi: [
+      {
+        nome: "Impasto",
+        categorie: ["Piadine", "Crescioni"],
+        tipo: "scelta",
+        obbligatorio: true,
+        multiplo: false,
+        opzioni: [
+          ["Classica", 0],
+          ["Integrale", 50],
+          ["Senza strutto", 50],
+          ["Senza glutine", 250],
+        ],
+      },
+      {
+        nome: "Aggiungi",
+        categorie: ["Piadine", "Crescioni", "Insalate"],
+        tipo: "aggiunta",
+        obbligatorio: false,
+        multiplo: true,
+        opzioni: [
+          ["Squacquerone", 150],
+          ["Rucola", 100],
+          ["Prosciutto crudo", 200],
+          ["Grigliata di verdure", 150],
+        ],
+      },
+      {
+        nome: "Togli",
+        categorie: ["Piadine", "Crescioni", "Insalate"],
+        tipo: "rimozione",
+        obbligatorio: false,
+        multiplo: true,
+        opzioni: [
+          ["Cipolla", 0],
+          ["Maionese", 0],
+          ["Rucola", 0],
+        ],
+      },
+    ],
+    promemoria: [
+      "La piadina classica contiene strutto: dichiaralo, non è scontato per chi non mangia maiale.",
+      "Il senza glutine va cotto su piastra separata, altrimenti non è senza glutine.",
+    ],
+  },
+  {
+    tipo: "steak_house",
+    nome: "Grill e steak house",
+    descrizione: "Tagli, cotture, frollature e contorni a scelta.",
+    categorie: ["Antipasti", "Tagli di carne", "Hamburger", "Contorni", "Dolci", "Vini", "Birre"],
+    gruppi: [
+      { ...COTTURA_CARNE, categorie: ["Tagli di carne", "Hamburger"] },
+      {
+        nome: "Peso",
+        categorie: ["Tagli di carne"],
+        tipo: "scelta",
+        obbligatorio: true,
+        multiplo: false,
+        opzioni: [
+          ["300 g", 0],
+          ["500 g", 900],
+          ["800 g", 1900],
+        ],
+      },
+      {
+        nome: "Contorno incluso",
+        categorie: ["Tagli di carne"],
+        tipo: "scelta",
+        obbligatorio: true,
+        multiplo: false,
+        opzioni: [
+          ["Patate al forno", 0],
+          ["Insalata mista", 0],
+          ["Verdure grigliate", 0],
+        ],
+      },
+      {
+        nome: "Salse",
+        categorie: ["Tagli di carne", "Hamburger"],
+        tipo: "aggiunta",
+        obbligatorio: false,
+        multiplo: true,
+        opzioni: [
+          ["Salsa al pepe verde", 150],
+          ["Burro alle erbe", 100],
+          ["Barbecue", 100],
+        ],
+      },
+    ],
+    promemoria: [
+      "L'origine della carne bovina è obbligatoria (Reg. CE 1760/2000): nato, allevato e macellato.",
+      "Se dichiari la frollatura, scrivi i giorni: è quello che il cliente confronta.",
+      "La cottura al sangue su carne trita va sconsigliata per iscritto: è un rischio microbiologico, non una preferenza.",
+      "Per i tagli venduti al chilo qui puoi solo mettere pesi fissi: il prezzo al chilo va esposto a parte.",
+    ],
+  },
+  {
+    tipo: "paninoteca",
+    nome: "Paninoteca",
+    descrizione: "Pane, farciture e menu combinati.",
+    categorie: ["Panini", "Piadine", "Fritti", "Bevande", "Birre"],
+    gruppi: [
+      {
+        nome: "Pane",
+        categorie: ["Panini"],
+        tipo: "scelta",
+        obbligatorio: true,
+        multiplo: false,
+        opzioni: [
+          ["Classico", 0],
+          ["Integrale", 50],
+          ["Ai cereali", 50],
+          ["Senza glutine", 200],
+        ],
+      },
+      {
+        nome: "Aggiungi",
+        categorie: ["Panini", "Piadine"],
+        tipo: "aggiunta",
+        obbligatorio: false,
+        multiplo: true,
+        opzioni: [
+          ["Bacon", 150],
+          ["Formaggio extra", 100],
+          ["Uovo", 100],
+          ["Patatine dentro", 100],
+        ],
+      },
+      {
+        nome: "Togli",
+        categorie: ["Panini", "Piadine"],
+        tipo: "rimozione",
+        obbligatorio: false,
+        multiplo: true,
+        opzioni: [
+          ["Cipolla", 0],
+          ["Salse", 0],
+          ["Insalata", 0],
+          ["Pomodoro", 0],
+        ],
+      },
+    ],
+    promemoria: [
+      "Il pane senza glutine non basta: anche affettati e salse vanno verificati.",
+      "Se fai il menu panino più patatine più bibita, oggi va caricato come voce a sé col prezzo del combinato.",
+    ],
+  },
+  {
+    tipo: "hamburgeria",
+    nome: "Hamburgeria",
+    descrizione: "Carne, pane, cotture, aggiunte e doppie.",
+    categorie: ["Hamburger", "Sfizi e fritti", "Insalate", "Dolci", "Bevande", "Birre"],
+    gruppi: [
+      { ...COTTURA_CARNE, categorie: ["Hamburger"] },
+      {
+        nome: "Formato",
+        categorie: ["Hamburger"],
+        tipo: "scelta",
+        obbligatorio: false,
+        multiplo: false,
+        opzioni: [
+          ["Singolo", 0],
+          ["Doppia carne", 400],
+        ],
+      },
+      {
+        nome: "Pane",
+        categorie: ["Hamburger"],
+        tipo: "scelta",
+        obbligatorio: true,
+        multiplo: false,
+        opzioni: [
+          ["Bun classico", 0],
+          ["Bun ai sesami", 0],
+          ["Senza glutine", 200],
+          ["Senza pane, in insalata", 0],
+        ],
+      },
+      {
+        nome: "Aggiungi",
+        categorie: ["Hamburger"],
+        tipo: "aggiunta",
+        obbligatorio: false,
+        multiplo: true,
+        opzioni: [
+          ["Bacon", 150],
+          ["Cheddar", 100],
+          ["Uovo", 100],
+          ["Cipolla caramellata", 100],
+        ],
+      },
+      {
+        nome: "Togli",
+        categorie: ["Hamburger"],
+        tipo: "rimozione",
+        obbligatorio: false,
+        multiplo: true,
+        opzioni: [
+          ["Cipolla", 0],
+          ["Salsa", 0],
+          ["Pomodoro", 0],
+          ["Cetriolini", 0],
+        ],
+      },
+    ],
+    promemoria: [
+      "Sulla carne trita la cottura al sangue va sconsigliata per iscritto: è un rischio, non un gusto.",
+      "Se il bun senza glutine viene tostato sulla stessa piastra, non è senza glutine.",
+      "L'origine della carne bovina è obbligatoria anche per gli hamburger.",
+    ],
+  },
+  {
+    tipo: "bar",
+    nome: "Bar e caffetteria",
+    descrizione: "Caffetteria, colazione, aperitivo.",
+    categorie: ["Caffetteria", "Colazione", "Aperitivo", "Panini e toast", "Bevande", "Vini"],
+    gruppi: [
+      {
+        nome: "Latte",
+        categorie: ["Caffetteria"],
+        tipo: "scelta",
+        obbligatorio: false,
+        multiplo: false,
+        opzioni: [
+          ["Intero", 0],
+          ["Scremato", 0],
+          ["Soia", 50],
+          ["Avena", 50],
+          ["Senza lattosio", 50],
+        ],
+      },
+      {
+        nome: "Caffè",
+        categorie: ["Caffetteria"],
+        tipo: "scelta",
+        obbligatorio: false,
+        multiplo: false,
+        opzioni: [
+          ["Normale", 0],
+          ["Ristretto", 0],
+          ["Lungo", 0],
+          ["Decaffeinato", 0],
+          ["In tazza grande", 0],
+        ],
+      },
+    ],
+    promemoria: [
+      "Il prezzo al banco e al tavolo può differire: se lo fai, va esposto.",
+      "Latte e frutta a guscio sono allergeni: valgono anche per la caffetteria.",
+    ],
+  },
+];
+
+export function modelloPerTipo(tipo: string): ModelloLocale | undefined {
+  return MODELLI.find((m) => m.tipo === tipo);
+}
+
+/**
+ * Come si legge una scelta nella comanda.
+ *
+ * Una rimozione stampata come "Cipolla" direbbe al cuoco di aggiungerla:
+ * è l'errore che rende inutile tutta la funzione.
+ */
+export function etichettaScelta(tipo: TipoGruppo, nome: string): string {
+  return tipo === "rimozione" ? `Senza ${nome.toLowerCase()}` : nome;
+}

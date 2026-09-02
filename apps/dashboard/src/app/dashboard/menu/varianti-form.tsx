@@ -20,6 +20,7 @@ export interface OpzioneAdmin {
 export interface GruppoAdmin {
   id: string;
   name: string;
+  kind?: "scelta" | "aggiunta" | "rimozione";
   required: boolean;
   max_choices: number;
   opzioni: OpzioneAdmin[];
@@ -92,7 +93,7 @@ export function VariantiForm({
             {g.opzioni.map((o) => (
               <li key={o.id} className="flex items-center justify-between gap-3 text-sm">
                 <span className={o.available ? "" : "text-muted line-through"}>
-                  {o.name}
+                  {g.kind === "rimozione" ? `Senza ${o.name.toLowerCase()}` : o.name}
                   {o.price_delta_cents !== 0 && (
                     <span className="ml-2 tabular-nums text-muted">
                       {o.price_delta_cents > 0 ? "+" : "−"}
@@ -168,6 +169,17 @@ export function VariantiForm({
           required
           className={`${CAMPO} w-full`}
         />
+        <select
+          name="kind"
+          defaultValue="scelta"
+          aria-label="Tipo di gruppo"
+          className={`${CAMPO} w-full`}
+        >
+          <option value="scelta">Scelta — una fra più opzioni</option>
+          <option value="aggiunta">Aggiunta — extra a pagamento</option>
+          <option value="rimozione">Rimozione — cosa togliere</option>
+        </select>
+
         <div className="flex flex-wrap gap-4">
           <label className="flex min-h-11 items-center gap-2 text-sm">
             <input type="checkbox" name="required" className="h-5 w-5" />
