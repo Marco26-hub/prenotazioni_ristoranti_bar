@@ -40,22 +40,31 @@ export interface Plan {
 export const TRIAL_DAYS = 14;
 
 /**
- * Attivazione una tantum, dovuta sempre.
+ * Attivazione una tantum, dovuta sempre e diversa per modulo.
  *
- * Copre il lavoro che c'è davvero al primo giorno: menu caricato, QR
- * stampabili, Stripe collegato, marchio configurato. È la norma fra i
- * fornitori di cassa — EasyCassa 399 €, TheFork 300-400 €, Qamarero fino a
- * 500 €.
+ * Copre il lavoro che c'è davvero al primo giorno. Avviare le sole
+ * prenotazioni significa capienza, orari e pagina pubblica; avviare gli
+ * ordini significa in più menu caricato, QR stampati e Stripe collegato:
+ * lavoro diverso, prezzo diverso. È la norma fra i fornitori di cassa —
+ * EasyCassa 399 €, TheFork 300-400 €, Qamarero fino a 500 €.
  *
- * Non si sconta sull'annuale: il lavoro di avviamento è lo stesso a
- * prescindere da come il locale paga il canone, e regalarlo insegnerebbe
- * che è trattabile. Lo sconto sull'annuale resta dov'è utile, cioè sui due
- * mesi di canone.
+ * Non si sconta sull'annuale: l'avviamento è lo stesso a prescindere da
+ * come il locale paga il canone, e regalarlo insegnerebbe che è
+ * trattabile. Lo sconto annuale resta dov'è utile, sui due mesi di canone.
  */
-export const SETUP_CENTS = 64900;
+export const SETUP_ORDINI_CENTS = 64900;
+export const SETUP_PRENOTAZIONI_CENTS = 44900;
 
-export function setupDovuto(_plan: Plan): boolean {
-  return true;
+export function setupCents(plan: Plan): number {
+  // Qualunque piano che includa gli ordini paga l'avviamento pieno.
+  return plan.moduli.includes("ordini")
+    ? SETUP_ORDINI_CENTS
+    : SETUP_PRENOTAZIONI_CENTS;
+}
+
+/** Chiave del Price di attivazione da addebitare per questo piano. */
+export function setupPriceKey(plan: Plan): string {
+  return plan.moduli.includes("ordini") ? "setup" : "setup-prenotazioni";
 }
 
 export const PLANS: Plan[] = [
@@ -74,7 +83,7 @@ export const PLANS: Plan[] = [
     key: "prenotazioni-mensile",
     label: "Solo prenotazioni",
     moduli: ["prenotazioni"],
-    amountCents: 4900,
+    amountCents: 8900,
     cadence: "al mese",
     descrizione: "Pagina di prenotazione per il tuo sito, calendario e conferme.",
     note: "Senza gestionale di sala",
@@ -87,7 +96,7 @@ export const PLANS: Plan[] = [
     amountCents: 13900,
     cadence: "al mese",
     descrizione: "Ordini, pagamenti e prenotazioni insieme.",
-    note: "19 € in meno dei due separati",
+    note: "59 € in meno dei due separati",
   },
   {
     interval: "year",
@@ -104,7 +113,7 @@ export const PLANS: Plan[] = [
     key: "prenotazioni-annuale",
     label: "Solo prenotazioni",
     moduli: ["prenotazioni"],
-    amountCents: 49000,
+    amountCents: 89000,
     cadence: "all'anno",
     descrizione: "Pagina di prenotazione per il tuo sito, calendario e conferme.",
     note: "Due mesi in omaggio",

@@ -10,8 +10,7 @@ const INCLUSO = [
   "Il tuo logo e i tuoi colori sulle pagine cliente",
   "Fattura elettronica richiedibile dal tavolo",
   "Accessi separati per titolare, sala e cucina",
-  "Nessun costo di attivazione",
-  "Nessuna commissione sui tuoi incassi",
+  "Nessuna percentuale trattenuta da noi sui tuoi incassi",
 ];
 
 function formatDate(d: Date | null) {
@@ -110,8 +109,9 @@ export default async function BillingPage() {
           ))}
         </ul>
         <p className="mt-3 text-muted">
-          Prezzi IVA esclusa. Le commissioni sui pagamenti dei tuoi clienti
-          sono quelle di Stripe e non passano da noi.
+          Prezzi IVA esclusa. Le commissioni sulle carte sono quelle del tuo
+          fornitore di pagamento e le paghi a lui: noi non tratteniamo nulla
+          sul tuo incassato.
         </p>
       </section>
     </main>

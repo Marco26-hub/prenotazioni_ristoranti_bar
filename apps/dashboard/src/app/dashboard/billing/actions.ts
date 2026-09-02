@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@repo/shared/db";
-import { planByKey, setupDovuto, TRIAL_DAYS } from "@repo/shared/plans";
+import { planByKey, setupPriceKey, TRIAL_DAYS } from "@repo/shared/plans";
 import { requireRole } from "@/lib/authz";
 import { stripeClient } from "@/lib/stripe";
 
@@ -32,13 +32,13 @@ function priceIdFor(planKey: string): string | null {
   }
 }
 
-/** Prezzo dell'attivazione, se configurato. */
-function setupPriceId(): string | null {
+/** Prezzo dell'attivazione per questo piano, se configurato. */
+function setupPriceId(chiave: string): string | null {
   const grezzo = process.env.STRIPE_PRICES;
   if (!grezzo) return null;
   try {
     const mappa = JSON.parse(grezzo) as Record<string, string>;
-    const id = mappa["setup"];
+    const id = mappa[chiave];
     return typeof id === "string" && id.startsWith("price_") ? id : null;
   } catch {
     return null;
@@ -111,8 +111,8 @@ export async function startSubscription(planKey: string): Promise<BillingResult>
       // Stripe la addebita una volta sola invece di rinnovarla.
       line_items: [
         { price: priceId, quantity: 1 },
-        ...(setupDovuto(plan) && setupPriceId()
-          ? [{ price: setupPriceId()!, quantity: 1 }]
+        ...(setupPriceId(setupPriceKey(plan))
+          ? [{ price: setupPriceId(setupPriceKey(plan))!, quantity: 1 }]
           : []),
       ],
       // Senza questi metadata il webhook non saprebbe quale locale attivare.

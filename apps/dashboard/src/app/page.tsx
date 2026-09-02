@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { PLANS, SETUP_CENTS, TRIAL_DAYS, formatPriceCents } from "@repo/shared";
+import { PLANS, setupCents, TRIAL_DAYS, formatPriceCents } from "@repo/shared";
 import { MockupTelefono } from "./mockup-telefono";
 
 /**
@@ -16,7 +16,7 @@ import { MockupTelefono } from "./mockup-telefono";
 export const metadata: Metadata = {
   title: "Ordini e pagamenti al tavolo per ristoranti e bar",
   description:
-    "Menu QR, ordine e pagamento al tavolo, conto alla romana, prenotazioni online e fattura elettronica. Con il marchio del tuo locale e senza commissioni sui tuoi incassi.",
+    "Menu QR, ordine e pagamento al tavolo, conto alla romana, prenotazioni online e fattura elettronica. Con il marchio del tuo locale, e senza percentuali trattenute da noi sui tuoi incassi.",
   alternates: { canonical: "/" },
 };
 
@@ -30,7 +30,7 @@ const NASTRO = [
   "Fattura elettronica",
   "Allergeni a norma",
   "Il tuo marchio",
-  "Zero commissioni",
+  "Nessuna percentuale trattenuta",
 ];
 
 const COME_FUNZIONA = [
@@ -107,21 +107,14 @@ const FUNZIONI = [
 ];
 
 const CONFRONTO: Array<[string, string, string]> = [
-  ["Canone", "da 49 €/mese", "29–249 €/mese"],
-  ["Costo di attivazione", "649 €", "0–600 €"],
-  ["Commissione sui tuoi incassi", "Nessuna", "Spesso 1,9–2%"],
+  ["Canone", "da 89 €/mese", "29–249 €/mese"],
+  ["Costo di attivazione", "449–649 €", "0–600 €"],
+  ["Percentuale che tratteniamo noi", "Nessuna", "1,2–2% dell'incassato"],
   ["Il tuo marchio sulle pagine cliente", "Incluso", "Raro, o a pagamento"],
   ["Fattura elettronica dal tavolo", "Inclusa", "Quasi mai"],
   ["Prenotazioni online incluse", "Sì", "Spesso a parte"],
+  ["Scegli tu il fornitore di pagamento", "Sì", "Quasi mai"],
   ["Compri solo il modulo che ti serve", "Sì", "Quasi mai"],
-];
-
-/** Costo totale a confronto: canone più percentuale sugli incassi. */
-const COSTO_TOTALE: Array<[string, string, string, string]> = [
-  ["5.000 €", "159 €/mese", "139 €/mese", "240 €"],
-  ["15.000 €", "279 €/mese", "139 €/mese", "1.680 €"],
-  ["30.000 €", "459 €/mese", "139 €/mese", "3.840 €"],
-  ["50.000 €", "699 €/mese", "139 €/mese", "6.720 €"],
 ];
 
 const SERVE = [
@@ -199,8 +192,8 @@ export default async function LandingPage() {
 
             <p className="mx-auto mt-5 max-w-xl text-pretty text-lg text-muted sm:text-xl">
               Tu servi, non rincorri il POS. Menu QR, ordine, pagamento e
-              prenotazioni — con il marchio del tuo locale e senza commissioni
-              sui tuoi incassi.
+              prenotazioni — con il marchio del tuo locale. Le commissioni
+              della carta le paghi al tuo fornitore, non a noi.
             </p>
 
             <div className="mt-9 flex flex-wrap justify-center gap-3">
@@ -329,7 +322,7 @@ export default async function LandingPage() {
                     <p className="mt-2 text-sm font-medium text-accent">{plan.note}</p>
                   )}
                   <p className="mt-2 text-sm text-muted">
-                    + {formatPriceCents(SETUP_CENTS, "EUR")} di attivazione
+                    + {formatPriceCents(setupCents(plan), "EUR")} di attivazione
                   </p>
                 </div>
               </div>
@@ -337,10 +330,12 @@ export default async function LandingPage() {
           </div>
 
           <p className="compare mt-4 text-sm text-muted">
-            Sull&apos;annuale due mesi sono in omaggio. L&apos;attivazione è
-            una sola volta e comprende il menu caricato, i QR pronti da
-            stampare e Stripe collegato. Hai già la tua cassa? Prendi solo
-            quello che ti manca: i moduli si comprano separati.
+            Sull&apos;annuale due mesi sono in omaggio. L&apos;attivazione si
+            paga una sola volta e vale 449 € per le sole prenotazioni, 649 €
+            dove ci sono anche gli ordini: comprende menu caricato, QR pronti
+            da stampare, Stripe collegato e marchio configurato. Hai già la
+            tua cassa? Prendi solo quello che ti manca: i moduli si comprano
+            separati.
           </p>
 
           <div className="compare mt-8 overflow-x-auto">
@@ -366,51 +361,27 @@ export default async function LandingPage() {
             </table>
           </div>
 
-          <div className="compare mt-10">
-            <h3 className="mb-2 text-lg font-medium">
-              Quello che conta è quanto spendi in tutto
-            </h3>
-            <p className="mb-4 max-w-2xl text-muted">
-              Chi ti fa pagare poco di canone si prende una percentuale sui
-              tuoi incassi. Più lavori, più paghi. Da noi il canone è tutto:
-              le commissioni della carta vanno da Stripe direttamente a te.
+          <div className="compare mt-10 space-y-3">
+            <h3 className="text-lg font-medium">Come si paga davvero</h3>
+            <p className="max-w-2xl text-muted">
+              <strong>Noi non prendiamo nulla sui tuoi incassi.</strong> Le
+              commissioni della carta le paghi al tuo fornitore di pagamento,
+              non a noi, e il denaro arriva sul tuo conto senza passare da
+              noi.
             </p>
-
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[34rem] border-collapse text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left">
-                    <th className="py-3 pr-4 font-medium">
-                      Incassi con carta al mese
-                    </th>
-                    <th className="py-3 pr-4 font-medium text-muted">
-                      Un concorrente all&apos;1,2%
-                    </th>
-                    <th className="py-3 pr-4 font-medium">Noi</th>
-                    <th className="py-3 font-medium">Risparmio all&apos;anno</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {COSTO_TOTALE.map(([volume, loro, noi, anno]) => (
-                    <tr key={volume} className="border-b border-border/70">
-                      <td className="py-3 pr-4 tabular-nums">{volume}</td>
-                      <td className="py-3 pr-4 tabular-nums text-muted">{loro}</td>
-                      <td className="py-3 pr-4 font-medium tabular-nums text-accent">
-                        {noi}
-                      </td>
-                      <td className="py-3 font-medium tabular-nums">{anno}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <p className="mt-3 text-sm text-muted">
-              Calcolato su Qromo All-in-One, 99 €/mese più 1,2% sugli incassi
-              in presenza, listino pubblico a settembre 2026. Il pareggio è a
-              circa 3.300 € di incassi con carta al mese: sopra quella soglia
-              costiamo meno, e la distanza cresce insieme al tuo fatturato
-              invece di stringersi.
+            <p className="max-w-2xl text-muted">
+              Chi ti offre un canone basso e una percentuale unica sta
+              incassando lui e girandoti il resto. A volte quella percentuale
+              conviene, soprattutto con volumi bassi. Quello che perdi è il
+              rapporto diretto: non puoi negoziare la tariffa, non puoi
+              cambiare fornitore senza cambiare gestionale, e il giorno che
+              cresci la percentuale cresce con te.
+            </p>
+            <p className="max-w-2xl text-muted">
+              Da noi il fornitore di pagamento è tuo. Se hai già un POS e un
+              acquirer che ti fa una tariffa buona, tienili: il conto si
+              chiude segnando l&apos;incasso sul tuo terminale e il tavolo si
+              libera lo stesso.
             </p>
           </div>
 

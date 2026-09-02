@@ -90,19 +90,49 @@ Tutto quanto segue esiste, è in produzione e passa i test.
 diciture dietetiche, abbinamento suggerito, IVA per voce. Riordino,
 rinomina, disattivazione. Import da CSV/TSV e dal listino Tilby.
 
-**Varianti e aggiunte.** Gruppi di scelte con minimo, massimo e
-supplemento per opzione, anche negativo. Coprono i tre casi reali: formati
-(sushi 6/12/24, calice/bottiglia/magnum), scelte obbligatorie (cottura), e
-aggiunte multiple a pagamento. Il carrello è indicizzato per piatto **più**
-opzioni: due sushi da 6 e uno da 12 non collassano in una riga sola.
+**Modelli per formato di locale.** Undici formati — ristorante, pizzeria,
+pizza al trancio, piadineria, steak house, paninoteca, hamburgeria, bar,
+gintoneria, birreria, tisaneria — ognuno con le proprie categorie e i
+propri gruppi di scelte. Applicarne uno aggiunge solo ciò che manca: le
+categorie esistenti restano e un gruppo con lo stesso nome non viene
+sovrascritto, così cambiare idea sul formato non costa il lavoro fatto.
+
+Ogni formato porta i propri **promemoria**: le cose per cui quel tipo di
+locale prende una sanzione o perde un cliente. L'impasto senza glutine
+vuole forno separato; l'origine del bovino è obbligatoria; la cottura al
+sangue su carne trita va sconsigliata per iscritto. È la parte che nessun
+concorrente ha.
 
 **Bevande.** Produttore, annata, denominazione, zona, gradazione, nota di
 servizio. Avviso quando un vino non dichiara i solfiti.
+
+**Schede vino da foto.** Si fotografa l'etichetta o la scheda tecnica e la
+scheda si compila da sé, usando la chiave OpenRouter del locale — le
+chiamate sono addebitate a lui. Quello che torna è una **proposta**, mai un
+salvataggio: viene scritta nei campi del modulo, dove una persona la
+rilegge e la corregge. Il modello riceve istruzione di omettere ciò che non
+riesce a leggere invece di dedurlo, e ogni numero viene ricontrollato lato
+nostro — un'annata 3024 o una gradazione al 130% sono errori del modello
+che altrimenti finirebbero in carta.
+
+**Assistente sulle pagine pubbliche.** Risponde ai clienti con i soli dati
+del locale — menu, orari, indirizzo, informazioni pratiche — e li porta a
+prenotare. Il link di prenotazione lo mette il codice, non il modello, così
+è sempre quello giusto. Sugli allergeni non decide mai: riporta ciò che è
+dichiarato e rimanda al personale, perché un modello che dice "no, non
+contiene glutine" può mandare qualcuno in ospedale. **Spento di default**:
+ogni domanda è una chiamata addebitata al locale, e va acceso da chi la
+paga. Accenderlo senza aver indicato gli orari viene rifiutato.
 
 **Obblighi di legge sul menu.** Allergeni per piatto; stato di
 conservazione (fresco/congelato/surgelato/abbattuto) con asterisco e nota
 costruita su ciò che c'è davvero in carta; origine per la carne bovina;
 coperto e servizio mostrati **sul menu** e non solo in fondo al conto.
+
+**Orari e informazioni pratiche.** Testo libero, non una griglia di fasce:
+gli orari veri sono pieni di eccezioni che una struttura rigida
+costringerebbe a dichiarare male. Compaiono sulle pagine pubbliche anche
+senza assistente.
 
 **Multilingua.** Italiano come base, altre lingue come sovrascritture
 parziali con ricaduta sull'italiano campo per campo. La lingua si sceglie
@@ -124,6 +154,21 @@ percentuali configurabili.
 **Fatturazione elettronica.** Il cliente inserisce i dati dal tavolo, la
 fattura parte allo SDI tramite intermediario accreditato.
 
+**Varianti, aggiunte e rimozioni.** Gruppi di scelte con minimo, massimo e
+supplemento per opzione, anche negativo. Coprono formati (sushi 6/12/24,
+calice/bottiglia/magnum), scelte obbligatorie (cottura) e aggiunte
+multiple. Le **rimozioni** sono un tipo a sé perché si leggono al
+contrario: "Cipolla" stampato in comanda direbbe al cuoco di aggiungerla,
+quindi l'etichetta si risolve una volta sola sul server e la cucina legge
+sempre "Senza cipolla".
+
+Il carrello è indicizzato per piatto **più** opzioni ordinate: due sushi da
+6 e uno da 12 non collassano in una riga sola col prezzo sbagliato.
+
+Il prezzo si calcola **sempre sul server** dagli id delle opzioni. Il
+browser manda cosa ha scelto, mai quanto costa. Gli id che non
+appartengono a quel piatto vengono rifiutati, non ignorati.
+
 **Prenotazioni.** Pagina pubblica indicizzabile con dati strutturati
 `ReserveAction`. Capienza controllata su fascia sovrapposta, non sull'ora
 esatta: contare solo gli orari identici lascerebbe entrare venti coperti
@@ -131,6 +176,17 @@ alle 20:00, venti alle 20:15 e venti alle 20:30 in una sala da trenta.
 Quando non c'è posto il cliente riceve gli orari vicini in cui c'è davvero.
 Conferma e rifiuto con email; gli errori di invio restano scritti accanto
 alla prenotazione e visibili in gestionale.
+
+**Il calendario è la fonte di verità, l'email è solo la notifica.** Una
+prenotazione entra in calendario anche se l'email non parte o non è
+configurata: il gestionale segnala "questa richiesta non ti è arrivata per
+email" invece di perderla. Anche con l'assistente spento la pagina di
+prenotazione funziona: sono due cose indipendenti.
+
+Gli orari senza fuso — quelli che produce un campo `datetime-local` —
+vengono letti nel fuso del locale, non del server. Interpretarli come UTC
+spostava ogni prenotazione estiva di due ore, ed è un errore che è già
+costato una correzione.
 
 **Analisi.** Spesa per coperto e per tavolo, piatti per persona,
 permanenza media, rotazione, cosa vende, come pagano, fasce orarie. Il
@@ -203,6 +259,12 @@ In ordine di quanto bloccano una vendita in Italia:
 - **Nessuna procedura scritta di risposta alle violazioni.**
 - **Il collegamento Tilby legge soltanto** il listino. Non invia comande,
   non invia incassi, non emette documenti fiscali.
+- **Vendita a peso non supportata.** Fiorentina al chilo, pizza al trancio a
+  peso, pesce al chilo: si possono caricare solo prezzi fissi per formato.
+  Il modello del formato lo dice al ristoratore invece di lasciarglielo
+  scoprire.
+- **Menu combinati assenti.** Panino più patatine più bibita a prezzo fisso
+  va caricato come voce a sé.
 - **`db/seed.sql` è solo per lo sviluppo.** Non applicarlo in produzione.
 - **Il repo GitHub è pubblico.** Non contiene segreti, ma va valutato se
   renderlo privato prima della vendita.
@@ -211,20 +273,44 @@ In ordine di quanto bloccano una vendita in Italia:
 
 ## 6. Listino
 
-| | Mensile | Annuale |
-|---|---|---|
-| Ordini e pagamenti | 109 € | 1.090 € |
-| Solo prenotazioni | 49 € | 490 € |
-| Tutto | 139 € | 1.390 € |
-| **Attivazione** | **649 € una tantum, su tutti i piani** | |
+| | Mensile | Annuale | Attivazione |
+|---|---|---|---|
+| Ordini e pagamenti | 109 € | 1.090 € | 649 € |
+| Solo prenotazioni | 89 € | 890 € | 449 € |
+| Tutto | 139 € | 1.390 € | 649 € |
+
+L'attivazione è una tantum e dovuta su ogni piano, anche l'annuale: il
+lavoro di avviamento è lo stesso comunque si paghi il canone, e regalarlo
+insegnerebbe che è trattabile. Costa meno per le sole prenotazioni perché è
+meno lavoro: capienza, orari e pagina pubblica, senza menu da caricare, QR
+da stampare e Stripe da collegare.
 
 Prova di 14 giorni, tutti i moduli aperti. Prezzi IVA esclusa.
 
-L'argomento di vendita non è il canone ma il **costo totale**: i
-concorrenti prendono l'1,2–2% sugli incassi con carta, noi zero. A 30.000 €
-al mese di incassi un concorrente all'1,2% costa 459 € contro i nostri 139.
-Il pareggio è intorno a 3.300 € al mese: sopra, costiamo meno, e la
-distanza cresce col fatturato del locale invece di stringersi.
+### Come si posiziona, onestamente
+
+**Non siamo più economici sul costo totale, e non va detto.** La percentuale
+che prendono i concorrenti — Qromo 1,2%, MyCIA 1,9% — è la loro tariffa di
+incasso, non un ricarico sopra Stripe: incassano loro e girano il resto. Su
+30.000 € al mese Qromo costa 99 € di canone più 360 € di commissioni = 459 €;
+noi costiamo 139 € più quello che il locale paga al proprio fornitore, che
+con Stripe standard è di più.
+
+Una versione precedente di questo documento e della landing sosteneva il
+contrario, sommando la loro percentuale a quella di Stripe. Era sbagliato.
+
+Quello che vendiamo davvero:
+
+- **Non tratteniamo nulla sull'incassato.** Il denaro non passa da noi.
+- **Il fornitore di pagamento è del locale.** Può negoziare la tariffa,
+  cambiarlo, o tenere il POS che ha già: nessun vincolo.
+- **White-label vero**, che sul mercato italiano quasi nessuno offre.
+- **Moduli separati**: si compra solo il pezzo che serve.
+- **Fattura elettronica dal tavolo**, che i concorrenti non hanno.
+
+Con volumi bassi la percentuale altrui può convenire. Dirlo in fase di
+vendita costa un cliente ogni tanto; non dirlo costa la fiducia di tutti al
+primo estratto conto.
 
 I moduli non stanno nel codice: arrivano dai metadata del Price su Stripe,
 letti dal webhook. Cambiare listino non richiede un deploy.
@@ -238,7 +324,9 @@ letti dal webhook. Cambiare listino non richiede un deploy.
 2. **Impostazioni**: dati fiscali completi (senza, l'informativa privacy
    mostrata ai clienti è incompleta e il gestionale lo segnala), logo,
    colori, coperto e servizio se applicati.
-3. **Menu**: import da file o inserimento. Allergeni su ogni piatto —
+3. **Menu**: parti dal modello del tuo formato in fondo alla pagina Menu —
+   crea categorie e scelte tipiche e ti elenca gli obblighi di quel
+   formato. Poi import da file o inserimento. Allergeni su ogni piatto:
    sono obbligatori. Conservazione diversa da "fresco" dove serve.
 4. **Stripe**: *Impostazioni → Connetti Stripe*. Serve documentazione
    dell'attività e IBAN; la verifica non è immediata.
@@ -247,6 +335,10 @@ letti dal webhook. Cambiare listino non richiede un deploy.
 6. **Prenotazioni**, se acquistate: indirizzo che riceve le richieste e
    capienza. Senza capienza la conferma automatica resta disattivabile,
    di proposito.
+7. **Orari**, sempre: compaiono sulle pagine pubbliche e sono la prima cosa
+   che le persone cercano.
+8. Facoltativi e a consumo, su chiave OpenRouter del locale: **schede vino
+   da foto** e **assistente**. Entrambi spenti finché non li accende lui.
 
 ---
 
@@ -258,3 +350,20 @@ letti dal webhook. Cambiare listino non richiede un deploy.
   di far provare il sistema a un ristoratore
 - [`docs/Presentazione-ristoratori.pdf`](docs/Presentazione-ristoratori.pdf)
   — spiegazione per chi acquista
+
+---
+
+## 9. Se il locale ha già il suo POS
+
+È il caso più comune in Italia, e il sistema **funziona lo stesso**: il
+locale tiene la propria cassa e il proprio acquirer, noi aggiungiamo menu,
+ordine al tavolo e conto.
+
+Il conto si chiude segnando l'incasso avvenuto sul terminale del locale, e
+il tavolo si libera. Quello che il locale continua a fare da sé è battere
+lo scontrino fiscale: è la **doppia battuta**, ed è la prima obiezione che
+farà. Va detta in fase di vendita, non scoperta dopo.
+
+Stripe Connect resta necessario solo per il pagamento *dal telefono del
+cliente*. Un locale che non lo vuole compra comunque menu, ordine e
+prenotazioni.
