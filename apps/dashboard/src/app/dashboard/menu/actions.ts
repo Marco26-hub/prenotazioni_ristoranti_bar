@@ -10,8 +10,12 @@ export async function addCategory(formData: FormData) {
   if (!name) return;
 
   const sql = db();
+  // In coda, non in testa: chi aggiunge una categoria non si aspetta di
+  // vedersela comparire prima degli antipasti.
   await sql`insert into menu_categories (venue_id, name, sort_order)
-    values (${venue.venueId}, ${name}, 0)`;
+    values (${venue.venueId}, ${name},
+      coalesce((select max(sort_order) + 1 from menu_categories
+                where venue_id = ${venue.venueId}), 0))`;
   revalidatePath("/dashboard/menu");
 }
 
@@ -34,7 +38,188 @@ export async function addMenuItem(formData: FormData) {
 
   await sql`
     insert into menu_items (venue_id, category_id, name, price_cents, sort_order)
-    values (${venue.venueId}, ${categoryId}, ${name}, ${Math.round(priceEuro * 100)}, 0)`;
+    values (${venue.venueId}, ${categoryId}, ${name}, ${Math.round(priceEuro * 100)},
+      coalesce((select max(sort_order) + 1 from menu_items
+                where venue_id = ${venue.venueId}
+                  and category_id is not distinct from ${categoryId}), 0))`;
+  revalidatePath("/dashboard/menu");
+}
+
+/**
+ * Modifica di un piatto già a menu.
+ *
+ * Prende tutti i campi in un colpo solo: il form è uno, e un salvataggio
+ * parziale lascerebbe il piatto in uno stato che il ristoratore non ha
+ * scelto. I campi vuoti diventano NULL — è il modo per togliere un valore
+ * senza un bottone "cancella campo" per ognuno.
+ */
+export async function updateMenuItem(formData: FormData): Promise<{ error?: string }> {
+  const { venue } = await requireRole(["owner", "manager"]);
+  const itemId = String(formData.get("itemId") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const priceEuro = Number.parseFloat(String(formData.get("price") ?? ""));
+
+  if (!itemId) return { error: "Piatto non indicato" };
+  if (!name) return { error: "Il nome è obbligatorio" };
+  if (!Number.isFinite(priceEuro) || priceEuro < 0) return { error: "Prezzo non valido" };
+
+  const text = (key: string) => {
+    const v = String(formData.get(key) ?? "").trim();
+    return v === "" ? null : v;
+  };
+
+  // Allergeni e diciture dietetiche arrivano come lista separata da virgole:
+  // è il modo in cui un ristoratore le scrive davvero.
+  const list = (key: string) => {
+    const raw = String(formData.get(key) ?? "").trim();
+    if (!raw) return null;
+    const parts = raw
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    return parts.length > 0 ? parts : null;
+  };
+
+  const vatRaw = Number.parseFloat(String(formData.get("vatRate") ?? ""));
+  const vatRate = Number.isFinite(vatRaw) && vatRaw >= 0 && vatRaw <= 100 ? vatRaw : 10;
+
+  const categoryId = String(formData.get("categoryId") ?? "") || null;
+  const pairingId = String(formData.get("pairingItemId") ?? "") || null;
+
+  const sql = db();
+
+  // Categoria e abbinamento arrivano dal client: vanno riverificati contro
+  // questo venue, o si potrebbe puntare al piatto di un altro locale.
+  if (categoryId) {
+    const [cat] = await sql<{ id: string }[]>`
+      select id from menu_categories where id = ${categoryId} and venue_id = ${venue.venueId}`;
+    if (!cat) return { error: "Categoria non valida" };
+  }
+  if (pairingId) {
+    if (pairingId === itemId) return { error: "Un piatto non può abbinarsi a se stesso" };
+    const [pair] = await sql<{ id: string }[]>`
+      select id from menu_items where id = ${pairingId} and venue_id = ${venue.venueId}`;
+    if (!pair) return { error: "Abbinamento non valido" };
+  }
+
+  const [updated] = await sql<{ id: string }[]>`
+    update menu_items set
+      name = ${name},
+      description = ${text("description")},
+      ingredients = ${text("ingredients")},
+      price_cents = ${Math.round(priceEuro * 100)},
+      vat_rate = ${vatRate},
+      category_id = ${categoryId},
+      pairing_item_id = ${pairingId},
+      allergens = ${list("allergens")},
+      dietary_tags = ${list("dietaryTags")},
+      available = ${formData.get("available") === "on"}
+    where id = ${itemId} and venue_id = ${venue.venueId}
+    returning id`;
+
+  if (!updated) return { error: "Piatto non trovato" };
+
+  revalidatePath("/dashboard/menu");
+  return {};
+}
+
+export async function updateCategory(formData: FormData): Promise<{ error?: string }> {
+  const { venue } = await requireRole(["owner", "manager"]);
+  const categoryId = String(formData.get("categoryId") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  if (!categoryId || !name) return { error: "Nome categoria mancante" };
+
+  const sql = db();
+  const [row] = await sql<{ id: string }[]>`
+    update menu_categories set name = ${name}
+    where id = ${categoryId} and venue_id = ${venue.venueId}
+    returning id`;
+
+  if (!row) return { error: "Categoria non trovata" };
+  revalidatePath("/dashboard/menu");
+  return {};
+}
+
+/**
+ * I piatti non vengono cancellati insieme alla categoria: finirebbero
+ * distrutti per una riorganizzazione del menu. Restano, senza categoria,
+ * e il ristoratore decide dove rimetterli.
+ */
+export async function deleteCategory(categoryId: string): Promise<{ error?: string }> {
+  const { venue } = await requireRole(["owner", "manager"]);
+  const sql = db();
+
+  const [cat] = await sql<{ id: string }[]>`
+    select id from menu_categories where id = ${categoryId} and venue_id = ${venue.venueId}`;
+  if (!cat) return { error: "Categoria non trovata" };
+
+  await sql.begin(async (tx) => {
+    await tx`update menu_items set category_id = null
+      where category_id = ${categoryId} and venue_id = ${venue.venueId}`;
+    await tx`delete from menu_categories
+      where id = ${categoryId} and venue_id = ${venue.venueId}`;
+  });
+
+  revalidatePath("/dashboard/menu");
+  return {};
+}
+
+/**
+ * Riordino per scambio con il vicino. L'ordine del menu è una scelta di
+ * vendita — gli antipasti prima dei dolci — e finora non era modificabile.
+ */
+export async function moveMenuItem(itemId: string, direction: "up" | "down") {
+  const { venue } = await requireRole(["owner", "manager"]);
+  const sql = db();
+
+  const [item] = await sql<{ id: string; sort_order: number; category_id: string | null }[]>`
+    select id, sort_order, category_id from menu_items
+    where id = ${itemId} and venue_id = ${venue.venueId}`;
+  if (!item) return;
+
+  // `is not distinct from` tratta due NULL come uguali: senza, i piatti
+  // fuori categoria non troverebbero mai un vicino con cui scambiarsi.
+  const [neighbour] = await sql<{ id: string; sort_order: number }[]>`
+    select id, sort_order from menu_items
+    where venue_id = ${venue.venueId}
+      and category_id is not distinct from ${item.category_id}
+      and ${direction === "up" ? sql`sort_order < ${item.sort_order}` : sql`sort_order > ${item.sort_order}`}
+    order by ${direction === "up" ? sql`sort_order desc` : sql`sort_order asc`}
+    limit 1`;
+
+  if (!neighbour) return;
+
+  await sql.begin(async (tx) => {
+    await tx`update menu_items set sort_order = ${neighbour.sort_order} where id = ${item.id}`;
+    await tx`update menu_items set sort_order = ${item.sort_order} where id = ${neighbour.id}`;
+  });
+
+  revalidatePath("/dashboard/menu");
+}
+
+export async function moveCategory(categoryId: string, direction: "up" | "down") {
+  const { venue } = await requireRole(["owner", "manager"]);
+  const sql = db();
+
+  const [cat] = await sql<{ id: string; sort_order: number }[]>`
+    select id, sort_order from menu_categories
+    where id = ${categoryId} and venue_id = ${venue.venueId}`;
+  if (!cat) return;
+
+  const [neighbour] = await sql<{ id: string; sort_order: number }[]>`
+    select id, sort_order from menu_categories
+    where venue_id = ${venue.venueId}
+      and ${direction === "up" ? sql`sort_order < ${cat.sort_order}` : sql`sort_order > ${cat.sort_order}`}
+    order by ${direction === "up" ? sql`sort_order desc` : sql`sort_order asc`}
+    limit 1`;
+
+  if (!neighbour) return;
+
+  await sql.begin(async (tx) => {
+    await tx`update menu_categories set sort_order = ${neighbour.sort_order} where id = ${cat.id}`;
+    await tx`update menu_categories set sort_order = ${cat.sort_order} where id = ${neighbour.id}`;
+  });
+
   revalidatePath("/dashboard/menu");
 }
 

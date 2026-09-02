@@ -21,10 +21,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return [
     { url: base, changeFrequency: "monthly", priority: 0.5 },
-    ...venues.map((v) => ({
-      url: `${base}/m/${v.slug}`,
-      changeFrequency: "weekly" as const,
-      priority: 0.8,
-    })),
+    ...venues.flatMap((v) => [
+      {
+        url: `${base}/m/${v.slug}`,
+        changeFrequency: "weekly" as const,
+        priority: 0.8,
+      },
+      // "Prenotare da X" è una ricerca almeno quanto "menu di X": la pagina
+      // di prenotazione va indicizzata insieme al menu, non lasciata fuori.
+      {
+        url: `${base}/p/${v.slug}`,
+        changeFrequency: "monthly" as const,
+        priority: 0.7,
+      },
+    ]),
   ];
 }
