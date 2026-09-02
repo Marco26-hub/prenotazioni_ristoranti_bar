@@ -194,7 +194,7 @@ export default async function PublicMenuPage({
     : undefined;
 
   return (
-    <div className="flex min-h-full flex-col" style={brandStyle}>
+    <div className="menu-shell flex min-h-full flex-col" style={brandStyle}>
       {annuncio && <AnnuncioLocale annuncio={annuncio} venueSlug={slug} />}
 
       {venue.assistant_enabled && (
@@ -206,7 +206,7 @@ export default async function PublicMenuPage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <header className="border-b border-border bg-surface/95 shadow-sm">
+      <header className="menu-header border-b border-border">
         <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-5">
           {venue.logo_url && (
             /* eslint-disable-next-line @next/next/no-img-element */
@@ -280,7 +280,7 @@ export default async function PublicMenuPage({
           </p>
         )}
 
-        <p className="rounded-xl border border-border bg-surface p-4 text-sm text-muted">
+        <p className="rounded-xl border border-border bg-surface/80 p-4 text-sm text-muted shadow-sm">
           Al tavolo puoi ordinare e pagare dal telefono inquadrando il QR code.
         </p>
       </main>

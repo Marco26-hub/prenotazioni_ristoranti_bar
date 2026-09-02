@@ -1,4 +1,4 @@
-categoria,nome,prezzo,descrizione,iva
+categoria,nome,prezzo,descrizione,iva,tipo,ingredienti,allergeni,etichette,foto,produttore,annata,denominazione,origine,gradazione,nota_servizio,sottocategoria,stile,formato,vitigno,servizio
 Antipasti,Bruschetta al pomodoro,6.00,"Pane casereccio, pomodoro e basilico",10
 Antipasti,Tagliere di salumi e formaggi,14.00,Selezione del territorio con confetture,10
 Antipasti,Burrata e alici,11.00,Burrata pugliese con alici del Cantabrico,10
@@ -15,11 +15,11 @@ Contorni,Insalata mista,5.00,,10
 Dolci,Tiramisù,6.50,Fatto in casa,10
 Dolci,Panna cotta ai frutti di bosco,6.00,,10
 Dolci,Cannolo siciliano,6.00,,10
-Bevande,Acqua naturale 0.75L,2.50,,10
-Bevande,Acqua frizzante 0.75L,2.50,,10
-Bevande,Coca-Cola 0.33L,3.50,,10
-Bevande,Birra artigianale 0.33L,6.00,Bionda del birrificio locale,10
-Bevande,Caffè,1.50,,10
-Vini,Vino della casa rosso 0.5L,8.00,,22
-Vini,Vino della casa bianco 0.5L,8.00,,22
-Vini,Chianti DOCG bottiglia,24.00,,22
+Bevande,Acqua naturale,2.50,,10,drink,,,,,,,0,,Naturale,,0.75 L,,Bottiglia
+Bevande,Acqua frizzante,2.50,,10,drink,,,,,,,0,,Frizzante,,0.75 L,,Bottiglia
+Bevande,Coca-Cola,3.50,,10,drink,,,,,,,0,,Bibita,,0.33 L,,Lattina
+Bevande,Birra artigianale,6.00,Bionda del birrificio locale,10,beer,,,,,Birrificio Locale,,,Italia,5.2,,Artigianale,Lager,0.33 L,,Bottiglia
+Bevande,Caffè,1.50,,10,drink,,,,,,,0,,Caffetteria,,,Espresso
+Vini,Vino della casa rosso,8.00,,22,wine,,,,,Cantina Locale,,,Italia,12.5,,Rosso,,0.5 L,,Bottiglia
+Vini,Vino della casa bianco,8.00,,22,wine,,,,,Cantina Locale,,,Italia,12,,Bianco,,0.5 L,,Bottiglia
+Vini,Chianti DOCG,24.00,,22,wine,,,,,Cantina Toscana,2023,DOCG,Toscana,13,,Rosso,,0.75 L,Sangiovese,Bottiglia

@@ -12,11 +12,10 @@ export function ImportForm() {
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted">
-        Carica un file <strong>Excel (.xlsx)</strong>, CSV o TSV con una riga per
-        piatto, in questo ordine:{" "}
-        <strong>categoria, nome, prezzo, descrizione, IVA</strong>. Descrizione e
-        IVA sono facoltative (IVA predefinita 10%). Le categorie che non esistono
-        vengono create da sole.
+        Carica un file <strong>Excel (.xlsx)</strong>, CSV o TSV. Sono supportati
+        piatti e bevande con categoria, tipo, formato, produttore, stile, vitigno,
+        servizio, foto, allergeni e dati fiscali. Le colonne aggiuntive sono
+        facoltative e le categorie mancanti vengono create da sole.
       </p>
 
       <a

@@ -134,6 +134,9 @@ export async function importMenuCsv(formData: FormData): Promise<ImportResult> {
   // La prima riga è intestazione solo se non contiene un prezzo valido:
   // così funziona sia con file esportati con intestazione sia senza.
   const hasHeader = parsePrice(rows[0][2] ?? "") === null;
+  const headers = hasHeader
+    ? new Map(rows[0].map((value, index) => [value.trim().toLowerCase(), index]))
+    : null;
   const dataRows = hasHeader ? rows.slice(1) : rows;
 
   if (dataRows.length > MAX_ROWS) {
@@ -148,14 +151,31 @@ export async function importMenuCsv(formData: FormData): Promise<ImportResult> {
   const skipped: string[] = [];
   let imported = 0;
 
+  const col = (cols: string[], name: string, fallback: number) => {
+    const index = headers?.get(name);
+    return (cols[index ?? fallback] ?? "").trim();
+  };
+
   for (const [index, cols] of dataRows.entries()) {
     const lineNo = index + (hasHeader ? 2 : 1);
-    const categoryName = (cols[0] ?? "").trim();
-    const name = (cols[1] ?? "").trim();
-    const priceCents = parsePrice(cols[2] ?? "");
-    const description = (cols[3] ?? "").trim() || null;
-    const vatRaw = (cols[4] ?? "").trim();
+    const categoryName = col(cols, "categoria", 0);
+    const name = col(cols, "nome", 1);
+    const priceCents = parsePrice(col(cols, "prezzo", 2));
+    const description = col(cols, "descrizione", 3) || null;
+    const vatRaw = col(cols, "iva", 4);
     const vatRate = vatRaw ? Number.parseFloat(vatRaw.replace(",", ".")) : 10;
+    const kindRaw = col(cols, "tipo", 5).toLowerCase();
+    const kind = ["food", "wine", "beer", "drink"].includes(kindRaw) ? kindRaw : "food";
+    const number = (column: string, fallback: number, min: number, max: number) => {
+      const raw = col(cols, column, fallback).replace(",", ".");
+      if (!raw) return null;
+      const value = Number(raw);
+      return Number.isFinite(value) && value >= min && value <= max ? value : null;
+    };
+    const list = (column: string, fallback: number) => {
+      const values = col(cols, column, fallback).split(",").map((v) => v.trim()).filter(Boolean);
+      return values.length ? values : null;
+    };
 
     if (!name) {
       skipped.push(`riga ${lineNo}: manca il nome del piatto`);
@@ -185,9 +205,21 @@ export async function importMenuCsv(formData: FormData): Promise<ImportResult> {
     }
 
     await sql`
-      insert into menu_items (venue_id, category_id, name, description, price_cents, vat_rate, sort_order)
-      values (${venue.venueId}, ${categoryId}, ${name}, ${description},
-              ${priceCents}, ${vatRate}, ${index + 1})`;
+      insert into menu_items (
+        venue_id, category_id, name, description, price_cents, vat_rate, sort_order,
+        kind, ingredients, allergens, dietary_tags, image_url, producer, vintage,
+        denomination, origin, abv, serving_note, subcategory, product_style,
+        format, grape_variety, service_type
+      ) values (
+        ${venue.venueId}, ${categoryId}, ${name}, ${description}, ${priceCents}, ${vatRate}, ${index + 1},
+        ${kind}, ${col(cols, "ingredienti", 6) || null}, ${list("allergeni", 7)},
+        ${list("etichette", 8)}, ${col(cols, "foto", 9) || null}, ${col(cols, "produttore", 10) || null},
+        ${number("annata", 11, 1900, 2100)}, ${col(cols, "denominazione", 12) || null},
+        ${col(cols, "origine", 13) || null}, ${number("gradazione", 14, 0, 80)},
+        ${col(cols, "nota_servizio", 15) || null}, ${col(cols, "sottocategoria", 16) || null},
+        ${col(cols, "stile", 17) || null}, ${col(cols, "formato", 18) || null},
+        ${col(cols, "vitigno", 19) || null}, ${col(cols, "servizio", 20) || null}
+      )`;
     imported++;
   }
 

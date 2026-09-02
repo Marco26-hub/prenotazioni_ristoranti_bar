@@ -37,7 +37,7 @@ export function MenuItemCard({
         type="button"
         onClick={() => setOpen(true)}
         aria-label={`Apri dettagli di ${name}`}
-        className="group flex min-h-32 w-full items-stretch gap-3 rounded-xl border border-border bg-surface p-3 text-left shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+        className="menu-card group flex min-h-32 w-full items-stretch gap-3 rounded-xl border p-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
       >
         {imageUrl && (
           /* eslint-disable-next-line @next/next/no-img-element */
@@ -47,7 +47,7 @@ export function MenuItemCard({
             width={112}
             height={112}
             loading="lazy"
-            className="h-28 w-28 shrink-0 rounded-lg object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+            className="menu-photo h-28 w-28 shrink-0 rounded-lg object-cover transition-transform duration-200 group-hover:scale-[1.02]"
           />
         )}
         <span className="min-w-0 flex-1">

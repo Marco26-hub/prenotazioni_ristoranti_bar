@@ -6,6 +6,17 @@ la parte che serve davvero a chi arriva dopo.
 
 Ultimo aggiornamento: settembre 2026.
 
+Gestione menu estesa: l'admin puo modificare manualmente anche
+sottocategoria (naturale/frizzante, bionda/rossa, bianco/rosso), formato,
+servizio (bottiglia/spina/calice/lattina), stile birra e vitigno. La nuova
+migrazione e `db/migrations/023_menu_beverage_details.sql`. L'import CSV/TSV/XLSX
+legge gli stessi campi, oltre a foto, produttore, annata, gradazione,
+allergeni ed etichette; il template aggiornato e scaricabile dalla pagina Menu.
+
+Il template pubblico del menu ora usa una grafica premium editoriale: fondo
+avorio materico, superfici calde, ombre leggere, gerarchia tipografica serif
+per nome locale e sezioni, e card fotografiche coerenti.
+
 Aggiornamento menu demo: la pagina pubblica del menu ha ora una griglia
 responsive più curata, immagini locali con dimensioni stabili e focus
 accessibile. Il seed demo include foto coerenti per bruschetta, carbonara,

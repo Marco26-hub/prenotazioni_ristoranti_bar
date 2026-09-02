@@ -73,6 +73,7 @@ export default async function MenuPage() {
            pairing_item_id, allergens, dietary_tags, available, image_url,
            translations, kind, producer, vintage, denomination, origin, abv,
            serving_note, conservation, origin_note
+           , subcategory, product_style, format, grape_variety, service_type
       from menu_items
      where venue_id = ${venue.venueId}
      order by sort_order, name`;

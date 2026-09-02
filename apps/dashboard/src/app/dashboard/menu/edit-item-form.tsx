@@ -30,6 +30,11 @@ export interface EditableItem {
   origin: string | null;
   abv: number | string | null;
   serving_note: string | null;
+  subcategory: string | null;
+  product_style: string | null;
+  format: string | null;
+  grape_variety: string | null;
+  service_type: string | null;
   conservation: Conservazione;
   origin_note: string | null;
 }
@@ -262,6 +267,76 @@ export function EditItemForm({
               />
             </div>
           </div>
+
+          <div>
+            <label className={LABEL} htmlFor={`subcat-${item.id}`}>
+              Sottocategoria
+            </label>
+            <input
+              id={`subcat-${item.id}`}
+              name="subcategory"
+              placeholder={tipo === "wine" ? "Bianco, rosso, bollicine" : tipo === "beer" ? "Bionda, rossa, scura, artigianale" : "Naturale, frizzante, cola"}
+              defaultValue={item.subcategory ?? ""}
+              className={FIELD}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className={LABEL} htmlFor={`format-${item.id}`}>
+                Formato
+              </label>
+              <input
+                id={`format-${item.id}`}
+                name="format"
+                placeholder="0,33 L · 0,75 L · calice"
+                defaultValue={item.format ?? ""}
+                className={FIELD}
+              />
+            </div>
+            <div>
+              <label className={LABEL} htmlFor={`service-${item.id}`}>
+                Servizio
+              </label>
+              <input
+                id={`service-${item.id}`}
+                name="serviceType"
+                placeholder="Bottiglia · spina · calice"
+                defaultValue={item.service_type ?? ""}
+                className={FIELD}
+              />
+            </div>
+          </div>
+
+          {tipo === "beer" && (
+            <div>
+              <label className={LABEL} htmlFor={`style-${item.id}`}>
+                Stile birra
+              </label>
+              <input
+                id={`style-${item.id}`}
+                name="productStyle"
+                placeholder="Lager · IPA · Porter · Weiss"
+                defaultValue={item.product_style ?? ""}
+                className={FIELD}
+              />
+            </div>
+          )}
+
+          {tipo === "wine" && (
+            <div>
+              <label className={LABEL} htmlFor={`grape-${item.id}`}>
+                Vitigno o uvaggio
+              </label>
+              <input
+                id={`grape-${item.id}`}
+                name="grapeVariety"
+                placeholder="Vermentino · Sangiovese · blend"
+                defaultValue={item.grape_variety ?? ""}
+                className={FIELD}
+              />
+            </div>
+          )}
 
           <div>
             <label className={LABEL} htmlFor={`serv-${item.id}`}>
