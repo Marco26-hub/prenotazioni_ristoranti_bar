@@ -39,7 +39,7 @@ function getStripe(accountId: string): Promise<Stripe | null> {
   return stripeCache.get(accountId)!;
 }
 
-export function Bill({ sessionId }: { sessionId: string }) {
+export function Bill({ sessionId, privacyHref }: { sessionId: string; privacyHref: string }) {
   const [bill, setBill] = useState<BillState | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [tipCents, setTipCents] = useState(0);
@@ -133,7 +133,7 @@ export function Bill({ sessionId }: { sessionId: string }) {
           </a>
         )}
 
-        <InvoiceRequest sessionId={sessionId} />
+        <InvoiceRequest sessionId={sessionId} privacyHref={privacyHref} />
       </section>
     );
   }
@@ -320,7 +320,13 @@ function CheckoutForm({
   );
 }
 
-function InvoiceRequest({ sessionId }: { sessionId: string }) {
+function InvoiceRequest({
+  sessionId,
+  privacyHref,
+}: {
+  sessionId: string;
+  privacyHref: string;
+}) {
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<"privato" | "azienda">("privato");
   const [firstName, setFirstName] = useState("");
@@ -439,7 +445,7 @@ function InvoiceRequest({ sessionId }: { sessionId: string }) {
       <p className="text-xs text-muted">
         I dati inseriti sono usati per emettere la fattura e trasmetterla al
         Sistema di Interscambio.{" "}
-        <a href="/privacy" className="underline">
+        <a href={privacyHref} className="underline">
           Informativa privacy
         </a>
         .

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@repo/shared/db";
-import { checkRateLimit, clientIp } from "@repo/shared/rate-limit";
+import { checkRateLimit, clientKey } from "@repo/shared/rate-limit";
 import { isEntitled } from "@repo/shared";
 
 interface CreateOrderBody {
@@ -12,7 +12,7 @@ interface CreateOrderBody {
 const MAX_NOTE_LENGTH = 140;
 
 export async function POST(request: Request) {
-  const { allowed } = await checkRateLimit(`orders:${clientIp(request)}`, 20, 60);
+  const { allowed } = await checkRateLimit(clientKey(request, "orders"), 20, 60);
   if (!allowed) {
     return NextResponse.json({ error: "Troppe richieste, riprova tra poco" }, { status: 429 });
   }

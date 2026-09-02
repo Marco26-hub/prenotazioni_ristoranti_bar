@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@repo/shared/db";
-import { checkRateLimit, clientIp } from "@repo/shared/rate-limit";
+import { checkRateLimit, clientKey } from "@repo/shared/rate-limit";
 import { isEntitled } from "@repo/shared";
 
 interface Body {
@@ -25,7 +25,7 @@ const MAX_DAYS_AHEAD = 365;
  * scrivere qui, quindi ogni valore va validato e il ritmo va limitato.
  */
 export async function POST(request: Request) {
-  const { allowed } = await checkRateLimit(`reservation:${clientIp(request)}`, 5, 3600);
+  const { allowed } = await checkRateLimit(clientKey(request, "reservation"), 5, 3600);
   if (!allowed) {
     return NextResponse.json(
       { error: "Troppe prenotazioni dallo stesso dispositivo. Riprova più tardi o chiamaci." },

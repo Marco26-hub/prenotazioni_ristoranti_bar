@@ -153,7 +153,7 @@ export function BookingForm({ slug, venueName }: { slug: string; venueName: stri
       <p className="text-xs text-muted">
         Inviando accetti che {venueName} tratti i tuoi dati per gestire la
         prenotazione. Vedi{" "}
-        <a href="/privacy" className="underline underline-offset-2">
+        <a href={`/privacy/${slug}`} className="underline underline-offset-2">
           l&apos;informativa privacy
         </a>
         .

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@repo/shared/db";
-import { checkRateLimit, clientIp } from "@repo/shared/rate-limit";
+import { checkRateLimit, clientKey } from "@repo/shared/rate-limit";
 import { isEntitled } from "@repo/shared";
 import { stripeClient } from "@/lib/stripe";
 import { outstandingBalanceCents } from "@/lib/balance";
@@ -13,7 +13,7 @@ interface CreateIntentBody {
 }
 
 export async function POST(request: Request) {
-  const { allowed } = await checkRateLimit(`create-intent:${clientIp(request)}`, 10, 60);
+  const { allowed } = await checkRateLimit(clientKey(request, "create-intent"), 10, 60);
   if (!allowed) {
     return NextResponse.json({ error: "Troppe richieste, riprova tra poco" }, { status: 429 });
   }

@@ -119,6 +119,9 @@ test("la registrazione crea locale, tavoli e categorie", async ({ page }) => {
   await page.locator('input[name="email"]').fill(email);
   await page.locator('input[name="password"]').fill("password-e2e-123");
   await page.locator('input[name="tableCount"]').fill("2");
+  // Senza l'accordo art. 28 la registrazione viene rifiutata lato server:
+  // spuntarla fa parte del percorso, non è un dettaglio del modulo.
+  await page.locator('input[name="dpa"]').check();
   await page.getByRole("button", { name: "Crea locale" }).click();
 
   await expect(page.getByRole("heading", { name: "Locale creato" })).toBeVisible({
@@ -127,9 +130,12 @@ test("la registrazione crea locale, tavoli e categorie", async ({ page }) => {
 
   const sql = postgres(process.env.DATABASE_URL!, { ssl: "require", prepare: false });
   try {
-    const [created] = await sql<{ id: string; owner_id: string }[]>`
-      select id, owner_id from venues where name = ${name}`;
+    const [created] = await sql<{ id: string; owner_id: string; dpa_version: string | null }[]>`
+      select id, owner_id, dpa_version from venues where name = ${name}`;
     expect(created).toBeTruthy();
+    // L'accettazione deve restare scritta: senza versione registrata non si
+    // saprebbe a quale testo dell'accordo il locale ha aderito.
+    expect(created.dpa_version).toBeTruthy();
 
     const [tables] = await sql<{ n: number }[]>`
       select count(*)::int as n from tables where venue_id = ${created.id}`;

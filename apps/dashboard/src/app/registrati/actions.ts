@@ -2,7 +2,8 @@
 
 import bcrypt from "bcryptjs";
 import { db } from "@repo/shared/db";
-import { checkRateLimit } from "@repo/shared/rate-limit";
+import { checkRateLimit, pseudonymise } from "@repo/shared/rate-limit";
+import { DPA_VERSION } from "@/lib/dpa";
 import { headers } from "next/headers";
 
 export interface SignupResult {
@@ -27,7 +28,7 @@ function slugify(name: string): string {
  */
 export async function signup(formData: FormData): Promise<SignupResult> {
   const ip = (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-  const { allowed } = await checkRateLimit(`signup:${ip}`, 5, 3600);
+  const { allowed } = await checkRateLimit(`signup:${pseudonymise(ip)}`, 5, 3600);
   if (!allowed) {
     return { error: "Troppi tentativi, riprova più tardi" };
   }
@@ -45,6 +46,11 @@ export async function signup(formData: FormData): Promise<SignupResult> {
   }
   if (!Number.isFinite(tableCount) || tableCount < 1 || tableCount > 200) {
     return { error: "Numero tavoli non valido (1-200)" };
+  }
+  // Riverificato lato server: il `required` sulla casella vive solo nel
+  // browser, e questa action è un endpoint POST raggiungibile comunque.
+  if (formData.get("dpa") !== "on") {
+    return { error: "Per procedere devi accettare la nomina a responsabile del trattamento" };
   }
 
   const sql = db();
@@ -72,8 +78,10 @@ export async function signup(formData: FormData): Promise<SignupResult> {
         returning id`;
 
       const [venue] = await tx<{ id: string }[]>`
-        insert into venues (owner_id, name, slug, currency)
-        values (${user.id}, ${venueName}, ${slug}, 'EUR')
+        insert into venues (owner_id, name, slug, currency,
+                            dpa_accepted_at, dpa_version)
+        values (${user.id}, ${venueName}, ${slug}, 'EUR',
+                now(), ${DPA_VERSION})
         returning id`;
 
       await tx`insert into venue_staff (venue_id, user_id, role)

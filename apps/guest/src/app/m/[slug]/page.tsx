@@ -247,6 +247,14 @@ export default async function PublicMenuPage({ params }: PageProps<"/m/[slug]">)
         <div className="space-y-1 border-t border-border pt-4 text-xs text-muted">
           <p className="font-medium text-foreground">{venue.name}</p>
           {address && <p>{address}</p>}
+          <p className="flex flex-wrap justify-center gap-x-4">
+            <a href={`/privacy/${slug}`} className="inline-block py-1.5 underline underline-offset-2">
+              Privacy
+            </a>
+            <a href="/cookie" className="inline-block py-1.5 underline underline-offset-2">
+              Cookie
+            </a>
+          </p>
           {venue.public_phone && (
             <p>
               <a href={`tel:${venue.public_phone}`} className="inline-block py-1.5 underline underline-offset-2">

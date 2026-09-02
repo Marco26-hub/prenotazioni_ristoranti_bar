@@ -93,7 +93,7 @@ export default async function TablePage({
           items={items}
         />
 
-        <Bill sessionId={resolved.sessionId} />
+        <Bill sessionId={resolved.sessionId} privacyHref={`/privacy/${slug}`} />
       </main>
 
       <footer className="mx-auto w-full max-w-2xl px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-6">
@@ -119,11 +119,14 @@ export default async function TablePage({
             </p>
           )}
           <p className="flex gap-4 pt-1">
-            <a href="/privacy" className="inline-block py-1.5 underline underline-offset-2">
+            <a href={`/privacy/${slug}`} className="inline-block py-1.5 underline underline-offset-2">
               Privacy
             </a>
             <a href="/termini" className="inline-block py-1.5 underline underline-offset-2">
               Termini
+            </a>
+            <a href="/cookie" className="inline-block py-1.5 underline underline-offset-2">
+              Cookie
             </a>
           </p>
         </div>

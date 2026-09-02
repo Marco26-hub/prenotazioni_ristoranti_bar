@@ -69,6 +69,39 @@ export default function SignupPage() {
           </p>
         </div>
 
+        {/* L'accordo art. 28 va accettato prima che esista un trattamento,
+            non dopo: senza, i dati dei clienti del locale sarebbero trattati
+            da noi senza alcun atto scritto fra titolare e responsabile. */}
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="dpa"
+            required
+            className="mt-0.5 h-5 w-5 shrink-0"
+          />
+          <span>
+            Ho letto e accetto la{" "}
+            <a
+              href="/dpa"
+              target="_blank"
+              rel="noreferrer"
+              className="underline underline-offset-2"
+            >
+              nomina a responsabile del trattamento
+            </a>{" "}
+            e l&apos;
+            <a
+              href="/privacy"
+              target="_blank"
+              rel="noreferrer"
+              className="underline underline-offset-2"
+            >
+              informativa privacy
+            </a>
+            . Resto titolare dei dati dei miei clienti.
+          </span>
+        </label>
+
         {state?.error && <p className="text-sm text-danger">{state.error}</p>}
 
         <button

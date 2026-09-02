@@ -185,7 +185,7 @@ export default async function LandingPage() {
               Per ristoranti e bar in Italia
             </p>
 
-            <h1 className="titolo-sfumato display text-[2.75rem] leading-[1.03] sm:text-7xl">
+            <h1 className="titolo-sfumato display text-[2.75rem] sm:text-7xl">
               I tuoi clienti ordinano e pagano dal tavolo.
             </h1>
 
@@ -412,12 +412,20 @@ export default async function LandingPage() {
       <footer className="border-t border-border px-4 py-8">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 text-sm text-muted">
           <span>Ordini e pagamenti al tavolo per ristoranti e bar.</span>
-          <a
-            href="https://ristoranti-guest.vercel.app/privacy"
-            className="underline underline-offset-4"
-          >
-            Privacy
-          </a>
+          <span className="flex flex-wrap gap-x-4">
+            <Link href="/privacy" className="underline underline-offset-4">
+              Privacy
+            </Link>
+            <Link href="/dpa" className="underline underline-offset-4">
+              Trattamento dati
+            </Link>
+            <a
+              href="https://ristoranti-guest.vercel.app/cookie"
+              className="underline underline-offset-4"
+            >
+              Cookie
+            </a>
+          </span>
         </div>
       </footer>
     </div>

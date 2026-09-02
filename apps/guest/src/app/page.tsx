@@ -1,3 +1,4 @@
+import Link from "next/link";
 /**
  * Questa pagina si raggiunge solo digitando il dominio a mano: il percorso
  * normale è la scansione del QR sul tavolo, che porta direttamente a
@@ -21,12 +22,15 @@ export default function Home() {
       </p>
 
       <div className="mt-10 flex gap-4 text-xs text-muted">
-        <a href="/privacy" className="underline underline-offset-2">
+        <Link href="/privacy" className="underline underline-offset-2">
           Privacy
-        </a>
-        <a href="/termini" className="underline underline-offset-2">
+        </Link>
+        <Link href="/termini" className="underline underline-offset-2">
           Termini
-        </a>
+        </Link>
+        <Link href="/cookie" className="underline underline-offset-2">
+          Cookie
+        </Link>
       </div>
     </main>
   );

@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { auth, signOut } from "@/auth";
+import { db } from "@repo/shared/db";
+import { DPA_VERSION } from "@/lib/dpa";
+import { AvvisoConformita } from "./avviso-conformita";
 
 const NAV = [
   { href: "/dashboard", label: "Tavoli" },
@@ -15,6 +18,36 @@ const NAV = [
 export default async function DashboardLayout({ children }: LayoutProps<"/dashboard">) {
   const session = await auth();
   const venue = session?.venues[0];
+
+  // Stato di conformità: serve a ogni pagina del gestionale, quindi si legge
+  // qui una volta sola invece che in ognuna.
+  let serveDpa = false;
+  let datiMancanti: string[] = [];
+
+  if (venue) {
+    const sql = db();
+    const [row] = await sql<
+      {
+        dpa_version: string | null;
+        vat_number: string | null;
+        fiscal_code: string | null;
+        address_city: string | null;
+        public_email: string | null;
+        pec: string | null;
+      }[]
+    >`select dpa_version, vat_number, fiscal_code, address_city, public_email, pec
+        from venues where id = ${venue.venueId}`;
+
+    // Solo il titolare può accettare: mostrarlo a chi è in sala sarebbe un
+    // avviso su cui non può fare nulla.
+    serveDpa = venue.role === "owner" && row?.dpa_version !== DPA_VERSION;
+
+    datiMancanti = [
+      !row?.vat_number && !row?.fiscal_code ? "la partita IVA" : null,
+      !row?.address_city ? "l'indirizzo" : null,
+      !row?.public_email && !row?.pec ? "un contatto per i clienti" : null,
+    ].filter((v): v is string => v !== null);
+  }
 
   return (
     <div className="flex min-h-full flex-col">
@@ -55,6 +88,8 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
           </ul>
         </nav>
       </header>
+
+      <AvvisoConformita serveDpa={serveDpa} datiMancanti={datiMancanti} />
 
       <div className="flex-1">{children}</div>
     </div>

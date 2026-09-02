@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@repo/shared/db";
-import { checkRateLimit, clientIp } from "@repo/shared/rate-limit";
+import { checkRateLimit, clientKey } from "@repo/shared/rate-limit";
 import { createSatispayPayment, getSatispayPayment } from "@repo/shared/satispay";
 import { decryptSecret } from "@repo/shared/crypto";
 import { outstandingBalanceCents } from "@/lib/balance";
@@ -11,7 +11,7 @@ interface CreateSatispayBody {
 }
 
 export async function POST(request: Request) {
-  const { allowed } = await checkRateLimit(`create-satispay:${clientIp(request)}`, 10, 60);
+  const { allowed } = await checkRateLimit(clientKey(request, "create-satispay"), 10, 60);
   if (!allowed) {
     return NextResponse.json({ error: "Troppe richieste, riprova tra poco" }, { status: 429 });
   }

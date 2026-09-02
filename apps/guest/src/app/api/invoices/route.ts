@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@repo/shared/db";
-import { checkRateLimit, clientIp } from "@repo/shared/rate-limit";
+import { checkRateLimit, clientKey } from "@repo/shared/rate-limit";
 import { decryptSecret } from "@repo/shared/crypto";
 import { buildFatturaPaJson, type CustomerData } from "@/lib/invoice/fatturapa";
 import { invoicetronicClient } from "@/lib/invoice/invoicetronic-client";
@@ -20,7 +20,7 @@ function isValidCustomer(customer: CustomerData): boolean {
 }
 
 export async function POST(request: Request) {
-  const { allowed } = await checkRateLimit(`invoices:${clientIp(request)}`, 5, 60);
+  const { allowed } = await checkRateLimit(clientKey(request, "invoices"), 5, 60);
   if (!allowed) {
     return NextResponse.json({ error: "Troppe richieste, riprova tra poco" }, { status: 429 });
   }
