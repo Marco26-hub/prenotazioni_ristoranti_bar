@@ -1,7 +1,30 @@
 import { auth } from "@/auth";
 import { db } from "@repo/shared/db";
-import { formatPriceCents } from "@repo/shared";
 import { closeTableInPerson } from "./close-table-actions";
+import { Sala, type TavoloSala, type RigaOrdine } from "./sala";
+
+interface RigaTavolo {
+  id: string;
+  code: string;
+  seats: number;
+}
+
+interface RigaSessione {
+  table_id: string;
+  session_id: string;
+  opened_at: Date;
+  guest_count: number;
+  ordinato: string | null;
+  pagato: string | null;
+}
+
+interface RigaComanda {
+  table_session_id: string;
+  nome: string;
+  quantita: number;
+  stato: string;
+  note: string | null;
+}
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -16,78 +39,77 @@ export default async function DashboardPage() {
   }
 
   const sql = db();
-  const tables = await sql<{ id: string; code: string; seats: number; active: boolean }[]>`
-    select id, code, seats, active from tables
-    where venue_id = ${venue.venueId}
-    order by code`;
 
-  const openSessions = await sql<
-    { table_id: string; session_id: string; total_cents: string | null }[]
-  >`
-    select ts.table_id, ts.id as session_id, sum(oi.quantity * oi.unit_price_cents) as total_cents
-    from table_sessions ts
-    left join orders o on o.table_session_id = ts.id and o.status != 'cancelled'
-    left join order_items oi on oi.order_id = o.id and oi.status != 'cancelled'
-    where ts.venue_id = ${venue.venueId} and ts.status = 'open'
-    group by ts.table_id, ts.id`;
+  const tables = await sql<RigaTavolo[]>`
+    select id, code, seats from tables
+     where venue_id = ${venue.venueId} and active = true
+     order by code`;
 
-  const openByTable = new Map(
-    openSessions.map((s) => [
-      s.table_id,
-      { sessionId: s.session_id, totalCents: Number(s.total_cents ?? 0) },
-    ])
-  );
+  // Ordinato e pagato in due sottoquery invece che con due join: incrociarli
+  // nella stessa join moltiplicherebbe le righe dei pagamenti per quelle
+  // delle comande, gonfiando entrambi i totali.
+  const sessioni = await sql<RigaSessione[]>`
+    select ts.table_id, ts.id as session_id, ts.opened_at, ts.guest_count,
+           (select sum(oi.quantity * oi.unit_price_cents)
+              from order_items oi
+              join orders o on o.id = oi.order_id
+             where o.table_session_id = ts.id
+               and o.status != 'cancelled' and oi.status != 'cancelled') as ordinato,
+           (select sum(p.amount_cents) from payments p
+             where p.table_session_id = ts.id and p.status = 'succeeded') as pagato
+      from table_sessions ts
+     where ts.venue_id = ${venue.venueId} and ts.status = 'open'`;
 
-  const occupied = tables.filter((t) => openByTable.has(t.id)).length;
+  const comande = await sql<RigaComanda[]>`
+    select o.table_session_id, mi.name as nome, oi.quantity as quantita,
+           oi.status as stato, oi.notes as note
+      from order_items oi
+      join orders o on o.id = oi.order_id
+      join menu_items mi on mi.id = oi.menu_item_id
+      join table_sessions ts on ts.id = o.table_session_id
+     where ts.venue_id = ${venue.venueId} and ts.status = 'open'
+       and o.status != 'cancelled' and oi.status != 'cancelled'
+     order by o.created_at, mi.name`;
+
+  const righePerSessione = new Map<string, RigaOrdine[]>();
+  for (const c of comande) {
+    const lista = righePerSessione.get(c.table_session_id) ?? [];
+    lista.push({ nome: c.nome, quantita: c.quantita, stato: c.stato, note: c.note });
+    righePerSessione.set(c.table_session_id, lista);
+  }
+
+  const perTavolo = new Map(sessioni.map((s) => [s.table_id, s]));
+
+  const tavoli: TavoloSala[] = tables.map((t) => {
+    const s = perTavolo.get(t.id);
+    return {
+      id: t.id,
+      codice: t.code,
+      posti: t.seats,
+      sessionId: s?.session_id ?? null,
+      // Serializzato in ISO: un oggetto Date non attraversa il confine fra
+      // componente server e componente client.
+      apertoDa: s ? s.opened_at.toISOString() : null,
+      coperti: s?.guest_count ?? 1,
+      ordinatoCents: Number(s?.ordinato ?? 0),
+      pagatoCents: Number(s?.pagato ?? 0),
+      righe: s ? (righePerSessione.get(s.session_id) ?? []) : [],
+    };
+  });
+
+  async function chiudiConto(sessionId: string) {
+    "use server";
+    await closeTableInPerson(sessionId);
+  }
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-5">
-      <div className="mb-4 flex items-baseline justify-between">
-        <h1 className="text-lg font-semibold">Sala</h1>
-        <p className="text-sm text-muted">
-          {occupied} di {tables.length} occupati
-        </p>
-      </div>
-
-      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {tables.map((t) => {
-          const open = openByTable.get(t.id);
-          return (
-            <li
-              key={t.id}
-              className={`rounded-xl border p-4 ${
-                open ? "border-accent bg-accent/10" : "border-border bg-surface"
-              }`}
-            >
-              <p className="font-semibold">{t.code}</p>
-              <p className="text-xs text-muted">{t.seats} posti</p>
-              <p className="mt-2 font-medium tabular-nums">
-                {open ? (
-                  formatPriceCents(open.totalCents)
-                ) : (
-                  <span className="text-muted">libero</span>
-                )}
-              </p>
-              {open && (
-                <form
-                  action={async () => {
-                    "use server";
-                    await closeTableInPerson(open.sessionId);
-                  }}
-                >
-                  <button type="submit" className="mt-2 text-sm underline">
-                    Chiudi conto
-                  </button>
-                </form>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+    <main className="mx-auto max-w-4xl px-4 py-5">
+      <Sala tavoli={tavoli} chiudiConto={chiudiConto} />
 
       {tables.length === 0 && (
         <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted">
-          Nessun tavolo configurato. Vai in <strong>QR e tavoli</strong> per aggiungerli.
+          Nessun tavolo configurato. Vai in <strong>QR e tavoli</strong> per
+          aggiungerli.
         </p>
       )}
     </main>

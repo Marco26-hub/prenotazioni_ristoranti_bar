@@ -7,6 +7,7 @@ import { AvvisoConformita } from "./avviso-conformita";
 const NAV = [
   { href: "/dashboard", label: "Tavoli" },
   { href: "/dashboard/orders", label: "Ordini" },
+  { href: "/dashboard/analisi", label: "Analisi" },
   { href: "/dashboard/menu", label: "Menu" },
   { href: "/dashboard/tables", label: "QR e tavoli" },
   { href: "/dashboard/reservations", label: "Prenotazioni" },

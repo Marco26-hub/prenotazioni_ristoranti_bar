@@ -63,14 +63,16 @@ test("lo staff può chiudere un conto pagato al banco", async ({ page, context }
   await guest.close();
 
   await login(page);
-  await expect(page.getByRole("button", { name: "Chiudi conto" })).toBeVisible({
-    timeout: 15000,
-  });
-  await page.getByRole("button", { name: "Chiudi conto" }).first().click();
+
+  // Con un importo ancora aperto il bottone dichiara che sta registrando un
+  // incasso, non solo chiudendo il tavolo: è la stessa azione, detta meglio.
+  const chiudi = page.getByRole("button", { name: /Incassa e chiudi|Chiudi conto/ });
+  await expect(chiudi.first()).toBeVisible({ timeout: 15000 });
+  await chiudi.first().click();
 
   // Il tavolo torna libero e il bottone sparisce.
   await expect(page.getByText("libero").first()).toBeVisible({ timeout: 15000 });
-  await expect(page.getByRole("button", { name: "Chiudi conto" })).toHaveCount(0);
+  await expect(chiudi).toHaveCount(0);
 
   // L'incasso deve comunque risultare nello storico di giornata.
   await page.goto(`${DASHBOARD_URL}/dashboard/orders/storico`);
