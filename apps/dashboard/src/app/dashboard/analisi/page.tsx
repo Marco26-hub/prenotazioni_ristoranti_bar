@@ -12,6 +12,13 @@ import { formatPriceCents } from "@repo/shared";
  * Riservata a titolare e responsabile: sono dati economici.
  */
 
+/**
+ * Sotto questa soglia il grafico orario non dice nulla: due barre alla
+ * stessa altezza sembrano un dato e non lo sono. Meglio dichiarare che
+ * servono più servizi che disegnare una forma casuale.
+ */
+const MIN_SESSIONI_PER_ORARI = 20;
+
 const PERIODI = [
   { giorni: 7, etichetta: "7 giorni" },
   { giorni: 30, etichetta: "30 giorni" },
@@ -181,6 +188,14 @@ export default async function AnalisiPage({
     : 0;
   const piccoOra = perOra.length ? Math.max(...perOra.map((o) => o.sessioni)) : 0;
 
+  // Dalle 11 alle 24: è l'arco in cui un locale serve. Mostrare solo le ore
+  // con dati fa sembrare vicine due fasce lontane fra loro.
+  const conteggioPerOra = new Map(perOra.map((o) => [o.ora, o.sessioni]));
+  const orarioCompleto = Array.from({ length: 14 }, (_, i) => ({
+    ora: 11 + i,
+    sessioni: conteggioPerOra.get(11 + i) ?? 0,
+  }));
+
   const giorniAggregati = new Map<string, { coperti: number; incasso: number; n: number }>();
   for (const g of perGiorno) {
     const k = g.giorno.toISOString().slice(0, 10);
@@ -320,7 +335,7 @@ export default async function AnalisiPage({
                   <li key={p.nome} className="flex items-baseline justify-between gap-3">
                     <span className="min-w-0 truncate">{p.nome}</span>
                     <span className="shrink-0 tabular-nums text-muted">
-                      {p.pezzi} ·{" "}
+                      {p.pezzi} {p.pezzi === 1 ? "pz" : "pz"} ·{" "}
                       <span className="text-foreground">
                         {formatPriceCents(Number(p.incasso))}
                       </span>
@@ -338,7 +353,7 @@ export default async function AnalisiPage({
                   <li key={m.method} className="flex items-baseline justify-between gap-3">
                     <span>{METODO_ETICHETTA[m.method] ?? m.method}</span>
                     <span className="shrink-0 tabular-nums text-muted">
-                      {m.n} ·{" "}
+                      {m.n} {m.n === 1 ? "pagamento" : "pagamenti"} ·{" "}
                       <span className="text-foreground">
                         {formatPriceCents(Number(m.totale))}
                       </span>
@@ -352,24 +367,40 @@ export default async function AnalisiPage({
           {/* --- Fasce orarie ---------------------------------------- */}
           <section className="rounded-xl border border-border bg-surface p-4">
             <h2 className="mb-1 font-semibold">A che ora si riempie</h2>
-            <p className="mb-3 text-xs text-muted">
-              Ora di apertura del tavolo. Serve a decidere i turni, non a
-              decorare.
-            </p>
-            <ul className="flex items-end gap-1">
-              {perOra.map((o) => (
-                <li key={o.ora} className="flex flex-1 flex-col items-center gap-1">
-                  <div
-                    className="w-full rounded-t bg-accent"
-                    style={{
-                      height: `${piccoOra > 0 ? Math.max(4, (o.sessioni / piccoOra) * 60) : 4}px`,
-                    }}
-                    title={`${o.sessioni} tavoli`}
-                  />
-                  <span className="text-[10px] tabular-nums text-muted">{o.ora}</span>
-                </li>
-              ))}
-            </ul>
+            {sessioni < MIN_SESSIONI_PER_ORARI ? (
+              <p className="text-sm text-muted">
+                Servono almeno {MIN_SESSIONI_PER_ORARI} tavoli chiusi perché
+                questo dato voglia dire qualcosa: al momento sono {sessioni}.
+                Con pochi servizi il grafico mostrerebbe il caso, non
+                l&apos;andamento del locale.
+              </p>
+            ) : (
+              <>
+                <p className="mb-3 text-xs text-muted">
+                  Ora di apertura del tavolo, sull&apos;intero arco della
+                  giornata: le ore vuote restano vuote, così la forma si legge.
+                </p>
+                <ul className="flex items-end gap-0.5">
+                  {orarioCompleto.map((o) => (
+                    <li key={o.ora} className="flex flex-1 flex-col items-center gap-1">
+                      <span className="text-[10px] tabular-nums text-muted">
+                        {o.sessioni > 0 ? o.sessioni : ""}
+                      </span>
+                      <div
+                        className={`w-full rounded-t ${o.sessioni > 0 ? "bg-accent" : "bg-border"}`}
+                        style={{
+                          height: `${piccoOra > 0 ? Math.max(3, (o.sessioni / piccoOra) * 70) : 3}px`,
+                        }}
+                        title={`${o.ora}:00 — ${o.sessioni} tavoli`}
+                      />
+                      <span className="text-[10px] tabular-nums text-muted">
+                        {o.ora % 2 === 0 ? o.ora : ""}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
           </section>
 
           <p className="text-xs text-muted">

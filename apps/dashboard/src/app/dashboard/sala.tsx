@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatPriceCents } from "@repo/shared";
 import { impostaCoperti } from "./sala-actions";
+import { DettaglioTavolo } from "./dettaglio-tavolo";
 
 export interface RigaOrdine {
   nome: string;
@@ -63,6 +64,7 @@ export function Sala({
 }) {
   const router = useRouter();
   const [adesso, setAdesso] = useState(() => Date.now());
+  const [apertoId, setApertoId] = useState<string | null>(null);
 
   // Due ritmi diversi di proposito: l'orologio scatta ogni minuto perché è
   // l'unità in cui si legge una permanenza, i dati si ricaricano ogni quindici
@@ -115,7 +117,15 @@ export function Sala({
 
               {aperto && t.apertoDa && (
                 <>
-                  <p className="mt-1 text-xs text-muted">
+                  <button
+                    type="button"
+                    onClick={() => setApertoId(t.id)}
+                    className="mt-2 flex min-h-11 w-full items-center justify-center rounded-full border border-border text-sm"
+                  >
+                    Vedi la situazione
+                  </button>
+
+                  <p className="mt-2 text-xs text-muted">
                     Aperto alle {orario(t.apertoDa)} · da{" "}
                     {durata(t.apertoDa, adesso)}
                   </p>
@@ -198,6 +208,22 @@ export function Sala({
           );
         })}
       </ul>
+
+      {apertoId && (() => {
+        const t = tavoli.find((x) => x.id === apertoId);
+        if (!t || !t.sessionId) return null;
+        return (
+          <DettaglioTavolo
+            tavolo={t}
+            adesso={adesso}
+            onClose={() => setApertoId(null)}
+            onChiudiConto={async () => {
+              setApertoId(null);
+              await chiudiConto(t.sessionId!);
+            }}
+          />
+        );
+      })()}
     </>
   );
 }

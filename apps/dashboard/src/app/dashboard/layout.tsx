@@ -3,6 +3,7 @@ import { auth, signOut } from "@/auth";
 import { db } from "@repo/shared/db";
 import { DPA_VERSION } from "@/lib/dpa";
 import { AvvisoConformita } from "./avviso-conformita";
+import { Notifiche } from "./notifiche";
 
 const NAV = [
   { href: "/dashboard", label: "Tavoli" },
@@ -89,6 +90,8 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
           </ul>
         </nav>
       </header>
+
+      <Notifiche />
 
       <AvvisoConformita serveDpa={serveDpa} datiMancanti={datiMancanti} />
 
