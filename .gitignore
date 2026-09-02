@@ -1,12 +1,45 @@
+# Dipendenze e build
 node_modules/
 .next/
 .turbo/
 dist/
 build/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# Segreti — questo repo è pubblico: nulla di quanto segue va mai committato.
+# .env.example è l'unica eccezione (contiene solo nomi di variabili, mai valori).
 .env
-.env.local
-.env.*.local
-*.log
-.DS_Store
+.env.*
+!.env.example
+!**/.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+secrets.json
+credentials.json
+service-account*.json
+
+# Test e report
 test-results/
 playwright-report/
+blob-report/
+coverage/
+.playwright/
+
+# Piattaforme e strumenti
+# .claude/launch.json resta tracciato di proposito: è la config per avviare
+# le due app in locale, non contiene segreti.
+.vercel
+
+# Sistema ed editor
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
