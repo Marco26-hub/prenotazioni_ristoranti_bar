@@ -100,6 +100,14 @@ create table venues (
   -- delle chiamate è suo, non nostro. Cifrata a riposo.
   openrouter_api_key text,
   openrouter_model text,
+  -- Orari e informazioni pratiche: sono le domande che arrivano al telefono
+  -- tutto il giorno. Testo libero perché gli orari veri sono pieni di
+  -- eccezioni che una griglia costringerebbe a mentire.
+  opening_hours text,
+  practical_info text,
+  -- Assistente sulle pagine pubbliche. Spento di default: ogni domanda è
+  -- una chiamata addebitata sull account OpenRouter del locale.
+  assistant_enabled boolean not null default false,
   satispay_key_id text,                  -- key_id ottenuto da /authentication_keys
   satispay_private_key text,             -- PEM, controparte della chiave pubblica registrata su Satispay
   invoice_provider text default 'invoicetronic', -- provider SDI esterno

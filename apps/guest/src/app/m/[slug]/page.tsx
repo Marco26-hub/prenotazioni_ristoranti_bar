@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { formatPriceCents } from "@repo/shared";
 import { scegliLingua, traduci, type Traduzioni } from "@repo/shared/lingue";
 import { SelettoreLingua } from "./selettore-lingua";
+import { Assistente } from "./assistente";
 import { AnnuncioLocale } from "../../v/[slug]/t/[token]/annuncio";
 import { annuncioAttivo } from "@/lib/annuncio";
 
@@ -41,6 +42,9 @@ interface VenuePublic {
   address_province: string | null;
   currency: string;
   languages: string[];
+  opening_hours: string | null;
+  practical_info: string | null;
+  assistant_enabled: boolean;
 }
 
 async function loadVenue(slug: string) {
@@ -48,7 +52,7 @@ async function loadVenue(slug: string) {
   const [venue] = await sql<VenuePublic[]>`
     select id, name, logo_url, brand_color, public_phone, public_email,
            address, address_zip, address_city, address_province, currency,
-           languages
+           languages, opening_hours, practical_info, assistant_enabled
     from venues where slug = ${slug}`;
   if (!venue) return null;
 
@@ -187,6 +191,10 @@ export default async function PublicMenuPage({
     <div className="flex min-h-full flex-col" style={brandStyle}>
       {annuncio && <AnnuncioLocale annuncio={annuncio} venueSlug={slug} />}
 
+      {venue.assistant_enabled && (
+        <Assistente slug={slug} nomeLocale={venue.name} />
+      )}
+
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -211,6 +219,15 @@ export default async function PublicMenuPage({
             >
               Prenota un tavolo
             </a>
+
+            {venue.opening_hours && (
+              <p className="mt-2 whitespace-pre-line text-sm text-muted">
+                {venue.opening_hours}
+              </p>
+            )}
+            {venue.practical_info && (
+              <p className="mt-1 text-sm text-muted">{venue.practical_info}</p>
+            )}
 
             <div className="mt-3">
               <SelettoreLingua

@@ -11,6 +11,7 @@ import { PrenotazioniForm } from "./prenotazioni-form";
 import { EmailForm } from "./email-form";
 import { CopertoForm } from "./coperto-form";
 import { OpenRouterForm } from "./openrouter-form";
+import { AssistenteForm } from "./assistente-form";
 import { emailConfigurata } from "@repo/shared/email";
 import { AnnuncioForm } from "./annuncio-form";
 
@@ -42,6 +43,9 @@ export default async function SettingsPage() {
       cover_charge_label: string | null;
       openrouter_api_key: string | null;
       openrouter_model: string | null;
+      opening_hours: string | null;
+      practical_info: string | null;
+      assistant_enabled: boolean;
       brand_color: string | null;
       public_phone: string | null;
       public_email: string | null;
@@ -67,7 +71,8 @@ export default async function SettingsPage() {
            reservation_email, reservation_capacity, reservation_auto_confirm,
            resend_api_key, resend_from,
            cover_charge_cents, service_percent, cover_charge_label,
-           openrouter_api_key, openrouter_model, brand_color, public_phone, public_email,
+           openrouter_api_key, openrouter_model,
+           opening_hours, practical_info, assistant_enabled, brand_color, public_phone, public_email,
            tilby_shop_name, tips_enabled, tip_percents, google_review_url,
            stripe_account_id, satispay_key_id, vat_number, fiscal_code, regime_fiscale,
            address, address_zip, address_city, address_province, invoice_provider_api_key
@@ -144,6 +149,21 @@ export default async function SettingsPage() {
           email={venueRow?.reservation_email ?? null}
           capienza={venueRow?.reservation_capacity ?? null}
           autoConfirm={venueRow?.reservation_auto_confirm ?? false}
+        />
+      </section>
+
+      <section className="rounded-xl border border-border bg-surface p-4">
+        <h2 className="mb-1 font-semibold">Orari e assistente</h2>
+        <p className="mb-3 text-sm text-muted">
+          Gli orari servono comunque. L&apos;assistente è facoltativo e a
+          consumo: risponde ai clienti sulle pagine pubbliche e li porta a
+          prenotare.
+        </p>
+        <AssistenteForm
+          orari={venueRow?.opening_hours ?? null}
+          info={venueRow?.practical_info ?? null}
+          attivo={venueRow?.assistant_enabled ?? false}
+          chiaveCollegata={Boolean(venueRow?.openrouter_api_key)}
         />
       </section>
 

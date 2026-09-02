@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@repo/shared/db";
 import { hasModulo } from "@repo/shared";
 import { BookingForm } from "./booking-form";
+import { Assistente } from "../../m/[slug]/assistente";
 
 /**
  * Prenotazione pubblica: è la pagina che il ristoratore linka dal proprio
@@ -25,6 +26,8 @@ interface VenueRow {
   subscription_status: string;
   subscription_period_end: Date | null;
   modules: string[] | null;
+  opening_hours: string | null;
+  assistant_enabled: boolean;
 }
 
 async function loadVenue(slug: string): Promise<VenueRow | null> {
@@ -32,7 +35,8 @@ async function loadVenue(slug: string): Promise<VenueRow | null> {
   const [venue] = await sql<VenueRow[]>`
     select id, name, logo_url, brand_color, public_phone, public_email,
            address, address_zip, address_city, address_province,
-           subscription_status, subscription_period_end, modules
+           subscription_status, subscription_period_end, modules,
+           opening_hours, assistant_enabled
       from venues where slug = ${slug}`;
   return venue ?? null;
 }
@@ -132,6 +136,11 @@ export default async function BookingPage({ params }: PageProps<"/p/[slug]">) {
           Prenota da {venue.name}
         </h1>
         {address && <p className="mt-1 text-sm text-muted">{address}</p>}
+        {venue.opening_hours && (
+          <p className="mt-2 whitespace-pre-line text-sm text-muted">
+            {venue.opening_hours}
+          </p>
+        )}
       </header>
 
       {attivo ? (
@@ -143,6 +152,10 @@ export default async function BookingPage({ params }: PageProps<"/p/[slug]">) {
             Contatta direttamente il locale per prenotare un tavolo.
           </p>
         </div>
+      )}
+
+      {venue.assistant_enabled && (
+        <Assistente slug={slug} nomeLocale={venue.name} />
       )}
 
       <footer className="mt-8 space-y-2 text-center text-sm text-muted">
