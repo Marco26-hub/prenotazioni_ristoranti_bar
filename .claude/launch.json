@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "guest",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "guest", "dev", "--", "--port", "3010"],
+      "port": 3010
+    },
+    {
+      "name": "dashboard",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "dashboard", "dev", "--", "--port", "3011"],
+      "port": 3011
+    }
+  ]
+}

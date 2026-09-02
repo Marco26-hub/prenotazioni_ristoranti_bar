@@ -1,0 +1,14 @@
+{
+  "name": "gestionale-ristoranti",
+  "private": true,
+  "version": "0.1.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev:guest": "pnpm --filter guest dev",
+    "dev:dashboard": "pnpm --filter dashboard dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint"
+  }
+}
