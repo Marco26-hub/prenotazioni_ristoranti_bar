@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@repo/shared/db";
 import { headers } from "next/headers";
@@ -207,7 +208,12 @@ export default async function PublicMenuPage({
       />
 
       <header className="menu-header border-b border-border">
-        <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-5">
+        <div className="mx-auto max-w-3xl px-4 py-5 sm:px-6">
+          <nav className="mb-6 flex items-center justify-between gap-3 text-sm" aria-label="Navigazione locale">
+            <Link href="/" className="text-muted underline underline-offset-4">Torna al sito</Link>
+            <a href={`/p/${slug}`} className="font-medium text-accent underline underline-offset-4">Prenota un tavolo</a>
+          </nav>
+          <div className="flex items-center gap-3">
           {venue.logo_url && (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img
@@ -243,6 +249,11 @@ export default async function PublicMenuPage({
               />
             </div>
           </div>
+          </div>
+          <nav className="mt-6 flex flex-wrap gap-2 border-t border-border pt-4" aria-label="Sezioni del menu">
+            <a href="#menu" className="rounded-full bg-accent px-4 py-2 text-sm font-medium text-accent-foreground">Il menu</a>
+            <a href="#informazioni" className="rounded-full border border-border px-4 py-2 text-sm text-muted">Informazioni</a>
+          </nav>
         </div>
       </header>
 
@@ -285,7 +296,7 @@ export default async function PublicMenuPage({
         </p>
       </main>
 
-      <footer className="mx-auto w-full max-w-2xl px-4 pb-8 pt-2">
+      <footer id="informazioni" className="mx-auto w-full max-w-2xl px-4 pb-8 pt-2">
         <div className="space-y-1 border-t border-border pt-4 text-xs text-muted">
           <p className="font-medium text-foreground">{venue.name}</p>
           {address && <p>{address}</p>}

@@ -105,7 +105,8 @@ export default async function TablePage({
   return (
     <div className="flex min-h-full flex-col" style={brandStyle}>
       <header className="sticky top-0 z-10 border-b border-border bg-surface/95 backdrop-blur">
-        <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-3">
+        <div className="mx-auto max-w-2xl px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2.5">
             {venue.logo_url && (
               /* eslint-disable-next-line @next/next/no-img-element */
@@ -120,18 +121,26 @@ export default async function TablePage({
           <span className="shrink-0 rounded-full bg-accent px-2.5 py-1 text-xs font-medium text-accent-foreground">
             Tavolo {resolved.table.code}
           </span>
+          </div>
+          <nav className="mt-3 flex gap-2" aria-label="Navigazione tavolo">
+            <a href="#ordine" className="rounded-full bg-accent px-4 py-2 text-sm font-medium text-accent-foreground">Ordina</a>
+            <a href="#conto" className="rounded-full border border-border px-4 py-2 text-sm font-medium">Il conto</a>
+            <a href={`/m/${slug}`} className="rounded-full border border-border px-4 py-2 text-sm text-muted">Menu</a>
+          </nav>
         </div>
       </header>
 
       {annuncio && <AnnuncioLocale annuncio={annuncio} venueSlug={slug} />}
 
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-5">
-        <OrderMenu
-          sessionId={resolved.sessionId}
-          currency={resolved.venue.currency}
-          categories={categories}
-          items={itemsConVarianti}
-        />
+        <section id="ordine" aria-label="Ordina dal tavolo">
+          <OrderMenu
+            sessionId={resolved.sessionId}
+            currency={resolved.venue.currency}
+            categories={categories}
+            items={itemsConVarianti}
+          />
+        </section>
 
         {/* Il coperto va indicato dove il cliente sceglie, non solo in
             fondo al conto: la norma sui prezzi lo mette alla pari di un
@@ -159,7 +168,9 @@ export default async function TablePage({
           <p className="mt-3 text-xs leading-relaxed text-muted">{nota}</p>
         )}
 
-        <Bill sessionId={resolved.sessionId} privacyHref={`/privacy/${slug}`} />
+        <div id="conto" aria-label="Conto e pagamento">
+          <Bill sessionId={resolved.sessionId} privacyHref={`/privacy/${slug}`} />
+        </div>
       </main>
 
       <footer className="mx-auto w-full max-w-2xl px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-6">
