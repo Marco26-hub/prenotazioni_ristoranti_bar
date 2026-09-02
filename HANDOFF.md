@@ -6,6 +6,13 @@ la parte che serve davvero a chi arriva dopo.
 
 Ultimo aggiornamento: settembre 2026.
 
+Aggiornamento menu demo: la pagina pubblica del menu ha ora una griglia
+responsive più curata, immagini locali con dimensioni stabili e focus
+accessibile. Il seed demo include foto coerenti per bruschetta, carbonara,
+bevande e Chianti in `apps/guest/public/piatti/`. Sono immagini fotografiche
+generate per la demo; per un locale reale vanno sostituite con gli scatti
+autentici del ristorante.
+
 ---
 
 ## 1. Cos'è
@@ -225,7 +232,7 @@ La parte importante di questo documento.
 |---|---|
 | **Sandbox Stripe da rivendicare.** Finché non lo è, Connect non funziona e nessun pagamento reale è possibile: la chiave provvisoria non ha i permessi. | Titolare dell'account Stripe |
 | **Chiave Resend** (`RESEND_API_KEY`, `RESEND_FROM`). Senza, nessuna email parte: le prenotazioni arrivano solo in gestionale e il cliente non riceve conferme. Il gestionale lo dichiara invece di fingere. | Chi vende |
-| **Foto reali dei piatti.** Oggi sono segnaposto. Il credito per generarle è a zero. | Il locale, o una ricarica |
+| **Foto autentiche del locale.** La demo ha ora immagini fotografiche locali coerenti; per la produzione servono gli scatti reali dei piatti e delle bevande. | Il locale |
 | **Account intermediario SDI** per la fatturazione | Il locale |
 | **Developer Program Tilby** per il collegamento cassa | Chi vende |
 

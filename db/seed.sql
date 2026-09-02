@@ -28,9 +28,11 @@ insert into tables (id, venue_id, code, seats, qr_token) values
 insert into menu_categories (id, venue_id, name, sort_order) values
   ('00000000-0000-0000-0000-000000000200', '00000000-0000-0000-0000-000000000010', 'Antipasti', 1),
   ('00000000-0000-0000-0000-000000000201', '00000000-0000-0000-0000-000000000010', 'Primi', 2),
-  ('00000000-0000-0000-0000-000000000202', '00000000-0000-0000-0000-000000000010', 'Bevande', 3);
+  ('00000000-0000-0000-0000-000000000202', '00000000-0000-0000-0000-000000000010', 'Bevande', 3),
+  ('00000000-0000-0000-0000-000000000203', '00000000-0000-0000-0000-000000000010', 'Vini', 4);
 
-insert into menu_items (venue_id, category_id, name, description, price_cents, vat_rate, sort_order) values
-  ('00000000-0000-0000-0000-000000000010', '00000000-0000-0000-0000-000000000200', 'Bruschetta', 'Pomodoro e basilico', 600, 10, 1),
-  ('00000000-0000-0000-0000-000000000010', '00000000-0000-0000-0000-000000000201', 'Carbonara', 'Guanciale, uovo, pecorino', 1200, 10, 1),
-  ('00000000-0000-0000-0000-000000000010', '00000000-0000-0000-0000-000000000202', 'Acqua naturale 0.5L', null, 200, 10, 1);
+insert into menu_items (venue_id, category_id, name, description, price_cents, vat_rate, sort_order, image_url) values
+  ('00000000-0000-0000-0000-000000000010', '00000000-0000-0000-0000-000000000200', 'Bruschetta', 'Pomodoro e basilico', 600, 10, 1, '/piatti/bruschetta.jpg'),
+  ('00000000-0000-0000-0000-000000000010', '00000000-0000-0000-0000-000000000201', 'Carbonara', 'Guanciale, uovo, pecorino', 1200, 10, 1, '/piatti/carbonara.jpg'),
+  ('00000000-0000-0000-0000-000000000010', '00000000-0000-0000-0000-000000000202', 'Acqua naturale 0.5L', null, 200, 10, 1, '/piatti/bevande.jpg'),
+  ('00000000-0000-0000-0000-000000000010', '00000000-0000-0000-0000-000000000203', 'Chianti DOCG', 'Calice o bottiglia della casa', 2400, 22, 1, '/piatti/vino-rosso.jpg');

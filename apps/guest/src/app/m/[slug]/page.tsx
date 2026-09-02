@@ -200,7 +200,7 @@ export default async function PublicMenuPage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <header className="border-b border-border bg-surface">
+      <header className="border-b border-border bg-surface/95 shadow-sm">
         <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-5">
           {venue.logo_url && (
             /* eslint-disable-next-line @next/next/no-img-element */
@@ -215,7 +215,7 @@ export default async function PublicMenuPage({
             {address && <p className="text-sm text-muted">{address}</p>}
             <a
               href={`/p/${slug}`}
-              className="mt-3 inline-flex min-h-11 items-center rounded-full bg-accent px-5 text-sm font-medium text-accent-foreground"
+              className="mt-3 inline-flex min-h-11 items-center rounded-full bg-accent px-5 text-sm font-medium text-accent-foreground transition-colors hover:bg-accent/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
             >
               Prenota un tavolo
             </a>
@@ -240,28 +240,33 @@ export default async function PublicMenuPage({
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-2xl flex-1 space-y-7 px-4 py-6">
+      <main id="menu" className="mx-auto w-full max-w-3xl flex-1 space-y-9 px-4 py-7 sm:px-6">
         {categories.map((cat) => {
           const catItems = itemsByCategory.get(cat.id) ?? [];
           if (catItems.length === 0) return null;
           return (
             <section key={cat.id}>
-              <h2 className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-muted">
-                {cat.name}
-              </h2>
-              <ul className="space-y-2.5">
+              <div className="mb-3 flex items-end justify-between gap-4">
+                <h2 className="text-lg font-semibold tracking-tight text-pretty">
+                  {cat.name}
+                </h2>
+                <span className="h-px flex-1 bg-border" aria-hidden="true" />
+              </div>
+              <ul className="grid gap-3 sm:grid-cols-2">
                 {catItems.map((item) => (
                   <li
                     key={item.id}
-                    className="flex items-start gap-4 rounded-xl border border-border bg-surface p-4"
+                    className="group flex min-h-32 items-stretch gap-3 rounded-xl border border-border bg-surface p-3 shadow-sm transition-shadow hover:shadow-md focus-within:ring-2 focus-within:ring-accent/40"
                   >
                     {item.image_url && (
                       /* eslint-disable-next-line @next/next/no-img-element */
                       <img
                         src={item.image_url}
-                        alt=""
+                        alt={item.name}
+                        width={112}
+                        height={112}
                         loading="lazy"
-                        className="h-20 w-20 shrink-0 rounded-lg object-cover"
+                        className="h-28 w-28 shrink-0 rounded-lg object-cover transition-transform duration-200 group-hover:scale-[1.02]"
                       />
                     )}
                     <div className="min-w-0 flex-1">
@@ -272,7 +277,7 @@ export default async function PublicMenuPage({
                         </p>
                       )}
                     </div>
-                    <p className="shrink-0 font-semibold tabular-nums">
+                    <p className="shrink-0 self-start pt-0.5 font-semibold tabular-nums">
                       {formatPriceCents(item.price_cents, venue.currency)}
                     </p>
                   </li>
@@ -298,10 +303,10 @@ export default async function PublicMenuPage({
           <p className="font-medium text-foreground">{venue.name}</p>
           {address && <p>{address}</p>}
           <p className="flex flex-wrap justify-center gap-x-4">
-            <a href={`/privacy/${slug}`} className="inline-block py-1.5 underline underline-offset-2">
+            <a href={`/privacy/${slug}`} className="inline-block py-1.5 underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
               Privacy
             </a>
-            <a href="/cookie" className="inline-block py-1.5 underline underline-offset-2">
+            <a href="/cookie" className="inline-block py-1.5 underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
               Cookie
             </a>
           </p>
