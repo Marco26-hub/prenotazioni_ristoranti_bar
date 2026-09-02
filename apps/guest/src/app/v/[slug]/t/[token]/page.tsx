@@ -118,8 +118,9 @@ export default async function TablePage({
             )}
             <h1 className="truncate text-lg font-semibold tracking-tight">{venue.name}</h1>
           </div>
-          <span className="shrink-0 rounded-full bg-accent px-2.5 py-1 text-xs font-medium text-accent-foreground">
-            Tavolo {resolved.table.code}
+          <span className="shrink-0 rounded-full bg-accent px-3 py-1.5 text-center text-xs font-medium text-accent-foreground">
+            <span className="block text-[10px] uppercase tracking-wider opacity-75">Codice tavolo</span>
+            <span className="block">{resolved.table.code}</span>
           </span>
           </div>
           <nav className="mt-3 flex gap-2" aria-label="Navigazione tavolo">

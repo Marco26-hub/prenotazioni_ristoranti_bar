@@ -49,6 +49,9 @@ export default async function TablesPage() {
             <p className="mb-2 font-medium">
               Tavolo {t.code} — {t.seats} posti
             </p>
+            <p className="mb-2 text-xs text-muted">
+              Il codice identifica il tavolo; il QR collega ordine e pagamento.
+            </p>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={t.qrDataUrl} alt={`QR tavolo ${t.code}`} className="mx-auto h-auto w-full max-w-56" />
             <ScaricaLocandina
@@ -132,7 +135,7 @@ export default async function TablesPage() {
         <form action={addTable} className="flex flex-wrap gap-2">
           <input
             name="code"
-            placeholder="Codice (es. T3)"
+                placeholder="Codice tavolo (es. T3)"
             required
             className="min-h-11 w-full min-w-0 flex-1 rounded-lg border border-border bg-background px-3 sm:w-auto"
           />
