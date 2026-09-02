@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { db } from "@repo/shared/db";
+import { testo, type TestiPubblici } from "@repo/shared/testi";
 import { headers } from "next/headers";
 import { scegliLingua, traduci, type Traduzioni } from "@repo/shared/lingue";
 import { notaConservazione, type Conservazione } from "@repo/shared/bevande";
@@ -65,6 +66,7 @@ interface VenuePublic {
   subscription_status: string;
   subscription_period_end: Date | null;
   modules: string[] | null;
+  public_texts: TestiPubblici | null;
 }
 
 
@@ -74,7 +76,7 @@ async function loadVenue(slug: string) {
     select id, name, logo_url, brand_color, public_phone, public_email,
            address, address_zip, address_city, address_province, currency,
            languages, opening_hours, practical_info, assistant_enabled,
-           subscription_status, subscription_period_end, modules
+           subscription_status, subscription_period_end, modules, public_texts
     from venues where slug = ${slug}`;
   if (
     !venue ||
@@ -329,7 +331,7 @@ export default async function PublicMenuPage({
                   </a>
                 </p>
               ) : (
-                <p>Contatti disponibili presso il locale.</p>
+                <p>{testo(venue.public_texts, "menu_contatti", { nome: venue.name })}</p>
               )}
               {venue.public_email && (
                 <p>
@@ -355,7 +357,7 @@ export default async function PublicMenuPage({
         </div>
         <div className="flex flex-wrap justify-between gap-2 border-t border-border pt-5 text-xs text-muted">
           <p>© {new Date().getFullYear()} {venue.name}</p>
-          <p>Menu e prezzi aggiornati dal locale.</p>
+          <p className="whitespace-pre-line">{testo(venue.public_texts, "menu_nota", { nome: venue.name })}</p>
         </div>
       </footer>
     </div>

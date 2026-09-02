@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { db } from "@repo/shared/db";
+import { testo, type TestiPubblici } from "@repo/shared/testi";
 import { hasModulo } from "@repo/shared";
 import { BookingForm } from "./booking-form";
 import { Assistente } from "../../m/[slug]/assistente";
@@ -28,6 +29,7 @@ interface VenueRow {
   modules: string[] | null;
   opening_hours: string | null;
   assistant_enabled: boolean;
+  public_texts: TestiPubblici | null;
 }
 
 async function loadVenue(slug: string): Promise<VenueRow | null> {
@@ -36,7 +38,7 @@ async function loadVenue(slug: string): Promise<VenueRow | null> {
     select id, name, logo_url, brand_color, public_phone, public_email,
            address, address_zip, address_city, address_province,
            subscription_status, subscription_period_end, modules,
-           opening_hours, assistant_enabled
+           opening_hours, assistant_enabled, public_texts
       from venues where slug = ${slug}`;
   return venue ?? null;
 }
@@ -78,6 +80,10 @@ export default async function BookingPage({ params }: PageProps<"/p/[slug]">) {
   const address = [venue.address, venue.address_zip, venue.address_city, venue.address_province]
     .filter(Boolean)
     .join(" ");
+
+  const benvenuto = testo(venue.public_texts, "prenota_benvenuto", {
+    nome: venue.name,
+  });
 
   // Schema.org: dice ai motori e agli assistenti che questo locale accetta
   // prenotazioni e da quale indirizzo si prenota.
@@ -133,9 +139,14 @@ export default async function BookingPage({ params }: PageProps<"/p/[slug]">) {
           />
         )}
         <h1 className="text-2xl font-semibold tracking-tight">
-          Prenota da {venue.name}
+          {testo(venue.public_texts, "prenota_titolo", { nome: venue.name })}
         </h1>
         {address && <p className="mt-1 text-sm text-muted">{address}</p>}
+        {benvenuto && (
+          <p className="mx-auto mt-3 max-w-prose whitespace-pre-line text-sm leading-relaxed text-muted">
+            {benvenuto}
+          </p>
+        )}
         {venue.opening_hours && (
           <p className="mt-2 whitespace-pre-line text-sm text-muted">
             {venue.opening_hours}
@@ -147,9 +158,11 @@ export default async function BookingPage({ params }: PageProps<"/p/[slug]">) {
         <BookingForm slug={slug} venueName={venue.name} />
       ) : (
         <div className="rounded-xl border border-border bg-surface p-5 text-center">
-          <p className="font-medium">Prenotazione online non disponibile</p>
-          <p className="mt-2 text-sm text-muted">
-            Contatta direttamente il locale per prenotare un tavolo.
+          <p className="font-medium">
+            {testo(venue.public_texts, "prenota_chiuse_titolo", { nome: venue.name })}
+          </p>
+          <p className="mt-2 whitespace-pre-line text-sm text-muted">
+            {testo(venue.public_texts, "prenota_chiuse_testo", { nome: venue.name })}
           </p>
         </div>
       )}
@@ -161,7 +174,7 @@ export default async function BookingPage({ params }: PageProps<"/p/[slug]">) {
       <footer className="mt-8 space-y-2 text-center text-sm text-muted">
         {venue.public_phone && (
           <p>
-            Preferisci telefonare?{" "}
+            {testo(venue.public_texts, "prenota_telefono", { nome: venue.name })}{" "}
             <a
               href={`tel:${venue.public_phone}`}
               className="inline-block py-1.5 underline underline-offset-2"
@@ -172,7 +185,7 @@ export default async function BookingPage({ params }: PageProps<"/p/[slug]">) {
         )}
         <p>
           <a href={`/m/${slug}`} className="inline-block py-1.5 underline underline-offset-2">
-            Guarda il menu
+            {testo(venue.public_texts, "prenota_link_menu", { nome: venue.name })}
           </a>
         </p>
       </footer>

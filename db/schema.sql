@@ -120,7 +120,8 @@ create table venues (
   dpa_version text,
   reservation_email text,
   reservation_auto_confirm boolean default false not null,
-  reservation_capacity integer
+  reservation_capacity integer,
+  public_texts jsonb default '{}'::jsonb not null
 );
 
 create table venue_staff (

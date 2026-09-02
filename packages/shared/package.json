@@ -20,7 +20,8 @@
     "./formati": "./formati.ts",
     "./openrouter": "./openrouter.ts",
     "./openrouter-tipi": "./openrouter-tipi.ts",
-    "./allergeni": "./allergeni.ts"
+    "./allergeni": "./allergeni.ts",
+    "./testi": "./testi.ts"
   },
   "dependencies": {
     "postgres": "^3.4.5",

@@ -10,6 +10,7 @@ import { BrandForm } from "./brand-form";
 import { PrenotazioniForm } from "./prenotazioni-form";
 import { EmailForm } from "./email-form";
 import { CopertoForm } from "./coperto-form";
+import { TestiForm } from "./testi-form";
 import { OpenRouterForm } from "./openrouter-form";
 import { AssistenteForm } from "./assistente-form";
 import { emailConfigurata } from "@repo/shared/email";
@@ -41,6 +42,7 @@ export default async function SettingsPage() {
       cover_charge_cents: number;
       service_percent: string;
       cover_charge_label: string | null;
+      public_texts: Record<string, string> | null;
       openrouter_api_key: string | null;
       openrouter_model: string | null;
       opening_hours: string | null;
@@ -70,7 +72,7 @@ export default async function SettingsPage() {
            announcement_starts_at, announcement_ends_at, announcement_enabled,
            reservation_email, reservation_capacity, reservation_auto_confirm,
            resend_api_key, resend_from,
-           cover_charge_cents, service_percent, cover_charge_label,
+           cover_charge_cents, service_percent, cover_charge_label, public_texts,
            openrouter_api_key, openrouter_model,
            opening_hours, practical_info, assistant_enabled, brand_color, public_phone, public_email,
            tilby_shop_name, tips_enabled, tip_percents, google_review_url,
@@ -177,6 +179,19 @@ export default async function SettingsPage() {
         <OpenRouterForm
           collegata={Boolean(venueRow?.openrouter_api_key)}
           modello={venueRow?.openrouter_model ?? null}
+        />
+      </section>
+
+      <section className="rounded-xl border border-border bg-surface p-4">
+        <h2 className="mb-1 font-semibold">Testi delle pagine pubbliche</h2>
+        <p className="mb-3 text-sm text-muted">
+          Piatti e prezzi li scrivi dal Menu. Qui riscrivi le frasi intorno:
+          il titolo della pagina prenotazioni, la presentazione del locale, la
+          nota in fondo alla carta.
+        </p>
+        <TestiForm
+          testi={venueRow?.public_texts ?? {}}
+          nomeLocale={venueRow?.name ?? "il tuo locale"}
         />
       </section>
 
