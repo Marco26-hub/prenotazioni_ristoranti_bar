@@ -12,12 +12,41 @@ interface InvoiceRequestBody {
 }
 
 function isValidCustomer(customer: CustomerData): boolean {
+  const validEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+  const common =
+    validEmail(customer.email ?? "") &&
+    Boolean(customer.addressStreet?.trim() && customer.addressZip?.trim() && customer.addressCity?.trim());
+
   if (customer.type === "privato") {
-    return Boolean(
-      customer.firstName?.trim() && customer.lastName?.trim() && customer.fiscalCode?.trim() && customer.email?.trim()
+    return common && Boolean(
+      customer.firstName?.trim() &&
+      customer.lastName?.trim() &&
+      /^[A-Z0-9]{16}$/i.test(customer.fiscalCode?.trim()) &&
+      /^\d{5}$/.test(customer.addressZip?.trim()) &&
+      /^[A-Z]{2}$/i.test(customer.addressProvince?.trim()) &&
+      (!customer.pec || validEmail(customer.pec))
     );
   }
-  return Boolean(customer.companyName?.trim() && customer.vatNumber?.trim() && customer.email?.trim());
+  if (customer.type === "azienda") {
+    return common && Boolean(
+      customer.companyName?.trim() &&
+      /^\d{11}$/.test(customer.vatNumber?.replace(/^IT/i, "").trim()) &&
+      /^\d{5}$/.test(customer.addressZip?.trim()) &&
+      /^[A-Z]{2}$/i.test(customer.addressProvince?.trim()) &&
+      (!customer.sdiCode || /^[A-Z0-9]{7}$/i.test(customer.sdiCode.trim())) &&
+      (!customer.pec || validEmail(customer.pec))
+    );
+  }
+  if (customer.type === "estero") {
+    return common && Boolean(
+      customer.customerName?.trim() &&
+      customer.taxId?.trim() &&
+      customer.taxId.trim().length <= 28 &&
+      /^[A-Z]{2}$/i.test(customer.countryCode?.trim()) &&
+      customer.countryCode.trim().toUpperCase() !== "IT"
+    );
+  }
+  return false;
 }
 
 export async function POST(request: Request) {
@@ -57,11 +86,11 @@ export async function POST(request: Request) {
   // su invoices.payment_id). Se è già stata trasmessa con successo,
   // ritorna quella — mai una seconda chiamata reale a SDI per retry/doppio click.
   const [existing] = await sql<
-    { id: string; status: string; invoice_number: number | null; provider_invoice_id: string | null }[]
-  >`select id, status, invoice_number, provider_invoice_id from invoices where payment_id = ${payment.id}`;
+    { id: string; status: string; invoice_number: number | null; provider_invoice_id: string | null; emailed_at: Date | null }[]
+  >`select id, status, invoice_number, provider_invoice_id, emailed_at from invoices where payment_id = ${payment.id}`;
 
   if (existing && (existing.status === "sent" || existing.status === "delivered")) {
-    return NextResponse.json({ status: existing.status, invoiceId: existing.provider_invoice_id });
+    return NextResponse.json({ status: existing.status, invoiceId: existing.provider_invoice_id, emailSent: Boolean(existing.emailed_at) });
   }
 
   const [venue] = await sql<
@@ -176,19 +205,49 @@ export async function POST(request: Request) {
         sdi_identifier = ${data.identifier ?? null},
         customer_first_name = ${body.customer.type === "privato" ? body.customer.firstName : null},
         customer_last_name = ${body.customer.type === "privato" ? body.customer.lastName : null},
-        customer_company_name = ${body.customer.type === "azienda" ? body.customer.companyName : null},
+        customer_company_name = ${body.customer.type === "azienda" ? body.customer.companyName : body.customer.type === "estero" ? body.customer.customerName : null},
         customer_fiscal_code = ${body.customer.type === "privato" ? body.customer.fiscalCode : null},
         customer_vat_number = ${body.customer.type === "azienda" ? body.customer.vatNumber : null},
-        customer_email = ${body.customer.email}
+        customer_email = ${body.customer.email},
+        customer_type = ${body.customer.type},
+        customer_sdi_code = ${body.customer.type === "azienda" ? body.customer.sdiCode ?? null : body.customer.type === "estero" ? "XXXXXXX" : null},
+        customer_pec = ${body.customer.type !== "estero" ? body.customer.pec ?? null : null},
+        customer_country_code = ${body.customer.type === "estero" ? body.customer.countryCode : "IT"},
+        customer_tax_id = ${body.customer.type === "estero" ? body.customer.taxId : null},
+        customer_address = ${body.customer.addressStreet},
+        customer_zip = ${body.customer.addressZip},
+        customer_city = ${body.customer.addressCity},
+        customer_province = ${body.customer.type !== "estero" ? body.customer.addressProvince : null}
       where id = ${invoiceRowId}`;
 
     const recipientName = body.customer.type === "privato"
       ? `${body.customer.firstName} ${body.customer.lastName}`
-      : body.customer.companyName;
+      : body.customer.type === "azienda" ? body.customer.companyName : body.customer.customerName;
+
+    let xmlBase64: string | null = null;
+    try {
+      const document = await client.sendIdGet(Number(data.id), true);
+      const payload = document.data.payload;
+      xmlBase64 = document.data.encoding === "Base64"
+        ? payload
+        : Buffer.from(payload, "utf8").toString("base64");
+    } catch (documentError) {
+      console.warn(`[invoices] XML non ancora disponibile per ${String(data.id)}:`, documentError);
+    }
+
     const emailResult = await inviaEmail({
       a: body.customer.email,
       oggetto: `Fattura ${invoiceNumber} — ${venue.name}`,
-      testo: `Ciao ${recipientName},\n\nla fattura ${invoiceNumber} del ${venue.name} è stata trasmessa al Sistema di Interscambio.\nIdentificativo Invoicetronic: ${String(data.id)}\n\nConserva questa email come ricevuta di trasmissione.`,
+      testo: `Ciao ${recipientName},\n\nla fattura ${invoiceNumber} del ${venue.name} è stata trasmessa al Sistema di Interscambio.${xmlBase64 ? " Trovi il documento XML allegato." : " Il documento sarà recapitato tramite il canale fiscale indicato."}\nIdentificativo Invoicetronic: ${String(data.id)}\n\nQuesta email è una copia di cortesia della trasmissione.`,
+      ...(xmlBase64
+        ? {
+            allegati: [{
+              nomeFile: `fattura-${invoiceNumber}.xml`,
+              contenutoBase64: xmlBase64,
+              contentType: "application/xml",
+            }],
+          }
+        : {}),
     });
     if (emailResult.inviata) {
       await sql`update invoices set emailed_at = now() where id = ${invoiceRowId}`;
@@ -196,7 +255,7 @@ export async function POST(request: Request) {
       console.warn(`[invoices] copia email non inviata per payment ${payment.id}: ${emailResult.errore}`);
     }
 
-    return NextResponse.json({ status: "sent", invoiceId: data.id });
+    return NextResponse.json({ status: "sent", invoiceId: data.id, emailSent: emailResult.inviata });
   } catch (err) {
     console.error(`[invoices] invio fallito per payment ${payment.id}:`, err);
 

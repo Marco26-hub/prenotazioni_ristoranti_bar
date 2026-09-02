@@ -316,8 +316,15 @@ create table invoices (
   customer_last_name text,
   customer_company_name text,
   customer_email text,
+  customer_type text,
   customer_sdi_code text,
   customer_pec text,
+  customer_country_code text,
+  customer_tax_id text,
+  customer_address text,
+  customer_zip text,
+  customer_city text,
+  customer_province text,
   xml_url text,                          -- copia XML conservata (storage)
   emailed_at timestamptz,
   provider_invoice_id text,              -- id lato Invoicetronic/OpenAPI

@@ -343,14 +343,24 @@ function InvoiceRequest({
   privacyHref: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [type, setType] = useState<"privato" | "azienda">("privato");
+  const [type, setType] = useState<"privato" | "azienda" | "estero">("privato");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [fiscalCode, setFiscalCode] = useState("");
   const [email, setEmail] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [vatNumber, setVatNumber] = useState("");
+  const [customerName, setCustomerName] = useState("");
+  const [countryCode, setCountryCode] = useState("");
+  const [taxId, setTaxId] = useState("");
+  const [addressStreet, setAddressStreet] = useState("");
+  const [addressZip, setAddressZip] = useState("");
+  const [addressCity, setAddressCity] = useState("");
+  const [addressProvince, setAddressProvince] = useState("");
+  const [sdiCode, setSdiCode] = useState("");
+  const [pec, setPec] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [emailSent, setEmailSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -358,10 +368,34 @@ function InvoiceRequest({
     setStatus("sending");
     setError(null);
 
-    const customer =
-      type === "privato"
-        ? { type: "privato" as const, firstName, lastName, fiscalCode, email }
-        : { type: "azienda" as const, companyName, vatNumber, email };
+    const common = { email, addressStreet, addressZip, addressCity };
+    const customer = type === "privato"
+      ? {
+          ...common,
+          type: "privato" as const,
+          firstName,
+          lastName,
+          fiscalCode,
+          addressProvince,
+          pec: pec || undefined,
+        }
+      : type === "azienda"
+        ? {
+            ...common,
+            type: "azienda" as const,
+            companyName,
+            vatNumber: vatNumber.replace(/^IT/i, ""),
+            addressProvince,
+            sdiCode: sdiCode || undefined,
+            pec: pec || undefined,
+          }
+        : {
+            ...common,
+            type: "estero" as const,
+            customerName,
+            countryCode,
+            taxId,
+          };
 
     try {
       const res = await fetch("/api/invoices", {
@@ -376,6 +410,7 @@ function InvoiceRequest({
         setError(data.error ?? "Errore invio fattura");
         return;
       }
+      setEmailSent(data.emailSent === true);
       setStatus("sent");
     } catch {
       setStatus("error");
@@ -384,7 +419,12 @@ function InvoiceRequest({
   };
 
   if (status === "sent") {
-    return <p className="text-sm text-success sm:col-span-2">Fattura inviata al Sistema di Interscambio.</p>;
+    return (
+      <p className="text-sm font-medium text-success sm:col-span-2">
+        Fattura trasmessa al Sistema di Interscambio.
+        {emailSent ? " La copia è stata inviata anche via email." : " Il recapito fiscale resta attivo anche se la copia email non è partita."}
+      </p>
+    );
   }
 
   if (!open) {
@@ -399,83 +439,117 @@ function InvoiceRequest({
     );
   }
 
+  const fieldClass = "min-h-12 w-full rounded-lg border border-border bg-background px-3 text-base outline-none focus-visible:ring-2 focus-visible:ring-accent";
+  const labelClass = "mb-1.5 block text-sm font-medium";
+
   return (
-    <form onSubmit={onSubmit} className="space-y-3 sm:col-span-2">
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => setType("privato")}
-          className={`rounded border px-3 py-1 text-sm ${type === "privato" ? "bg-black text-white" : ""}`}
-        >
-          Privato
-        </button>
-        <button
-          type="button"
-          onClick={() => setType("azienda")}
-          className={`rounded border px-3 py-1 text-sm ${type === "azienda" ? "bg-black text-white" : ""}`}
-        >
-          Azienda
-        </button>
-      </div>
+    <form onSubmit={onSubmit} className="space-y-5 sm:col-span-2">
+      <fieldset>
+        <legend className="mb-2 text-sm font-medium">Intestatario</legend>
+        <div className="grid grid-cols-3 gap-1 rounded-lg border border-border bg-background p-1">
+          {([
+            ["privato", "Privato"],
+            ["azienda", "Azienda"],
+            ["estero", "Estero"],
+          ] as const).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setType(value)}
+              aria-pressed={type === value}
+              className={`min-h-10 rounded-md px-2 text-sm font-medium transition-colors ${type === value ? "bg-accent text-accent-foreground" : "text-muted hover:bg-surface"}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </fieldset>
 
       {type === "privato" ? (
-        <>
-          <input
-            placeholder="Nome"
-            required
-            value={firstName}
-            onChange={(e) => setFirstName(e.target.value)}
-            className="min-h-12 w-full rounded-lg border border-border bg-background px-3"
-          />
-          <input
-            placeholder="Cognome"
-            required
-            value={lastName}
-            onChange={(e) => setLastName(e.target.value)}
-            className="min-h-12 w-full rounded-lg border border-border bg-background px-3"
-          />
-          <input
-            placeholder="Codice fiscale"
-            required
-            value={fiscalCode}
-            onChange={(e) => setFiscalCode(e.target.value.toUpperCase())}
-            className="min-h-12 w-full rounded-lg border border-border bg-background px-3"
-          />
-        </>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label>
+            <span className={labelClass}>Nome</span>
+            <input required autoComplete="given-name" value={firstName} onChange={(e) => setFirstName(e.target.value)} className={fieldClass} />
+          </label>
+          <label>
+            <span className={labelClass}>Cognome</span>
+            <input required autoComplete="family-name" value={lastName} onChange={(e) => setLastName(e.target.value)} className={fieldClass} />
+          </label>
+          <label className="sm:col-span-2">
+            <span className={labelClass}>Codice fiscale</span>
+            <input required minLength={16} maxLength={16} value={fiscalCode} onChange={(e) => setFiscalCode(e.target.value.toUpperCase())} className={fieldClass} />
+          </label>
+        </div>
+      ) : type === "azienda" ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="sm:col-span-2">
+            <span className={labelClass}>Ragione sociale</span>
+            <input required autoComplete="organization" value={companyName} onChange={(e) => setCompanyName(e.target.value)} className={fieldClass} />
+          </label>
+          <label>
+            <span className={labelClass}>Partita IVA</span>
+            <input required inputMode="numeric" minLength={11} maxLength={13} value={vatNumber} onChange={(e) => setVatNumber(e.target.value.toUpperCase())} className={fieldClass} />
+          </label>
+          <label>
+            <span className={labelClass}>Codice destinatario</span>
+            <input maxLength={7} placeholder="7 caratteri" value={sdiCode} onChange={(e) => setSdiCode(e.target.value.toUpperCase())} className={fieldClass} />
+          </label>
+        </div>
       ) : (
-        <>
-          <input
-            placeholder="Ragione sociale"
-            required
-            value={companyName}
-            onChange={(e) => setCompanyName(e.target.value)}
-            className="min-h-12 w-full rounded-lg border border-border bg-background px-3"
-          />
-          <input
-            placeholder="Partita IVA"
-            required
-            value={vatNumber}
-            onChange={(e) => setVatNumber(e.target.value)}
-            className="min-h-12 w-full rounded-lg border border-border bg-background px-3"
-          />
-        </>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="sm:col-span-2">
+            <span className={labelClass}>Nome o ragione sociale</span>
+            <input required autoComplete="organization" value={customerName} onChange={(e) => setCustomerName(e.target.value)} className={fieldClass} />
+          </label>
+          <label>
+            <span className={labelClass}>Paese (codice ISO)</span>
+            <input required minLength={2} maxLength={2} placeholder="FR" value={countryCode} onChange={(e) => setCountryCode(e.target.value.toUpperCase())} className={fieldClass} />
+          </label>
+          <label>
+            <span className={labelClass}>Identificativo fiscale estero</span>
+            <input required maxLength={28} value={taxId} onChange={(e) => setTaxId(e.target.value)} className={fieldClass} />
+          </label>
+        </div>
       )}
 
-      <input
-        type="email"
-        inputMode="email"
-        autoComplete="email"
-        placeholder="Email per ricevere la fattura"
-        required
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        className="min-h-12 w-full rounded-lg border border-border bg-background px-3"
-      />
+      <fieldset className="grid gap-4 border-t border-border pt-5 sm:grid-cols-6">
+        <legend className="px-1 text-sm font-semibold">Sede di fatturazione</legend>
+        <label className="sm:col-span-6">
+          <span className={labelClass}>Indirizzo</span>
+          <input required autoComplete="street-address" value={addressStreet} onChange={(e) => setAddressStreet(e.target.value)} className={fieldClass} />
+        </label>
+        <label className="sm:col-span-2">
+          <span className={labelClass}>{type === "estero" ? "Codice postale" : "CAP"}</span>
+          <input required inputMode={type === "estero" ? "text" : "numeric"} maxLength={type === "estero" ? 12 : 5} autoComplete="postal-code" value={addressZip} onChange={(e) => setAddressZip(e.target.value)} className={fieldClass} />
+        </label>
+        <label className={type === "estero" ? "sm:col-span-4" : "sm:col-span-3"}>
+          <span className={labelClass}>Città</span>
+          <input required autoComplete="address-level2" value={addressCity} onChange={(e) => setAddressCity(e.target.value)} className={fieldClass} />
+        </label>
+        {type !== "estero" && (
+          <label className="sm:col-span-1">
+            <span className={labelClass}>Prov.</span>
+            <input required minLength={2} maxLength={2} autoComplete="address-level1" value={addressProvince} onChange={(e) => setAddressProvince(e.target.value.toUpperCase())} className={fieldClass} />
+          </label>
+        )}
+      </fieldset>
+
+      <div className="grid gap-4 border-t border-border pt-5 sm:grid-cols-2">
+        <label className={type === "estero" ? "sm:col-span-2" : ""}>
+          <span className={labelClass}>Email per la copia</span>
+          <input type="email" inputMode="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={fieldClass} />
+        </label>
+        {type !== "estero" && (
+          <label>
+            <span className={labelClass}>PEC {type === "azienda" ? "(alternativa al codice destinatario)" : "(facoltativa)"}</span>
+            <input type="email" inputMode="email" value={pec} onChange={(e) => setPec(e.target.value)} className={fieldClass} />
+          </label>
+        )}
+      </div>
 
       {error && <p className="text-sm text-danger">{error}</p>}
       <p className="text-xs text-muted">
-        I dati inseriti sono usati per emettere la fattura, trasmetterla al
-        Sistema di Interscambio e inviarti una copia via email.{" "}
+        I dati saranno usati per emettere e recapitare la fattura elettronica.{" "}
         <a href={privacyHref} className="underline">
           Informativa privacy
         </a>

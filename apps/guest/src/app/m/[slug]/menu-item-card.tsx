@@ -37,7 +37,7 @@ export function MenuItemCard({
         type="button"
         onClick={() => setOpen(true)}
         aria-label={`Apri dettagli di ${name}`}
-        className="menu-card group flex min-h-32 w-full items-stretch gap-3 rounded-xl border p-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+        className={`menu-card group grid min-h-36 w-full gap-4 rounded-lg border p-3 text-left transition-[border-color,box-shadow,transform] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${imageUrl ? "grid-cols-[7rem_minmax(0,1fr)] sm:grid-cols-[8.5rem_minmax(0,1fr)]" : "grid-cols-1"}`}
       >
         {imageUrl && (
           /* eslint-disable-next-line @next/next/no-img-element */
@@ -47,19 +47,21 @@ export function MenuItemCard({
             width={112}
             height={112}
             loading="lazy"
-            className="menu-photo h-28 w-28 shrink-0 rounded-lg object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+            className="menu-photo h-28 w-full rounded-md object-cover transition-transform duration-200 group-hover:scale-[1.015] sm:h-36"
           />
         )}
-        <span className="min-w-0 flex-1">
-          <span className="block font-medium leading-snug">{name}</span>
+        <span className="flex min-w-0 flex-col py-1">
+          <span className="flex items-start justify-between gap-3">
+            <span className="block font-semibold leading-snug text-pretty">{name}</span>
+            <span className="shrink-0 font-semibold tabular-nums">
+              {formatPriceCents(priceCents, currency)}
+            </span>
+          </span>
           {description && (
-            <span className="mt-0.5 block line-clamp-3 text-sm leading-snug text-muted">
+            <span className="mt-2 block line-clamp-4 text-sm leading-relaxed text-muted">
               {description}
             </span>
           )}
-        </span>
-        <span className="shrink-0 self-start pt-0.5 font-semibold tabular-nums">
-          {formatPriceCents(priceCents, currency)}
         </span>
       </button>
 

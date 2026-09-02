@@ -48,9 +48,6 @@ body {
 /* Carta calda e discreta: il fondo accompagna le foto senza competere con esse. */
 .menu-shell {
   background-color: var(--background);
-  background-image:
-    repeating-linear-gradient(0deg, rgba(92, 67, 48, 0.025) 0, rgba(92, 67, 48, 0.025) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.18) 0, rgba(255, 255, 255, 0.18) 1px, transparent 1px, transparent 7px);
 }
 
 .menu-header {
@@ -59,9 +56,9 @@ body {
 }
 
 .menu-card {
-  border-color: #e5dbcf;
+  border-color: var(--border);
   background: color-mix(in srgb, var(--surface) 92%, transparent);
-  box-shadow: 0 5px 18px rgba(68, 47, 31, 0.06);
+  box-shadow: 0 6px 20px rgba(44, 34, 27, 0.05);
 }
 
 .menu-card:hover {
@@ -72,6 +69,11 @@ body {
 .menu-photo {
   background: #e9dfd3;
   box-shadow: inset 0 0 0 1px rgba(92, 67, 48, 0.08);
+}
+
+.menu-category-nav {
+  background: color-mix(in srgb, var(--background) 90%, transparent);
+  backdrop-filter: blur(14px);
 }
 
 .menu-shell h1,
@@ -88,12 +90,6 @@ body {
 
 .menu-section-rule {
   background: var(--border);
-}
-
-:root[data-menu-theme="night"] .menu-shell {
-  background-image:
-    repeating-linear-gradient(0deg, rgba(255, 244, 229, 0.018) 0, rgba(255, 244, 229, 0.018) 1px, transparent 1px, transparent 4px),
-    repeating-linear-gradient(90deg, rgba(255, 244, 229, 0.012) 0, rgba(255, 244, 229, 0.012) 1px, transparent 1px, transparent 7px);
 }
 
 :root[data-menu-theme="night"] .menu-card {

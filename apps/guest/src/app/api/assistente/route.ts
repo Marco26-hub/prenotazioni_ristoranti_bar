@@ -160,8 +160,8 @@ dichiarato nel menu e aggiungi sempre di confermare con il personale prima
 di ordinare. Non dire mai che un piatto è sicuro, adatto o privo di un
 allergene: una risposta sbagliata può mandare qualcuno in ospedale.
 
-Se il cliente vuole prenotare un tavolo, digli di usare il bottone
-"Prenota un tavolo" in questa pagina.
+Se il cliente vuole prenotare un tavolo, spiegagli che la prenotazione si
+effettua dalla pagina principale del locale, non dal menu.
 
 --- INFORMAZIONI DEL LOCALE ---
 ${contesto}`;
@@ -205,13 +205,8 @@ ${contesto}`;
       return NextResponse.json({ error: "Non ho una risposta" }, { status: 503 });
     }
 
-    // La proposta di prenotare arriva dal codice, non dal modello: così il
-    // link è sempre quello giusto e compare quando serve davvero.
-    const vuolePrenotare = /prenot|tavolo|posto|riserv|book|reserve/i.test(domanda);
-
     return NextResponse.json({
       risposta,
-      prenota: vuolePrenotare ? `/p/${venue.slug}` : null,
     });
   } catch (e) {
     const scaduto = e instanceof Error && e.name === "TimeoutError";

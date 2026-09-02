@@ -5,6 +5,9 @@ import { auth } from "@/auth";
 import { PLANS, setupCents, TRIAL_DAYS, formatPriceCents } from "@repo/shared";
 import { MockupTelefono } from "./mockup-telefono";
 
+const WHATSAPP_URL =
+  "https://wa.me/393477196603?text=Buongiorno%2C%20vorrei%20prenotare%20una%20call%20per%20conoscere%20Tavolo.";
+
 /**
  * Pagina commerciale per il ristoratore.
  *
@@ -158,12 +161,14 @@ export default async function LandingPage() {
             >
               Accedi
             </Link>
-            <Link
-              href="/registrati"
+            <a
+              href={WHATSAPP_URL}
+              target="_blank"
+              rel="noreferrer"
               className="flex min-h-11 items-center rounded-full bg-accent px-4 text-sm font-medium text-accent-foreground"
             >
-              Prova gratis
-            </Link>
+              Prenota una call
+            </a>
           </div>
         </nav>
       </header>
@@ -197,12 +202,14 @@ export default async function LandingPage() {
             </p>
 
             <div className="mt-9 flex flex-wrap justify-center gap-3">
-              <Link
-                href="/registrati"
+              <a
+                href={WHATSAPP_URL}
+                target="_blank"
+                rel="noreferrer"
                 className="flex min-h-12 items-center rounded-full bg-accent px-7 font-medium text-accent-foreground shadow-[0_14px_34px_-14px_var(--accent)] transition-transform active:scale-95"
               >
-                Provalo {TRIAL_DAYS} giorni gratis
-              </Link>
+                Prenota una call
+              </a>
               <a
                 href="https://ristoranti-guest.vercel.app/m/trattoria-da-luca"
                 className="vetro flex min-h-12 items-center rounded-full px-7 font-medium"
@@ -212,7 +219,11 @@ export default async function LandingPage() {
             </div>
 
             <p className="mt-4 text-sm text-muted">
-              Nessuna carta per la prova. Paghi solo se decidi di restare.
+              Preferisci provare da solo?{" "}
+              <Link href="/registrati" className="font-medium text-accent underline underline-offset-4">
+                Inizia {TRIAL_DAYS} giorni gratis
+              </Link>
+              , senza carta.
             </p>
           </div>
 
@@ -491,6 +502,16 @@ export default async function LandingPage() {
           </span>
         </div>
       </footer>
+
+      <a
+        href={WHATSAPP_URL}
+        target="_blank"
+        rel="noreferrer"
+        aria-label="Contattaci su WhatsApp"
+        className="fixed bottom-5 right-5 z-40 flex min-h-12 items-center rounded-full bg-[#1f8f55] px-5 text-sm font-semibold text-white shadow-lg transition-transform hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 active:scale-95"
+      >
+        WhatsApp
+      </a>
     </div>
   );
 }

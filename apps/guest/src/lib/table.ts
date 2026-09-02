@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@repo/shared/db";
+import { hasModulo } from "@repo/shared";
 
 export interface ResolvedVenue {
   id: string;
@@ -15,6 +16,9 @@ export interface ResolvedVenue {
   address_zip: string | null;
   address_city: string | null;
   address_province: string | null;
+  subscription_status: string;
+  subscription_period_end: Date | null;
+  modules: string[] | null;
 }
 
 export interface ResolvedTable {
@@ -37,9 +41,13 @@ export async function resolveTableFromQr(
   const [venue] = await sql<ResolvedVenue[]>`
     select id, name, slug, currency, logo_url, brand_color,
            public_phone, public_email, vat_number,
-           address, address_zip, address_city, address_province
+           address, address_zip, address_city, address_province,
+           subscription_status, subscription_period_end, modules
     from venues where slug = ${slug}`;
-  if (!venue) return null;
+  if (
+    !venue ||
+    !hasModulo("ordini", venue.subscription_status, venue.subscription_period_end, venue.modules)
+  ) return null;
 
   const [table] = await sql<
     { id: string; code: string; seats: number; active: boolean }[]

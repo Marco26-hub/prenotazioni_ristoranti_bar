@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@repo/shared/db";
 import { headers } from "next/headers";
@@ -10,6 +9,7 @@ import { AnnuncioLocale } from "../../v/[slug]/t/[token]/annuncio";
 import { annuncioAttivo } from "@/lib/annuncio";
 import { MenuItemCard } from "./menu-item-card";
 import { TemaMenu } from "./tema-menu";
+import { hasModulo } from "@repo/shared";
 
 /**
  * Menu pubblico del locale, indicizzabile.
@@ -47,6 +47,9 @@ interface VenuePublic {
   opening_hours: string | null;
   practical_info: string | null;
   assistant_enabled: boolean;
+  subscription_status: string;
+  subscription_period_end: Date | null;
+  modules: string[] | null;
 }
 
 
@@ -55,9 +58,13 @@ async function loadVenue(slug: string) {
   const [venue] = await sql<VenuePublic[]>`
     select id, name, logo_url, brand_color, public_phone, public_email,
            address, address_zip, address_city, address_province, currency,
-           languages, opening_hours, practical_info, assistant_enabled
+           languages, opening_hours, practical_info, assistant_enabled,
+           subscription_status, subscription_period_end, modules
     from venues where slug = ${slug}`;
-  if (!venue) return null;
+  if (
+    !venue ||
+    !hasModulo("ordini", venue.subscription_status, venue.subscription_period_end, venue.modules)
+  ) return null;
 
   const categories = await sql<{ id: string; name: string; translations: Traduzioni }[]>`
     select id, name, translations from menu_categories where venue_id = ${venue.id}
@@ -139,19 +146,6 @@ export default async function PublicMenuPage({
     "@context": "https://schema.org",
     "@type": "Restaurant",
     name: venue.name,
-    acceptsReservations: "True",
-    potentialAction: {
-      "@type": "ReserveAction",
-      target: {
-        "@type": "EntryPoint",
-        urlTemplate: `/p/${slug}`,
-        actionPlatform: [
-          "http://schema.org/DesktopWebPlatform",
-          "http://schema.org/MobileWebPlatform",
-        ],
-      },
-      result: { "@type": "FoodEstablishmentReservation", name: `Tavolo da ${venue.name}` },
-    },
     ...(venue.public_phone ? { telephone: venue.public_phone } : {}),
     ...(venue.public_email ? { email: venue.public_email } : {}),
     ...(venue.address
@@ -209,71 +203,58 @@ export default async function PublicMenuPage({
       />
 
       <header className="menu-header border-b border-border">
-        <div className="mx-auto max-w-3xl px-4 py-5 sm:px-6">
-          <nav className="mb-6 flex items-center justify-between gap-3 text-sm" aria-label="Navigazione locale">
-            <Link href="/" className="text-muted underline underline-offset-4">Torna al sito</Link>
-            <div className="flex items-center gap-2">
-              <TemaMenu />
-              <a href={`/p/${slug}`} className="font-medium text-accent underline underline-offset-4">Prenota</a>
+        <div className="mx-auto max-w-5xl px-4 py-7 sm:px-6 sm:py-9">
+          <div className="flex items-start justify-between gap-5">
+            <div className="flex min-w-0 items-center gap-4">
+              {venue.logo_url && (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={venue.logo_url}
+                  alt=""
+                  width={72}
+                  height={72}
+                  className="h-16 w-16 shrink-0 rounded-lg object-contain sm:h-18 sm:w-18"
+                />
+              )}
+              <div className="min-w-0">
+                <p className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-accent">Menu</p>
+                <h1 className="text-2xl font-semibold text-pretty sm:text-3xl">{venue.name}</h1>
+                {address && <p className="mt-1 text-sm text-muted">{address}</p>}
+              </div>
             </div>
-          </nav>
-          <div className="flex items-center gap-3">
-          {venue.logo_url && (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              src={venue.logo_url}
-              alt=""
-              className="h-12 w-12 shrink-0 rounded-lg object-contain"
-            />
+            <TemaMenu />
+          </div>
+
+          {(venue.opening_hours || venue.practical_info) && (
+            <div className="mt-5 max-w-2xl border-l-2 border-accent pl-4 text-sm leading-relaxed text-muted">
+              {venue.opening_hours && <p className="whitespace-pre-line">{venue.opening_hours}</p>}
+              {venue.practical_info && <p className="mt-1">{venue.practical_info}</p>}
+            </div>
           )}
-          <div className="min-w-0">
-            <p className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-accent">La nostra carta</p>
-            <h1 className="text-xl font-semibold tracking-tight">{venue.name}</h1>
-            {address && <p className="text-sm text-muted">{address}</p>}
-            <a
-              href={`/p/${slug}`}
-              className="mt-3 inline-flex min-h-11 items-center rounded-full bg-accent px-5 text-sm font-medium text-accent-foreground transition-colors hover:bg-accent/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
-            >
-              Prenota un tavolo
-            </a>
 
-            {venue.opening_hours && (
-              <p className="mt-2 whitespace-pre-line text-sm text-muted">
-                {venue.opening_hours}
-              </p>
-            )}
-            {venue.practical_info && (
-              <p className="mt-1 text-sm text-muted">{venue.practical_info}</p>
-            )}
-
-            <div className="mt-3">
-              <SelettoreLingua
-                base={`/m/${slug}`}
-                attiva={lingua}
-                disponibili={venue.languages ?? []}
-              />
-            </div>
+          <div className="mt-6">
+            <SelettoreLingua base={`/m/${slug}`} attiva={lingua} disponibili={venue.languages ?? []} />
           </div>
-          </div>
-          <nav className="mt-6 flex flex-wrap gap-2 border-t border-border pt-4" aria-label="Sezioni del menu">
-            <a href="#menu" className="rounded-full bg-accent px-4 py-2 text-sm font-medium text-accent-foreground">Il menu</a>
-            <a href="#informazioni" className="rounded-full border border-border px-4 py-2 text-sm text-muted">Informazioni</a>
-          </nav>
         </div>
       </header>
 
-      <main id="menu" className="mx-auto w-full max-w-3xl flex-1 space-y-10 px-4 py-9 sm:px-6">
-        <div className="max-w-xl">
-          <p className="text-sm leading-relaxed text-muted">
-            Sapori italiani, ingredienti scelti e piatti preparati al momento.
-            Apri una voce per scoprirne la storia, gli ingredienti e la foto.
-          </p>
+      <nav className="menu-category-nav sticky top-0 z-20 border-b border-border" aria-label="Categorie del menu">
+        <div className="mx-auto flex max-w-5xl gap-2 overflow-x-auto px-4 py-3 sm:px-6">
+          {categories.map((cat) => (
+            <a key={cat.id} href={`#categoria-${cat.id}`} className="shrink-0 rounded-full px-4 py-2 text-sm font-medium hover:bg-surface">
+              {cat.name}
+            </a>
+          ))}
+          <a href="#informazioni" className="shrink-0 rounded-full px-4 py-2 text-sm text-muted hover:bg-surface">Info</a>
         </div>
+      </nav>
+
+      <main id="menu" className="mx-auto w-full max-w-5xl flex-1 space-y-12 px-4 py-9 sm:px-6 sm:py-12">
         {categories.map((cat) => {
           const catItems = itemsByCategory.get(cat.id) ?? [];
           if (catItems.length === 0) return null;
           return (
-            <section key={cat.id}>
+            <section key={cat.id} id={`categoria-${cat.id}`} className="scroll-mt-20">
               <div className="mb-4 flex items-center gap-4">
                 <h2 className="menu-section-title shrink-0 font-semibold text-pretty">
                   {cat.name}
@@ -302,13 +283,10 @@ export default async function PublicMenuPage({
           </p>
         )}
 
-        <p className="rounded-xl border border-border bg-surface/80 p-4 text-sm text-muted shadow-sm">
-          Al tavolo puoi ordinare e pagare dal telefono inquadrando il QR code.
-        </p>
       </main>
 
-      <footer id="informazioni" className="mx-auto w-full max-w-2xl px-4 pb-8 pt-2">
-        <div className="space-y-1 border-t border-border pt-4 text-xs text-muted">
+      <footer id="informazioni" className="mx-auto w-full max-w-5xl scroll-mt-20 px-4 pb-10 pt-2 sm:px-6">
+        <div className="space-y-2 border-t border-border pt-6 text-sm text-muted">
           <p className="font-medium text-foreground">{venue.name}</p>
           {address && <p>{address}</p>}
           <p className="flex flex-wrap justify-center gap-x-4">

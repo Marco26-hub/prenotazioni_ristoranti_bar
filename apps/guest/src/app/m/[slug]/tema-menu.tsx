@@ -12,7 +12,8 @@ export function TemaMenu() {
 
   useEffect(() => {
     const aggiorna = () => {
-      const prossimo = temaPerOra();
+      const salvato = window.sessionStorage.getItem("menu-theme");
+      const prossimo = salvato === "day" || salvato === "night" ? salvato : temaPerOra();
       setTema(prossimo);
       document.documentElement.dataset.menuTheme = prossimo;
       document.documentElement.style.colorScheme = prossimo === "night" ? "dark" : "light";
@@ -24,6 +25,7 @@ export function TemaMenu() {
 
   const cambia = () => {
     const prossimo = tema === "day" ? "night" : "day";
+    window.sessionStorage.setItem("menu-theme", prossimo);
     setTema(prossimo);
     document.documentElement.dataset.menuTheme = prossimo;
     document.documentElement.style.colorScheme = prossimo === "night" ? "dark" : "light";
@@ -34,10 +36,10 @@ export function TemaMenu() {
       type="button"
       onClick={cambia}
       className="menu-theme-toggle rounded-full border border-border px-3 py-2 text-sm font-medium"
-      aria-label={tema === "day" ? "Passa al tema night" : "Passa al tema giorno"}
-      title={tema === "day" ? "Tema night" : "Tema giorno"}
+      aria-label={tema === "day" ? "Passa al tema notte" : "Passa al tema giorno"}
+      title={tema === "day" ? "Tema notte" : "Tema giorno"}
     >
-      {tema === "day" ? "☾ Night" : "☀ Giorno"}
+      {tema === "day" ? "☾ Notte" : "☀ Giorno"}
     </button>
   );
 }

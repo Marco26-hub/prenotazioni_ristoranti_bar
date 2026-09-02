@@ -1,8 +1,8 @@
 /**
  * Costruttore JSON FatturaPA (tracciato v1.2.2, PascalCase — Invoicetronic
  * accetta questo formato su /send/json, stessi nomi campo dello schema XML
- * ufficiale). Copre il caso comune: vendita a consumatore privato o
- * azienda, TD01, pagamento già saldato con carta, prezzi menu IVA inclusa.
+ * ufficiale). Copre il caso comune: vendita a cliente italiano privato o
+ * azienda e a cliente estero, TD01, pagamento già saldato, prezzi IVA inclusa.
  *
  * ATTENZIONE: la numerazione fatture (progressivo) e il regime fiscale
  * vanno verificati con un commercialista prima dell'uso reale — qui è
@@ -28,12 +28,33 @@ export type CustomerData =
       lastName: string;
       fiscalCode: string;
       email: string;
+      addressStreet: string;
+      addressZip: string;
+      addressCity: string;
+      addressProvince: string;
+      pec?: string;
     }
   | {
       type: "azienda";
       companyName: string;
       vatNumber: string;
       email: string;
+      addressStreet: string;
+      addressZip: string;
+      addressCity: string;
+      addressProvince: string;
+      sdiCode?: string;
+      pec?: string;
+    }
+  | {
+      type: "estero";
+      customerName: string;
+      taxId: string;
+      countryCode: string;
+      email: string;
+      addressStreet: string;
+      addressZip: string;
+      addressCity: string;
     };
 
 export interface InvoiceLine {
@@ -107,15 +128,45 @@ export function buildFatturaPaJson(input: BuildInvoiceInput) {
   const cessionarioAnagrafica =
     customer.type === "privato"
       ? { Nome: customer.firstName, Cognome: customer.lastName }
-      : { Denominazione: customer.companyName };
+      : { Denominazione: customer.type === "azienda" ? customer.companyName : customer.customerName };
 
   const cessionarioIdFiscale =
     customer.type === "azienda"
-      ? { IdFiscaleIVA: { IdPaese: "IT", IdCodice: customer.vatNumber } }
-      : {};
+      ? { IdFiscaleIVA: { IdPaese: "IT", IdCodice: customer.vatNumber.replace(/^IT/i, "").trim() } }
+      : customer.type === "estero"
+        ? { IdFiscaleIVA: { IdPaese: customer.countryCode.trim().toUpperCase(), IdCodice: customer.taxId.trim() } }
+        : {};
 
   const cessionarioCodiceFiscale =
     customer.type === "privato" ? { CodiceFiscale: customer.fiscalCode } : {};
+
+  const codiceDestinatario =
+    customer.type === "estero"
+      ? "XXXXXXX"
+      : customer.type === "azienda" && customer.sdiCode
+        ? customer.sdiCode.trim().toUpperCase()
+        : "0000000";
+
+  const pecDestinatario =
+    customer.type !== "estero" && codiceDestinatario === "0000000" && customer.pec
+      ? { PECDestinatario: customer.pec }
+      : {};
+
+  const sedeCessionario =
+    customer.type === "estero"
+      ? {
+          Indirizzo: customer.addressStreet,
+          CAP: "00000",
+          Comune: customer.addressCity,
+          Nazione: customer.countryCode.trim().toUpperCase(),
+        }
+      : {
+          Indirizzo: customer.addressStreet,
+          CAP: customer.addressZip,
+          Comune: customer.addressCity,
+          Provincia: customer.addressProvince.trim().toUpperCase(),
+          Nazione: "IT",
+        };
 
   return {
     FatturaElettronicaHeader: {
@@ -123,7 +174,8 @@ export function buildFatturaPaJson(input: BuildInvoiceInput) {
         IdTrasmittente: { IdPaese: "IT", IdCodice: venue.vatNumber },
         ProgressivoInvio: String(invoiceNumber).padStart(5, "0"),
         FormatoTrasmissione: "FPR12",
-        CodiceDestinatario: "0000000",
+        CodiceDestinatario: codiceDestinatario,
+        ...pecDestinatario,
       },
       CedentePrestatore: {
         DatiAnagrafici: {
@@ -146,6 +198,7 @@ export function buildFatturaPaJson(input: BuildInvoiceInput) {
           ...cessionarioCodiceFiscale,
           Anagrafica: cessionarioAnagrafica,
         },
+        Sede: sedeCessionario,
       },
     },
     FatturaElettronicaBody: {

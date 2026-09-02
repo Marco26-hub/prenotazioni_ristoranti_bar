@@ -5,7 +5,6 @@ import { useRef, useState } from "react";
 interface Messaggio {
   chi: "cliente" | "locale";
   testo: string;
-  prenota?: string | null;
 }
 
 /**
@@ -18,7 +17,7 @@ interface Messaggio {
 const SUGGERITE = [
   "A che ora siete aperti?",
   "Avete piatti vegetariani?",
-  "Si può prenotare per stasera?",
+  "Quali piatti consigliate?",
   "Dove siete e c'è parcheggio?",
 ];
 
@@ -54,7 +53,7 @@ export function Assistente({
       setMessaggi((m) => [
         ...m,
         res.ok
-          ? { chi: "locale", testo: dati.risposta, prenota: dati.prenota }
+          ? { chi: "locale", testo: dati.risposta }
           : { chi: "locale", testo: dati.error ?? "Non riesco a rispondere adesso." },
       ]);
     } catch {
@@ -134,14 +133,6 @@ export function Assistente({
                 }`}
               >
                 <p className="whitespace-pre-line leading-relaxed">{m.testo}</p>
-                {m.prenota && (
-                  <a
-                    href={m.prenota}
-                    className="mt-2 flex min-h-11 items-center justify-center rounded-full bg-accent px-4 text-sm font-medium text-accent-foreground"
-                  >
-                    Prenota un tavolo
-                  </a>
-                )}
               </div>
             </div>
           ))}

@@ -28,6 +28,15 @@ export default async function InvoiceDetailPage({ params }: PageProps<"/dashboar
     customer_last_name: string | null;
     customer_company_name: string | null;
     customer_email: string | null;
+    customer_type: string | null;
+    customer_sdi_code: string | null;
+    customer_pec: string | null;
+    customer_country_code: string | null;
+    customer_tax_id: string | null;
+    customer_address: string | null;
+    customer_zip: string | null;
+    customer_city: string | null;
+    customer_province: string | null;
     emailed_at: Date | null;
     created_at: Date;
     amount_cents: number;
@@ -35,7 +44,10 @@ export default async function InvoiceDetailPage({ params }: PageProps<"/dashboar
   }[]>`
     select i.invoice_number, i.status, i.provider_invoice_id, i.sdi_identifier,
            i.xml_url, i.customer_first_name, i.customer_last_name,
-           i.customer_company_name, i.customer_email, i.emailed_at,
+           i.customer_company_name, i.customer_email, i.customer_type,
+           i.customer_sdi_code, i.customer_pec, i.customer_country_code,
+           i.customer_tax_id, i.customer_address, i.customer_zip,
+           i.customer_city, i.customer_province, i.emailed_at,
            i.created_at, p.amount_cents, p.provider
       from invoices i join payments p on p.id = i.payment_id
      where i.id = ${id} and i.venue_id = ${venue.venueId}`;
@@ -58,6 +70,10 @@ export default async function InvoiceDetailPage({ params }: PageProps<"/dashboar
         <div className="flex justify-between gap-4 break-all p-4"><dt className="text-muted">ID Invoicetronic</dt><dd className="font-mono text-xs">{invoice.provider_invoice_id ?? "—"}</dd></div>
         <div className="flex justify-between gap-4 break-all p-4"><dt className="text-muted">ID SDI</dt><dd className="font-mono text-xs">{invoice.sdi_identifier ?? "In attesa"}</dd></div>
         <div className="flex justify-between gap-4 p-4"><dt className="text-muted">Cliente</dt><dd>{invoice.customer_company_name ?? ([invoice.customer_first_name, invoice.customer_last_name].filter(Boolean).join(" ") || "—")}</dd></div>
+        <div className="flex justify-between gap-4 p-4"><dt className="text-muted">Paese</dt><dd>{invoice.customer_country_code ?? "IT"}</dd></div>
+        {invoice.customer_tax_id && <div className="flex justify-between gap-4 break-all p-4"><dt className="text-muted">ID fiscale estero</dt><dd>{invoice.customer_tax_id}</dd></div>}
+        <div className="flex justify-between gap-4 p-4 text-right"><dt className="text-left text-muted">Sede</dt><dd>{[invoice.customer_address, invoice.customer_zip, invoice.customer_city, invoice.customer_province].filter(Boolean).join(", ") || "—"}</dd></div>
+        {(invoice.customer_sdi_code || invoice.customer_pec) && <div className="flex justify-between gap-4 break-all p-4"><dt className="text-muted">Recapito fiscale</dt><dd>{invoice.customer_sdi_code ? `SDI ${invoice.customer_sdi_code}` : `PEC ${invoice.customer_pec}`}</dd></div>}
         <div className="flex justify-between gap-4 p-4"><dt className="text-muted">Copia email</dt><dd>{invoice.emailed_at ? "Inviata" : "Non inviata"}{invoice.customer_email ? ` · ${invoice.customer_email}` : ""}</dd></div>
       </dl>
       <p className="mt-4 text-sm text-muted">

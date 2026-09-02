@@ -1,5 +1,8 @@
 # Passaggio di consegne
 
+Destinatario operativo: `peewwe75`. Questo documento e versionato nella
+radice della repository GitHub e va letto insieme al codice sul branch `main`.
+
 Per chi prende in mano il progetto. Descrive cosa fa il sistema, cosa è
 stato verificato, e — soprattutto — **cosa manca ancora**, perché è quella
 la parte che serve davvero a chi arriva dopo.
@@ -12,11 +15,14 @@ servizio (bottiglia/spina/calice/lattina), stile birra e vitigno. La nuova
 migrazione e `db/migrations/023_menu_beverage_details.sql`. L'import CSV/TSV/XLSX
 legge gli stessi campi, oltre a foto, produttore, annata, gradazione,
 allergeni ed etichette; il template aggiornato e scaricabile dalla pagina Menu.
+Le migrazioni 023 e 024 sono state applicate alla produzione il 3 settembre 2026.
 
 Il template pubblico del menu ora usa una grafica premium editoriale: fondo
-avorio materico, superfici calde, ombre leggere, gerarchia tipografica serif
-per nome locale e sezioni, card fotografiche coerenti e tema Giorno/Night
-automatico per fascia oraria, con comando manuale.
+avorio pulito, superfici calde, ombre leggere, gerarchia tipografica serif
+per nome locale e sezioni, card fotografiche coerenti e tema Giorno/Notte
+automatico per fascia oraria, con comando manuale. La navigazione categorie
+resta visibile durante lo scorrimento. Il menu non contiene prenotazioni:
+quelle vivono nella pagina dedicata `/p/[slug]`.
 
 La shell del gestionale usa la stessa identita cromatica in una variante piu
 neutra e operativa: header sticky, navigazione leggibile, focus da tastiera,
@@ -31,21 +37,20 @@ autentici del ristorante.
 
 Il menu pubblico `/m/[slug]` apre ora una scheda dettagli cliccando una voce:
 foto ingrandita, descrizione e prezzo, con chiusura tramite pulsante o tasto
-Escape. Se una voce non ha ancora una foto nel database, usa un fallback locale
-coerente con la categoria.
+Escape. Le voci senza foto restano testuali e non mostrano illustrazioni finte.
 
-Il gestionale ha ora `/dashboard/invoices`: elenco delle fatture del locale,
+Il gestionale ha `/dashboard/invoices`: elenco delle fatture del locale,
 stato, numero, data, importo, identificativo SDI/Invoicetronic e stampa della
-lista. Il download XML compare quando `xml_url` è disponibile; il recupero
-automatico del documento dal provider e la sincronizzazione webhook degli
-stati restano da completare.
-
-La gestione fatture è stata completata lato codice: il dettaglio sincronizza
+lista. La gestione fatture è stata completata lato codice: il dettaglio sincronizza
 lo stato con Invoicetronic, `/dashboard/invoices/[id]/document` scarica l'XML
 dal provider e `/api/webhooks/invoicetronic` aggiorna gli stati con firma HMAC.
 Il webhook va registrato nel pannello Invoicetronic con l'URL pubblico e il
 segreto in `INVOICETRONIC_WEBHOOK_SECRET`. La richiesta fattura raccoglie
-anche l'email del cliente e invia una copia tramite Resend quando configurato.
+privato italiano, azienda italiana e cliente estero. Per l'Italia supporta
+codice destinatario o PEC; per l'estero usa il destinatario SDI `XXXXXXX` e
+l'identificativo fiscale con codice paese ISO. La scheda admin mostra sede,
+paese e canale fiscale. Resend invia la copia email con XML allegato quando
+Invoicetronic lo rende disponibile subito dopo la trasmissione.
 
 Dopo il saldo il cliente puo aprire `/api/receipts/[sessionId]`: una ricevuta
 di pagamento dettagliata, stampabile o salvabile in PDF, con righe ordinate,
@@ -163,9 +168,9 @@ nostro — un'annata 3024 o una gradazione al 130% sono errori del modello
 che altrimenti finirebbero in carta.
 
 **Assistente sulle pagine pubbliche.** Risponde ai clienti con i soli dati
-del locale — menu, orari, indirizzo, informazioni pratiche — e li porta a
-prenotare. Il link di prenotazione lo mette il codice, non il modello, così
-è sempre quello giusto. Sugli allergeni non decide mai: riporta ciò che è
+del locale — menu, orari, indirizzo, informazioni pratiche. Nel menu non
+mostra collegamenti alla prenotazione; chi chiede di prenotare viene indirizzato
+alla pagina principale del locale. Sugli allergeni non decide mai: riporta ciò che è
 dichiarato e rimanda al personale, perché un modello che dice "no, non
 contiene glutine" può mandare qualcuno in ospedale. **Spento di default**:
 ogni domanda è una chiamata addebitata al locale, e va acceso da chi la
@@ -198,8 +203,12 @@ esplicito che l'audio va al servizio di trascrizione del browser.
 contanti registrati dallo staff. Conto alla romana per piatto. Mance
 percentuali configurabili.
 
-**Fatturazione elettronica.** Il cliente inserisce i dati dal tavolo, la
-fattura parte allo SDI tramite intermediario accreditato.
+**Fatturazione elettronica.** Dopo il pagamento il cliente inserisce i dati
+dal tavolo. Sono gestiti privato italiano, azienda italiana con codice
+destinatario o PEC e cliente estero; la fattura parte allo SDI tramite
+intermediario accreditato. L'admin vede stato, identificativi, destinatario,
+sede e può scaricare l'XML. Se Resend è attivo, il cliente riceve anche una
+copia via email con XML allegato quando subito disponibile.
 
 **Varianti, aggiunte e rimozioni.** Gruppi di scelte con minimo, massimo e
 supplemento per opzione, anche negativo. Coprono formati (sushi 6/12/24,
@@ -256,9 +265,23 @@ Dettaglio in [`docs/GDPR.md`](docs/GDPR.md).
 pnpm test:e2e
 ```
 
-20 test end-to-end che girano **contro la produzione**: creano un locale
+I test end-to-end girano **contro la produzione**: creano un locale
 isolato, ordinano, pagano, chiudono e si ripuliscono. Vanno eseguiti con
 `DATABASE_URL` nell'ambiente.
+
+### Percorsi cliente
+
+- `/m/[slug]`: carta pubblica indicizzabile, foto e popup dei piatti. Nessun
+  ordine, pagamento o prenotazione.
+- `/p/[slug]`: pagina pubblica per prenotare il tavolo, separata dal menu e
+  collegata al menu del locale.
+- `/dashboard/reservations`: gestione admin delle richieste con calendario,
+  conferma o rifiuto, coperti, arrivo e no-show.
+- `/v/[slug]/t/[token]`: applicazione privata aperta dal QR del tavolo. Qui
+  il cliente ordina, vede il conto e paga. Dopo il saldo compaiono ricevuta
+  di pagamento e richiesta fattura elettronica.
+- `/api/receipts/[sessionId]`: ricevuta di cortesia stampabile o salvabile
+  in PDF; non è uno scontrino fiscale.
 
 ---
 
@@ -271,7 +294,7 @@ La parte importante di questo documento.
 | Cosa | Chi lo sblocca |
 |---|---|
 | **Sandbox Stripe da rivendicare.** Finché non lo è, Connect non funziona e nessun pagamento reale è possibile: la chiave provvisoria non ha i permessi. | Titolare dell'account Stripe |
-| **Chiave Resend** (`RESEND_API_KEY`, `RESEND_FROM`). Senza, nessuna email parte: le prenotazioni arrivano solo in gestionale e il cliente non riceve conferme. Il gestionale lo dichiara invece di fingere. | Chi vende |
+| **Chiave Resend** (`RESEND_API_KEY`, `RESEND_FROM`). Senza, nessuna email parte: prenotazioni e fatture restano visibili in gestionale ma non arriva la copia di cortesia. | Chi vende |
 | **Foto autentiche del locale.** La demo ha ora immagini fotografiche locali coerenti; per la produzione servono gli scatti reali dei piatti e delle bevande. | Il locale |
 | **Account intermediario SDI** per la fatturazione | Il locale |
 | **Developer Program Tilby** per il collegamento cassa | Chi vende |
@@ -285,7 +308,8 @@ In ordine di quanto bloccano una vendita in Italia:
 2. **Scontrino fiscale e corrispettivi telematici.** Il locale deve
    continuare a battere sulla propria cassa: doppia battuta. È la prima
    obiezione che farà un ristoratore, e va detta in fase di vendita invece
-   di scoprirla dopo.
+   di scoprirla dopo. Non esiste un collegamento universale: va integrato
+   un produttore o middleware fiscale certificato alla volta.
 3. **Comanda presa dal cameriere.** Oggi ordina solo il cliente. Non tutti
    scansionano il QR.
 4. **Asporto e delivery.** Richiesta frequentissima.

@@ -40,6 +40,12 @@ export interface Messaggio {
   rispondiA?: string;
   /** Credenziali proprie del locale, se le ha configurate. */
   mittenteLocale?: MittenteLocale;
+  /** Allegati già codificati in Base64, come richiesto dall'API Resend. */
+  allegati?: Array<{
+    nomeFile: string;
+    contenutoBase64: string;
+    contentType?: string;
+  }>;
 }
 
 export function emailConfigurata(): boolean {
@@ -76,6 +82,15 @@ export async function inviaEmail(m: Messaggio): Promise<EsitoEmail> {
         subject: m.oggetto,
         text: m.testo,
         ...(m.rispondiA ? { reply_to: m.rispondiA } : {}),
+        ...(m.allegati?.length
+          ? {
+              attachments: m.allegati.map((a) => ({
+                filename: a.nomeFile,
+                content: a.contenutoBase64,
+                ...(a.contentType ? { content_type: a.contentType } : {}),
+              })),
+            }
+          : {}),
       }),
       // Una casella lenta non deve tenere in attesa il cliente che sta
       // prenotando: oltre dieci secondi si registra l'errore e si prosegue.
