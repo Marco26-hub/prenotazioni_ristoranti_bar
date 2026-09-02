@@ -7,6 +7,7 @@ const NAV = [
   { href: "/dashboard/menu", label: "Menu" },
   { href: "/dashboard/tables", label: "QR e tavoli" },
   { href: "/dashboard/reservations", label: "Prenotazioni" },
+  { href: "/dashboard/staff", label: "Personale" },
   { href: "/dashboard/settings", label: "Impostazioni" },
 ];
 
