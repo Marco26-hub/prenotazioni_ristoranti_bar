@@ -98,7 +98,11 @@ export function testo(
 export function normalizzaTesti(grezzi: Record<string, unknown>): TestiPubblici {
   const out: TestiPubblici = {};
   for (const slot of TESTI_PUBBLICI) {
-    const v = String(grezzi[slot.chiave] ?? "").trim();
+    // I textarea mandano CRLF: normalizzare qui evita di portarsi dietro
+    // ritorni carrello fino all'email e al JSON-LD.
+    const v = String(grezzi[slot.chiave] ?? "")
+      .replace(/\r\n?/g, "\n")
+      .trim();
     // Un campo lasciato uguale al predefinito non va salvato: così se un
     // domani miglioriamo la frase, chi non l'ha personalizzata la riceve.
     if (v && v !== slot.predefinito) out[slot.chiave] = v.slice(0, 600);
