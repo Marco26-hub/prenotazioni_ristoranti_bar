@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { db } from "@repo/shared/db";
 import { headers } from "next/headers";
-import { formatPriceCents } from "@repo/shared";
 import { scegliLingua, traduci, type Traduzioni } from "@repo/shared/lingue";
 import { SelettoreLingua } from "./selettore-lingua";
 import { Assistente } from "./assistente";
 import { AnnuncioLocale } from "../../v/[slug]/t/[token]/annuncio";
 import { annuncioAttivo } from "@/lib/annuncio";
+import { MenuItemCard } from "./menu-item-card";
 
 /**
  * Menu pubblico del locale, indicizzabile.
@@ -45,6 +45,16 @@ interface VenuePublic {
   opening_hours: string | null;
   practical_info: string | null;
   assistant_enabled: boolean;
+}
+
+function fotoMenu(item: PublicMenuItem, categoryName: string) {
+  if (item.image_url) return item.image_url;
+  const testo = `${item.name} ${categoryName}`.toLowerCase();
+  if (testo.includes("vino") || testo.includes("chianti") || testo.includes("docg") || testo.includes("barbera") || testo.includes("vermentino")) return "/piatti/vino-rosso.jpg";
+  if (testo.includes("bevande") || testo.includes("acqua") || testo.includes("birra") || testo.includes("caffè") || testo.includes("coca")) return "/piatti/bevande.jpg";
+  if (testo.includes("bruschetta")) return "/piatti/bruschetta.jpg";
+  if (testo.includes("dolce") || testo.includes("tiramisù") || testo.includes("sorbetto") || testo.includes("panna cotta") || testo.includes("cannolo")) return "/piatti/carbonara.jpg";
+  return "/piatti/carbonara.jpg";
 }
 
 async function loadVenue(slug: string) {
@@ -254,33 +264,14 @@ export default async function PublicMenuPage({
               </div>
               <ul className="grid gap-3 sm:grid-cols-2">
                 {catItems.map((item) => (
-                  <li
+                  <MenuItemCard
                     key={item.id}
-                    className="group flex min-h-32 items-stretch gap-3 rounded-xl border border-border bg-surface p-3 shadow-sm transition-shadow hover:shadow-md focus-within:ring-2 focus-within:ring-accent/40"
-                  >
-                    {item.image_url && (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img
-                        src={item.image_url}
-                        alt={item.name}
-                        width={112}
-                        height={112}
-                        loading="lazy"
-                        className="h-28 w-28 shrink-0 rounded-lg object-cover transition-transform duration-200 group-hover:scale-[1.02]"
-                      />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium leading-snug">{item.name}</p>
-                      {item.description && (
-                        <p className="mt-0.5 text-sm leading-snug text-muted">
-                          {item.description}
-                        </p>
-                      )}
-                    </div>
-                    <p className="shrink-0 self-start pt-0.5 font-semibold tabular-nums">
-                      {formatPriceCents(item.price_cents, venue.currency)}
-                    </p>
-                  </li>
+                    name={item.name}
+                    description={item.description}
+                    priceCents={item.price_cents}
+                    currency={venue.currency}
+                    imageUrl={fotoMenu(item, cat.name)}
+                  />
                 ))}
               </ul>
             </section>

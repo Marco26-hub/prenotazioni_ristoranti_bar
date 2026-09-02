@@ -13,6 +13,11 @@ bevande e Chianti in `apps/guest/public/piatti/`. Sono immagini fotografiche
 generate per la demo; per un locale reale vanno sostituite con gli scatti
 autentici del ristorante.
 
+Il menu pubblico `/m/[slug]` apre ora una scheda dettagli cliccando una voce:
+foto ingrandita, descrizione e prezzo, con chiusura tramite pulsante o tasto
+Escape. Se una voce non ha ancora una foto nel database, usa un fallback locale
+coerente con la categoria.
+
 ---
 
 ## 1. Cos'è
