@@ -84,27 +84,35 @@ textarea {
   pointer-events: none;
   z-index: 0;
   filter: blur(80px);
-  opacity: 0.55;
+  opacity: 0.62;
 }
 
+/* Su fondo scuro le masse vanno sommate, su fondo chiaro moltiplicate:
+   `screen` su chiaro tende al bianco e lascia una macchia slavata. */
 .aurora span {
   position: absolute;
   display: block;
   border-radius: 50%;
-  mix-blend-mode: screen;
+  mix-blend-mode: multiply;
   animation: deriva 22s ease-in-out infinite alternate;
 }
 
+@media (prefers-color-scheme: dark) {
+  .aurora span {
+    mix-blend-mode: screen;
+  }
+}
+
 .aurora span:nth-child(1) {
-  width: 46vw;
-  height: 46vw;
+  width: max(46vw, 20rem);
+  height: max(46vw, 20rem);
   left: 2%;
   top: 10%;
   background: radial-gradient(circle, var(--accent), transparent 68%);
 }
 .aurora span:nth-child(2) {
-  width: 38vw;
-  height: 38vw;
+  width: max(38vw, 17rem);
+  height: max(38vw, 17rem);
   right: 6%;
   top: 0;
   background: radial-gradient(circle, #e0a458, transparent 68%);
@@ -112,8 +120,8 @@ textarea {
   animation-delay: -6s;
 }
 .aurora span:nth-child(3) {
-  width: 34vw;
-  height: 34vw;
+  width: max(34vw, 15rem);
+  height: max(34vw, 15rem);
   left: 38%;
   top: 34%;
   background: radial-gradient(circle, #8b5cf6, transparent 70%);
