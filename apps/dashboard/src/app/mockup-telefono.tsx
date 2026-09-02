@@ -10,8 +10,7 @@ interface Piatto {
   nome: string;
   prezzo: number;
   tag: string | null;
-  /** Due tinte per il segnaposto: un quadrato di colore piatto si vede che è finto. */
-  tinte: [string, string];
+  foto: string;
   inCarrello?: number;
 }
 
@@ -20,45 +19,42 @@ const PIATTI: Piatto[] = [
     nome: "Tagliatelle al ragù",
     prezzo: 1400,
     tag: "Il più ordinato",
-    tinte: ["#c2410c", "#fbbf24"],
+    foto: "/piatti/tagliatelle.jpg",
     inCarrello: 2,
   },
   {
     nome: "Tortelli di zucca",
     prezzo: 1300,
     tag: "Vegetariano",
-    tinte: ["#b45309", "#fcd34d"],
+    foto: "/piatti/tortelli.jpg",
   },
   {
     nome: "Tagliata di manzo",
     prezzo: 2200,
     tag: null,
-    tinte: ["#7f1d1d", "#dc2626"],
+    foto: "/piatti/tagliata.jpg",
   },
 ];
 
 /**
- * Segnaposto del piatto.
+ * Foto del piatto.
  *
- * Non è una foto e non finge di esserlo: due cerchi sfumati su un fondo
- * caldo leggono come "cibo su un piatto" senza spacciarsi per uno scatto
- * vero, che in una pagina di vendita sarebbe una promessa che non manteniamo.
+ * Servite dal nostro dominio e non collegate al CDN di Pexels: la pagina
+ * non fa richieste a terzi e non espone l'IP di chi la visita, coerente con
+ * quanto dichiariamo nell'informativa cookie. Provenienza e licenza in
+ * public/piatti/PROVENIENZA.md.
  */
-function Segnaposto({ tinte }: { tinte: [string, string] }) {
+function FotoPiatto({ src }: { src: string }) {
   return (
-    <div
-      aria-hidden
-      className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl"
-      style={{ background: `linear-gradient(140deg, ${tinte[0]}, ${tinte[1]})` }}
-    >
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(circle at 30% 28%, rgba(255,255,255,.38), transparent 46%), radial-gradient(circle at 72% 74%, rgba(0,0,0,.22), transparent 50%)",
-        }}
-      />
-    </div>
+    /* eslint-disable-next-line @next/next/no-img-element */
+    <img
+      src={src}
+      alt=""
+      width={48}
+      height={48}
+      loading="lazy"
+      className="h-12 w-12 shrink-0 rounded-xl object-cover"
+    />
   );
 }
 
@@ -124,7 +120,7 @@ export function MockupTelefono() {
         <ul className="divide-y divide-border">
           {PIATTI.map((p) => (
             <li key={p.nome} className="flex items-center gap-2.5 px-4 py-3">
-              <Segnaposto tinte={p.tinte} />
+              <FotoPiatto src={p.foto} />
 
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[13.5px] font-medium leading-tight">
