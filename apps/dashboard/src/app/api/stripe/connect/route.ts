@@ -19,6 +19,16 @@ export async function POST() {
     return NextResponse.json({ error: "Permessi insufficienti" }, { status: 403 });
   }
 
+  // Senza questo controllo il gestore riceverebbe un errore generico:
+  // meglio dire chiaramente che manca una configurazione di piattaforma,
+  // non un problema suo.
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return NextResponse.json(
+      { error: "I pagamenti non sono ancora configurati sulla piattaforma. Contatta l'assistenza." },
+      { status: 503 }
+    );
+  }
+
   const sql = db();
   const [venueRow] = await sql<
     { id: string; stripe_account_id: string | null }[]

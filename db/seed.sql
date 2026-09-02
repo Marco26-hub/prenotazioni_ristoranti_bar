@@ -1,4 +1,10 @@
--- Dati demo per sviluppo locale. Password utente demo: "demo1234"
+-- SOLO PER SVILUPPO LOCALE. Non applicare a un database di produzione.
+--
+-- Questo file sta in un repository pubblico: la password qui sotto è nota a
+-- chiunque. Applicarlo in produzione crea un account con credenziali
+-- pubbliche su un sistema che gestisce pagamenti e dati dei clienti.
+--
+-- Password utente demo: "demo1234"
 -- (hash bcrypt reale sotto, generato con bcryptjs — per rigenerarne uno
 -- nuovo: node -e "console.log(require('bcryptjs').hashSync('nuova-password', 10))"
 -- dentro apps/dashboard, dove bcryptjs è già installato).

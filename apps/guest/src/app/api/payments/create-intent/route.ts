@@ -41,6 +41,16 @@ export async function POST(request: Request) {
     );
   }
 
+  if (!process.env.STRIPE_SECRET_KEY) {
+    // Il locale risulta abilitato ma la piattaforma non è configurata:
+    // per il cliente al tavolo deve restare un messaggio comprensibile.
+    console.error("[create-intent] STRIPE_SECRET_KEY mancante");
+    return NextResponse.json(
+      { error: "Pagamento online non disponibile al momento — chiedi al personale" },
+      { status: 503 }
+    );
+  }
+
   const stripe = stripeClient();
   const splitItemIds = body.orderItemIds?.filter(Boolean) ?? [];
   const isSplit = splitItemIds.length > 0;

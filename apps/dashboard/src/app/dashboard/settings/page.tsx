@@ -42,10 +42,20 @@ export default async function SettingsPage() {
            address, address_zip, address_city, address_province, invoice_provider_api_key
     from venues where id = ${venue.venueId}`;
 
+  // Lo stato Stripe è un'informazione accessoria: se la chiamata fallisce
+  // (chiave non configurata, Stripe irraggiungibile) la pagina deve restare
+  // usabile, altrimenti un problema esterno chiude fuori il gestore da tutte
+  // le impostazioni, comprese quelle che non c'entrano con i pagamenti.
   let chargesEnabled = false;
+  let stripeStatusUnavailable = false;
   if (venueRow?.stripe_account_id) {
-    const account = await stripeClient().accounts.retrieve(venueRow.stripe_account_id);
-    chargesEnabled = account.charges_enabled;
+    try {
+      const account = await stripeClient().accounts.retrieve(venueRow.stripe_account_id);
+      chargesEnabled = account.charges_enabled;
+    } catch (err) {
+      console.error("[settings] stato account Stripe non recuperabile:", err);
+      stripeStatusUnavailable = true;
+    }
   }
 
   return (
@@ -78,7 +88,12 @@ export default async function SettingsPage() {
 
       <section className="rounded-xl border border-border bg-surface p-4">
         <h2 className="mb-2 font-semibold">Pagamenti (Stripe)</h2>
-        {chargesEnabled ? (
+        {stripeStatusUnavailable ? (
+          <p className="text-sm text-muted">
+            Stato del collegamento non verificabile in questo momento. I pagamenti
+            già attivi continuano a funzionare.
+          </p>
+        ) : chargesEnabled ? (
           <p className="text-sm text-success">
             Attivo — i clienti possono pagare il conto dal telefono.
           </p>
