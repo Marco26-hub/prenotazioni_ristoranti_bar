@@ -32,7 +32,7 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
               await signOut({ redirectTo: "/login" });
             }}
           >
-            <button type="submit" className="flex min-h-11 shrink-0 items-center px-2 text-sm text-muted underline">
+            <button type="submit" className="flex min-h-11 shrink-0 items-center px-3 text-sm text-muted underline">
               Esci
             </button>
           </form>

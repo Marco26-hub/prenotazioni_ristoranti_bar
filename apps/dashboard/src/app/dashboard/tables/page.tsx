@@ -118,16 +118,28 @@ export default async function TablesPage() {
 
       <section className="rounded-xl border border-border bg-surface p-4">
         <h2 className="mb-2 font-semibold">Aggiungi tavolo</h2>
-        <form action={addTable} className="flex gap-2">
-          <input name="code" placeholder="Codice (es. T3)" required className="min-h-11 flex-1 rounded-lg border border-border bg-background px-3" />
+        {/* Su telefono i tre campi in fila non ci stanno e spingono il
+            bottone oltre lo schermo, facendo scorrere tutta la pagina in
+            orizzontale: vanno a capo finché non c'è spazio vero. */}
+        <form action={addTable} className="flex flex-wrap gap-2">
+          <input
+            name="code"
+            placeholder="Codice (es. T3)"
+            required
+            className="min-h-11 w-full min-w-0 flex-1 rounded-lg border border-border bg-background px-3 sm:w-auto"
+          />
           <input
             name="seats"
             type="number"
             min="1"
             defaultValue={2}
+            aria-label="Posti a sedere"
             className="min-h-11 w-20 rounded-lg border border-border bg-background px-3"
           />
-          <button type="submit" className="min-h-11 rounded-full bg-accent px-5 font-medium text-accent-foreground active:scale-95">
+          <button
+            type="submit"
+            className="min-h-11 flex-1 rounded-full bg-accent px-5 font-medium text-accent-foreground active:scale-95 sm:flex-none"
+          >
             Aggiungi
           </button>
         </form>
