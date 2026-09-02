@@ -313,6 +313,14 @@ function InvoiceRequest({ sessionId }: { sessionId: string }) {
       )}
 
       {error && <p className="text-sm text-red-600">{error}</p>}
+      <p className="text-xs text-gray-500">
+        I dati inseriti sono usati per emettere la fattura e trasmetterla al
+        Sistema di Interscambio.{" "}
+        <a href="/privacy" className="underline">
+          Informativa privacy
+        </a>
+        .
+      </p>
       <button
         type="submit"
         disabled={status === "sending"}

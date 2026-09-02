@@ -51,6 +51,15 @@ export default async function TablePage({
       />
 
       <Bill sessionId={resolved.sessionId} />
+
+      <footer className="mt-8 flex gap-4 border-t pt-4 text-xs text-gray-500">
+        <a href="/privacy" className="underline">
+          Privacy
+        </a>
+        <a href="/termini" className="underline">
+          Termini
+        </a>
+      </footer>
     </main>
   );
 }
