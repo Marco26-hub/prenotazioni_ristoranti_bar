@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { db } from "@repo/shared/db";
 import { formatPriceCents } from "@repo/shared";
+import { AnnuncioLocale } from "../../v/[slug]/t/[token]/annuncio";
+import { annuncioAttivo } from "@/lib/annuncio";
 
 /**
  * Menu pubblico del locale, indicizzabile.
@@ -87,6 +89,7 @@ export default async function PublicMenuPage({ params }: PageProps<"/m/[slug]">)
   if (!data) notFound();
 
   const { venue, categories, items } = data;
+  const annuncio = await annuncioAttivo(venue.id);
 
   const itemsByCategory = new Map<string | null, PublicMenuItem[]>();
   for (const item of items) {
@@ -162,6 +165,8 @@ export default async function PublicMenuPage({ params }: PageProps<"/m/[slug]">)
 
   return (
     <div className="flex min-h-full flex-col" style={brandStyle}>
+      {annuncio && <AnnuncioLocale annuncio={annuncio} venueSlug={slug} />}
+
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

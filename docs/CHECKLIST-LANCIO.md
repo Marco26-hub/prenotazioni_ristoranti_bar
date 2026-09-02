@@ -40,8 +40,12 @@ Con chiavi **test** il flusso è dimostrabile subito, senza verifica.
 ## 4. Collegamento alla cassa (facoltativo)
 
 - [ ] ⚠️ Adesione al **Developer Program di Tilby**: domanda soggetta ad
-      approvazione, quota di attivazione e canone mensile. Il codice è pronto
-      ma non è mai stato provato contro una cassa reale.
+      approvazione, quota di attivazione e canone mensile.
+- [ ] ⚠️ **Il collegamento alla cassa oggi legge soltanto.** Importa il listino
+      per costruire il menu; non invia comande, non invia incassi, non emette
+      documenti fiscali. Il ristoratore deve continuare a battere lo scontrino
+      sulla propria cassa. Va detto in fase di vendita: è la domanda che un
+      ristoratore fa per prima.
 
 ## 5. Igiene del sistema
 

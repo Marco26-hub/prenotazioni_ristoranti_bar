@@ -61,8 +61,8 @@ export default function DpaPage() {
           Il trattamento consiste nella raccolta, registrazione, conservazione,
           consultazione e cancellazione dei dati necessari a: mostrare il menu,
           ricevere ordini al tavolo, incassare pagamenti, gestire prenotazioni,
-          emettere fatture elettroniche e, se collegata, trasmettere le comande
-          alla cassa. Dura quanto il contratto di servizio.
+          emettere fatture elettroniche e, se collegata, leggere il listino dalla
+          cassa. Dura quanto il contratto di servizio.
         </p>
       </Art>
 

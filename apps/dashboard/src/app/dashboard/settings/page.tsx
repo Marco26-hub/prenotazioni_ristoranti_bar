@@ -7,6 +7,7 @@ import { SatispayForm } from "./satispay-form";
 import { PasswordForm } from "./password-form";
 import { TilbyForm } from "./tilby-form";
 import { BrandForm } from "./brand-form";
+import { AnnuncioForm } from "./annuncio-form";
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -18,6 +19,14 @@ export default async function SettingsPage() {
     {
       name: string;
       logo_url: string | null;
+      announcement_title: string | null;
+      announcement_body: string | null;
+      announcement_image_url: string | null;
+      announcement_cta_label: string | null;
+      announcement_cta_url: string | null;
+      announcement_starts_at: Date | null;
+      announcement_ends_at: Date | null;
+      announcement_enabled: boolean;
       brand_color: string | null;
       public_phone: string | null;
       public_email: string | null;
@@ -36,7 +45,10 @@ export default async function SettingsPage() {
       address_province: string | null;
       invoice_provider_api_key: string | null;
     }[]
-  >`select name, logo_url, brand_color, public_phone, public_email,
+  >`select name, logo_url,
+           announcement_title, announcement_body, announcement_image_url,
+           announcement_cta_label, announcement_cta_url,
+           announcement_starts_at, announcement_ends_at, announcement_enabled, brand_color, public_phone, public_email,
            tilby_shop_name, tips_enabled, tip_percents, google_review_url,
            stripe_account_id, satispay_key_id, vat_number, fiscal_code, regime_fiscale,
            address, address_zip, address_city, address_province, invoice_provider_api_key
@@ -77,6 +89,28 @@ export default async function SettingsPage() {
             tipsEnabled: venueRow?.tips_enabled ?? true,
             tipPercents: venueRow?.tip_percents ?? [5, 10, 15],
             googleReviewUrl: venueRow?.google_review_url ?? null,
+          }}
+        />
+      </section>
+
+      <section className="rounded-xl border border-border bg-surface p-4">
+        <h2 className="mb-1 font-semibold">Annuncio ai clienti</h2>
+        <p className="mb-3 text-sm text-muted">
+          Compare all&apos;apertura del menu, sia al tavolo sia dalla pagina
+          pubblica. Serve per il menu del giorno, una serata a tema o una
+          chiusura straordinaria. Chi lo chiude non lo rivede, finché non ne
+          pubblichi uno diverso.
+        </p>
+        <AnnuncioForm
+          corrente={{
+            title: venueRow?.announcement_title ?? null,
+            body: venueRow?.announcement_body ?? null,
+            image_url: venueRow?.announcement_image_url ?? null,
+            cta_label: venueRow?.announcement_cta_label ?? null,
+            cta_url: venueRow?.announcement_cta_url ?? null,
+            starts_at: venueRow?.announcement_starts_at ?? null,
+            ends_at: venueRow?.announcement_ends_at ?? null,
+            enabled: venueRow?.announcement_enabled ?? false,
           }}
         />
       </section>

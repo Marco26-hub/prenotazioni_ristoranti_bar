@@ -41,7 +41,7 @@ export const SOTTO_RESPONSABILI: SottoResponsabile[] = [
   {
     nome: "Tilby (Zucchetti)",
     attivita:
-      "Invio delle comande al registratore di cassa, solo se il collegamento è attivato dal locale",
+      "Lettura del listino dalla cassa per importare il menu, solo se il collegamento è attivato dal locale. Nessun dato dei clienti gli viene inviato",
     dove: "Unione Europea",
   },
 ];

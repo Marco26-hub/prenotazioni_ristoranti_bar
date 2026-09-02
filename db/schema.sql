@@ -43,6 +43,17 @@ create table venues (
   tips_enabled boolean default true,
   tip_percents int[] default '{5,10,15}',
   google_review_url text,                -- link "lascia recensione" del profilo Google
+  -- Annuncio mostrato al cliente all'apertura del menu: piatto del giorno,
+  -- serata a tema, chiusura straordinaria.
+  announcement_title text,
+  announcement_body text,
+  announcement_image_url text,           -- data URL, come il logo (limite 500 KB)
+  announcement_cta_label text,
+  announcement_cta_url text,             -- solo http/https, validato in scrittura
+  announcement_starts_at timestamptz,
+  announcement_ends_at timestamptz,      -- senza scadenza un annuncio resta per sempre
+  announcement_enabled boolean not null default false,
+  announcement_version int not null default 1, -- cambia solo col contenuto: chi lo ha chiuso rivede solo il nuovo
   vat_number text,                       -- p.iva, per fattura elettronica
   fiscal_code text,                      -- codice fiscale, richiesto in FatturaPA CedentePrestatore
   sdi_code text,                         -- codice destinatario SDI

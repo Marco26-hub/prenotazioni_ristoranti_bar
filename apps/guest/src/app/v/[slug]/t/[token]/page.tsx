@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { db } from "@repo/shared/db";
 import { resolveTableFromQr } from "@/lib/table";
 import { OrderMenu } from "./order-menu";
+import { AnnuncioLocale } from "./annuncio";
+import { annuncioAttivo } from "@/lib/annuncio";
 import { Bill } from "./bill";
 
 /**
@@ -52,6 +54,7 @@ export default async function TablePage({
     order by sort_order`;
 
   const { venue } = resolved;
+  const annuncio = await annuncioAttivo(venue.id);
 
   // Il colore scelto dal locale sovrascrive l'accento di default solo per
   // questo sottoalbero: il prodotto è white-label, il cliente finale deve
@@ -84,6 +87,8 @@ export default async function TablePage({
           </span>
         </div>
       </header>
+
+      {annuncio && <AnnuncioLocale annuncio={annuncio} venueSlug={slug} />}
 
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-5">
         <OrderMenu
