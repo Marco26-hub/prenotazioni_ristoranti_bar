@@ -1,6 +1,7 @@
 import QRCode from "qrcode";
 import { db } from "@repo/shared/db";
 import { auth } from "@/auth";
+import { ScaricaLocandina } from "./scarica-locandina";
 import {
   addTable,
   toggleTableActive,
@@ -15,8 +16,9 @@ export default async function TablesPage() {
   if (!venue) return <main className="p-4">Nessun locale associato.</main>;
 
   const sql = db();
-  const [venueRow] = await sql<{ slug: string }[]>`
-    select slug from venues where id = ${venue.venueId}`;
+  const [venueRow] = await sql<
+    { slug: string; name: string; logo_url: string | null; brand_color: string | null }[]
+  >`select slug, name, logo_url, brand_color from venues where id = ${venue.venueId}`;
   if (!venueRow) return <main className="p-4">Locale non trovato.</main>;
 
   const tables = await sql<
@@ -28,8 +30,12 @@ export default async function TablesPage() {
   const tablesWithQr = await Promise.all(
     tables.map(async (t) => {
       const url = `${guestAppUrl}/v/${venueRow.slug}/t/${t.qr_token}`;
+      // Due risoluzioni: una per lo schermo, una per la stampa. Ingrandire
+      // quella da schermo fino ad A6 darebbe un QR sgranato che lo scanner
+      // fatica a leggere.
       const qrDataUrl = await QRCode.toDataURL(url, { width: 240 });
-      return { ...t, url, qrDataUrl };
+      const qrStampa = await QRCode.toDataURL(url, { width: 1200, margin: 1 });
+      return { ...t, url, qrDataUrl, qrStampa };
     })
   );
 
@@ -45,13 +51,15 @@ export default async function TablesPage() {
             </p>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={t.qrDataUrl} alt={`QR tavolo ${t.code}`} className="mx-auto h-auto w-full max-w-56" />
-            <a
-              href={t.qrDataUrl}
-              download={`qr-tavolo-${t.code}.png`}
-              className="mt-2 inline-block min-h-11 py-2 text-sm underline"
-            >
-              Scarica PNG
-            </a>
+            <ScaricaLocandina
+              dati={{
+                codice: t.code,
+                qrDataUrl: t.qrStampa,
+                nomeLocale: venueRow.name,
+                logoUrl: venueRow.logo_url,
+                coloreMarchio: venueRow.brand_color,
+              }}
+            />
             <p className="mt-1 break-all text-xs text-muted">{t.url}</p>
 
             <form action={updateTable} className="mt-3 flex gap-1">

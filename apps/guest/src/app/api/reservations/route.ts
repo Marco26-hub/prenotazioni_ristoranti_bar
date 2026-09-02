@@ -3,6 +3,7 @@ import { db } from "@repo/shared/db";
 import { checkRateLimit, clientKey } from "@repo/shared/rate-limit";
 import { hasModulo } from "@repo/shared";
 import { inviaEmail } from "@repo/shared/email";
+import { decryptSecret } from "@repo/shared/crypto";
 import { disponibilita, slotAlternativi, formattaOrario } from "@repo/shared/prenotazioni";
 
 interface Body {
@@ -33,6 +34,8 @@ interface VenueRow {
   reservation_capacity: number | null;
   timezone: string | null;
   modules: string[] | null;
+  resend_api_key: string | null;
+  resend_from: string | null;
 }
 
 /**
@@ -90,7 +93,8 @@ export async function POST(request: Request) {
   const [venue] = await sql<VenueRow[]>`
     select id, name, slug, subscription_status, subscription_period_end,
            reservation_email, public_email, public_phone,
-           reservation_auto_confirm, reservation_capacity, timezone, modules
+           reservation_auto_confirm, reservation_capacity, timezone, modules,
+           resend_api_key, resend_from
       from venues where slug = ${body.slug}`;
 
   if (!venue) {
@@ -111,6 +115,20 @@ export async function POST(request: Request) {
   }
 
   const fuso = venue.timezone ?? "Europe/Rome";
+
+  // La chiave è cifrata a riposo: si decifra qui, al momento dell'uso, e se
+  // è illeggibile si prosegue col mittente della piattaforma invece di
+  // perdere la prenotazione.
+  const mittenteLocale = venue.resend_api_key
+    ? (() => {
+        try {
+          return { apiKey: decryptSecret(venue.resend_api_key), from: venue.resend_from };
+        } catch {
+          console.error(`[prenotazioni] chiave email illeggibile per ${venue.slug}`);
+          return undefined;
+        }
+      })()
+    : undefined;
   const notes = body.notes?.trim().slice(0, 300) || null;
   const nome = body.name.trim();
 
@@ -156,6 +174,7 @@ export async function POST(request: Request) {
     const esito = await inviaEmail({
       a: destinatarioLocale,
       rispondiA: email ?? undefined,
+      mittenteLocale,
       oggetto: automatica
         ? `Nuova prenotazione confermata — ${nome}, ${partySize}p, ${quandoTesto}`
         : `Da confermare — ${nome}, ${partySize}p, ${quandoTesto}`,
@@ -199,6 +218,7 @@ export async function POST(request: Request) {
     const esito = await inviaEmail({
       a: email,
       rispondiA: venue.reservation_email ?? venue.public_email ?? undefined,
+      mittenteLocale,
       oggetto: `Prenotazione confermata — ${venue.name}`,
       testo: [
         `Ciao ${nome},`,

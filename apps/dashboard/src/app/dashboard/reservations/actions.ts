@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { requireVenue } from "@/lib/authz";
 import { inviaEmail } from "@repo/shared/email";
+import { decryptSecret } from "@repo/shared/crypto";
 import { slotAlternativi, formattaOrario } from "@repo/shared/prenotazioni";
 
 export interface EsitoPrenotazione {
@@ -32,6 +33,19 @@ interface RigaLocale {
   reservation_email: string | null;
   public_email: string | null;
   public_phone: string | null;
+  resend_api_key: string | null;
+  resend_from: string | null;
+}
+
+/** Credenziali proprie del locale, se ne ha e se sono leggibili. */
+function mittenteDi(locale: RigaLocale | undefined) {
+  if (!locale?.resend_api_key || !locale.resend_from) return undefined;
+  try {
+    return { apiKey: decryptSecret(locale.resend_api_key), from: locale.resend_from };
+  } catch {
+    console.error(`[prenotazioni] chiave email illeggibile per ${locale.slug}`);
+    return undefined;
+  }
 }
 
 async function caricaContesto(venueId: string, reservationId: string) {
@@ -43,7 +57,8 @@ async function caricaContesto(venueId: string, reservationId: string) {
      where id = ${reservationId} and venue_id = ${venueId}`;
 
   const [locale] = await sql<RigaLocale[]>`
-    select name, slug, timezone, reservation_email, public_email, public_phone
+    select name, slug, timezone, reservation_email, public_email, public_phone,
+           resend_api_key, resend_from
       from venues where id = ${venueId}`;
 
   return { sql, prenotazione, locale };
@@ -89,6 +104,7 @@ export async function confermaPrenotazione(
     const esito = await inviaEmail({
       a: prenotazione.customer_email,
       rispondiA: locale?.reservation_email ?? locale?.public_email ?? undefined,
+      mittenteLocale: mittenteDi(locale),
       oggetto: `Prenotazione confermata — ${locale?.name ?? "il ristorante"}`,
       testo: [
         `Ciao ${prenotazione.customer_name},`,
@@ -162,6 +178,7 @@ export async function rifiutaPrenotazione(
     const esito = await inviaEmail({
       a: prenotazione.customer_email,
       rispondiA: locale?.reservation_email ?? locale?.public_email ?? undefined,
+      mittenteLocale: mittenteDi(locale),
       oggetto: `Prenotazione non disponibile — ${locale?.name ?? "il ristorante"}`,
       testo: [
         `Ciao ${prenotazione.customer_name},`,

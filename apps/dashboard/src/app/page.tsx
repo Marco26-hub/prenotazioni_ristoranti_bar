@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { PLANS, TRIAL_DAYS, formatPriceCents } from "@repo/shared";
+import { PLANS, SETUP_CENTS, setupDovuto, TRIAL_DAYS, formatPriceCents } from "@repo/shared";
 import { MockupTelefono } from "./mockup-telefono";
 
 /**
@@ -107,8 +107,8 @@ const FUNZIONI = [
 ];
 
 const CONFRONTO: Array<[string, string, string]> = [
-  ["Canone", "da 19 €/mese", "29–99 €/mese"],
-  ["Costo di attivazione", "Nessuno", "Fino a 500 €"],
+  ["Canone", "da 29 €/mese", "29–99 €/mese"],
+  ["Costo di attivazione", "249 €, zero sull'annuale", "Fino a 600 €"],
   ["Commissione sui tuoi incassi", "Nessuna", "Spesso 1,9–2%"],
   ["Il tuo marchio sulle pagine cliente", "Incluso", "Raro, o a pagamento"],
   ["Fattura elettronica dal tavolo", "Inclusa", "Quasi mai"],
@@ -320,14 +320,20 @@ export default async function LandingPage() {
                   {plan.note && (
                     <p className="mt-2 text-sm font-medium text-accent">{plan.note}</p>
                   )}
+                  <p className="mt-2 text-sm text-muted">
+                    {setupDovuto(plan)
+                      ? `+ ${formatPriceCents(SETUP_CENTS, "EUR")} di attivazione`
+                      : "Attivazione inclusa"}
+                  </p>
                 </div>
               </div>
             ))}
           </div>
 
           <p className="compare mt-4 text-sm text-muted">
-            Sull&apos;annuale due mesi sono in omaggio. Hai già la tua cassa?
-            Prendi solo quello che ti manca: i moduli si comprano separati.
+            Sull&apos;annuale due mesi sono in omaggio e l&apos;attivazione non
+            si paga. Hai già la tua cassa? Prendi solo quello che ti manca: i
+            moduli si comprano separati.
           </p>
 
           <div className="compare mt-8 overflow-x-auto">

@@ -17,6 +17,18 @@ export interface EsitoEmail {
   errore?: string;
 }
 
+/**
+ * Credenziali del locale, quando ha collegato il proprio dominio.
+ *
+ * Restano facoltative: senza, si usa il mittente della piattaforma. È il
+ * caso normale, perché verificare un dominio su Resend richiede di toccare
+ * i record DNS e quasi nessun ristoratore lo farà.
+ */
+export interface MittenteLocale {
+  apiKey: string | null;
+  from: string | null;
+}
+
 export interface Messaggio {
   a: string;
   oggetto: string;
@@ -26,6 +38,8 @@ export interface Messaggio {
   /** Mittente: se assente si usa RESEND_FROM. */
   da?: string;
   rispondiA?: string;
+  /** Credenziali proprie del locale, se le ha configurate. */
+  mittenteLocale?: MittenteLocale;
 }
 
 export function emailConfigurata(): boolean {
@@ -33,8 +47,14 @@ export function emailConfigurata(): boolean {
 }
 
 export async function inviaEmail(m: Messaggio): Promise<EsitoEmail> {
-  const chiave = process.env.RESEND_API_KEY;
-  const mittente = m.da ?? process.env.RESEND_FROM;
+  // Le credenziali del locale hanno la precedenza, ma solo se complete:
+  // una chiave senza mittente verificato farebbe rifiutare l'invio da
+  // Resend, e il locale resterebbe senza email credendo di averle attivate.
+  const proprie =
+    m.mittenteLocale?.apiKey && m.mittenteLocale?.from ? m.mittenteLocale : null;
+
+  const chiave = proprie?.apiKey ?? process.env.RESEND_API_KEY;
+  const mittente = proprie?.from ?? m.da ?? process.env.RESEND_FROM;
 
   if (!chiave || !mittente) {
     return {

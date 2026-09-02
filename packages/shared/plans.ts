@@ -39,13 +39,29 @@ export interface Plan {
 
 export const TRIAL_DAYS = 14;
 
+/**
+ * Attivazione una tantum.
+ *
+ * Copre il lavoro che c'è davvero al primo giorno: menu caricato, QR
+ * stampabili, Stripe collegato, marchio configurato. È la norma fra i
+ * fornitori di cassa — EasyCassa 399 €, TheFork 300-400 € — mentre i menu
+ * QR puri la azzerano. Noi stiamo nel mezzo, e la togliamo a chi sceglie
+ * l'annuale: è il modo più semplice per spostare le sottoscrizioni dove
+ * conviene a entrambi.
+ */
+export const SETUP_CENTS = 24900;
+
+export function setupDovuto(plan: Plan): boolean {
+  return plan.interval === "month";
+}
+
 export const PLANS: Plan[] = [
   {
     interval: "month",
     key: "ordini-mensile",
     label: "Ordini e pagamenti",
     moduli: ["ordini"],
-    amountCents: 2900,
+    amountCents: 5900,
     cadence: "al mese",
     descrizione: "Menu QR, ordine al tavolo, conto alla romana, fattura elettronica.",
     note: "Disdetta in qualsiasi momento",
@@ -55,7 +71,7 @@ export const PLANS: Plan[] = [
     key: "prenotazioni-mensile",
     label: "Solo prenotazioni",
     moduli: ["prenotazioni"],
-    amountCents: 1900,
+    amountCents: 2900,
     cadence: "al mese",
     descrizione: "Pagina di prenotazione per il tuo sito, calendario e conferme.",
     note: "Senza gestionale di sala",
@@ -65,7 +81,7 @@ export const PLANS: Plan[] = [
     key: "completo-mensile",
     label: "Tutto",
     moduli: ["ordini", "prenotazioni"],
-    amountCents: 3900,
+    amountCents: 7900,
     cadence: "al mese",
     descrizione: "Ordini, pagamenti e prenotazioni insieme.",
     note: "9 € in meno dei due separati",
@@ -75,30 +91,30 @@ export const PLANS: Plan[] = [
     key: "ordini-annuale",
     label: "Ordini e pagamenti",
     moduli: ["ordini"],
-    amountCents: 29000,
+    amountCents: 59000,
     cadence: "all'anno",
     descrizione: "Menu QR, ordine al tavolo, conto alla romana, fattura elettronica.",
-    note: "Due mesi in omaggio",
+    note: "Due mesi in omaggio, attivazione gratuita",
   },
   {
     interval: "year",
     key: "prenotazioni-annuale",
     label: "Solo prenotazioni",
     moduli: ["prenotazioni"],
-    amountCents: 19000,
+    amountCents: 29000,
     cadence: "all'anno",
     descrizione: "Pagina di prenotazione per il tuo sito, calendario e conferme.",
-    note: "Due mesi in omaggio",
+    note: "Due mesi in omaggio, attivazione gratuita",
   },
   {
     interval: "year",
     key: "completo-annuale",
     label: "Tutto",
     moduli: ["ordini", "prenotazioni"],
-    amountCents: 39000,
+    amountCents: 79000,
     cadence: "all'anno",
     descrizione: "Ordini, pagamenti e prenotazioni insieme.",
-    note: "Due mesi in omaggio",
+    note: "Due mesi in omaggio, attivazione gratuita",
   },
 ];
 

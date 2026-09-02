@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { PLANS, formatPriceCents, TRIAL_DAYS } from "@repo/shared";
+import { PLANS, SETUP_CENTS, setupDovuto, formatPriceCents, TRIAL_DAYS } from "@repo/shared";
 import { startSubscription, openBillingPortal } from "./actions";
 
 export function PlanButtons({
@@ -78,6 +78,13 @@ export function PlanButtons({
                 {plan.note && (
                   <span className="mt-2 text-xs font-medium text-accent">{plan.note}</span>
                 )}
+                {/* L'attivazione va detta prima del Checkout: scoprirla alla
+                    pagina di pagamento fa abbandonare. */}
+                <span className="mt-2 text-xs text-muted">
+                  {setupDovuto(plan)
+                    ? `+ ${formatPriceCents(SETUP_CENTS, "EUR")} di attivazione, una tantum`
+                    : "Attivazione inclusa"}
+                </span>
               </button>
             ))}
           </div>

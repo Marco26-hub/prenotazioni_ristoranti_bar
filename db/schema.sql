@@ -81,6 +81,10 @@ create table venues (
   -- del Price, così il listino resta su Stripe e non nel codice.
   modules text[] not null default '{}',
   trial_ends_at timestamptz,
+  -- Mittente email proprio del locale (facoltativo): senza, si usa quello
+  -- della piattaforma. Serve a chi vuole le conferme dal proprio dominio.
+  resend_api_key text,                   -- cifrata a riposo
+  resend_from text,
   satispay_key_id text,                  -- key_id ottenuto da /authentication_keys
   satispay_private_key text,             -- PEM, controparte della chiave pubblica registrata su Satispay
   invoice_provider text default 'invoicetronic', -- provider SDI esterno
