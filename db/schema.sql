@@ -64,6 +64,9 @@ create table venues (
   address_province text,                 -- sigla, es. "MI"
   regime_fiscale text default 'RF01',    -- RF01 = ordinario, cambiare se forfettario/altro
   timezone text default 'Europe/Rome',
+  -- Lingue del menu oltre all'italiano, che è sempre la base. Vuoto = nessun
+  -- selettore mostrato al cliente, invece di uno che non cambia nulla.
+  languages text[] not null default '{}',
   currency text default 'EUR',
   stripe_account_id text,                -- Stripe Connect account: con cui il LOCALE incassa
   -- Abbonamento alla piattaforma: con cui il locale paga NOI. Flusso opposto
@@ -158,6 +161,9 @@ create table menu_items (
   allergens text[],
   dietary_tags text[],                   -- vegetariano, vegano, senza_glutine, piccante
   ingredients text,
+  -- Traduzioni parziali per lingua: {"en": {"name": ..., "description": ...}}.
+  -- Un campo non tradotto ricade sull'italiano invece di sparire.
+  translations jsonb not null default '{}'::jsonb,
   pairing_item_id uuid references menu_items(id) on delete set null, -- abbinamento suggerito (anche upselling)
   available boolean default true,
   sort_order int default 0

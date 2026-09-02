@@ -15,10 +15,13 @@ import { PhotoForm } from "./photo-form";
 import { TilbyImportForm } from "./tilby-import-form";
 import { EditItemForm, type EditableItem } from "./edit-item-form";
 import { AggiungiPiatto } from "./aggiungi-piatto";
+import { TraduzioniForm } from "./traduzioni-form";
+import { LingueForm } from "./lingue-form";
+import { LINGUE, type Traduzioni } from "@repo/shared/lingue";
 
 const AZIONE = "flex min-h-11 items-center px-1 text-sm underline";
 
-type ItemRow = EditableItem & { image_url: string | null };
+type ItemRow = EditableItem & { image_url: string | null; translations: Traduzioni };
 
 /**
  * `updateCategory` risponde con un eventuale errore, ma una Server Action
@@ -45,8 +48,11 @@ export default async function MenuPage() {
   if (!venue) return <main className="p-4">Nessun locale associato.</main>;
 
   const sql = db();
-  const [venueRow] = await sql<{ tilby_token: string | null }[]>`
-    select tilby_token from venues where id = ${venue.venueId}`;
+  const [venueRow] = await sql<
+    { tilby_token: string | null; languages: string[] }[]
+  >`select tilby_token, languages from venues where id = ${venue.venueId}`;
+
+  const lingueAttive = venueRow?.languages ?? [];
 
   const categories = await sql<{ id: string; name: string }[]>`
     select id, name from menu_categories where venue_id = ${venue.venueId}
@@ -54,7 +60,8 @@ export default async function MenuPage() {
 
   const items = await sql<ItemRow[]>`
     select id, category_id, name, description, ingredients, price_cents, vat_rate,
-           pairing_item_id, allergens, dietary_tags, available, image_url
+           pairing_item_id, allergens, dietary_tags, available, image_url,
+           translations
       from menu_items
      where venue_id = ${venue.venueId}
      order by sort_order, name`;
@@ -74,6 +81,14 @@ export default async function MenuPage() {
   const senzaAllergeni = items.filter((i) => !i.allergens?.length).length;
   const senzaFoto = items.filter((i) => !i.image_url).length;
   const nascosti = items.filter((i) => !i.available).length;
+
+  // Una lingua attivata a metà è peggio di una non attivata: il cliente
+  // trova il selettore e poi un menu misto.
+  const mancanti = lingueAttive.map((codice) => ({
+    codice,
+    nome: LINGUE.find((l) => l.codice === codice)?.nativo ?? codice,
+    n: items.filter((i) => !i.translations?.[codice]?.name?.trim()).length,
+  }));
 
   function renderItems(list: ItemRow[]) {
     return (
@@ -201,6 +216,14 @@ export default async function MenuPage() {
               categories={categories}
               otherItems={allNames.filter((o) => o.id !== item.id)}
             />
+
+            <TraduzioniForm
+              itemId={item.id}
+              nomeItaliano={item.name}
+              descrizioneItaliana={item.description}
+              lingueAttive={lingueAttive}
+              traduzioni={item.translations}
+            />
           </li>
         ))}
       </ul>
@@ -234,6 +257,16 @@ export default async function MenuPage() {
                 {nascosti} nascosti al cliente
               </li>
             )}
+            {mancanti
+              .filter((m) => m.n > 0)
+              .map((m) => (
+                <li
+                  key={m.codice}
+                  className="rounded-full border border-amber-400 px-3 py-1 text-amber-700"
+                >
+                  {m.n} da tradurre in {m.nome}
+                </li>
+              ))}
           </ul>
         )}
       </header>
@@ -335,6 +368,11 @@ export default async function MenuPage() {
         {categories.length === 0 && (
           <AggiungiPiatto categoryId={null} categoryName="nessuna categoria" />
         )}
+      </section>
+
+      <section className="space-y-3 border-t border-border pt-6">
+        <h2 className="font-semibold">Lingue del menu</h2>
+        <LingueForm attive={lingueAttive} />
       </section>
 
       <section className="space-y-4 border-t border-border pt-6">

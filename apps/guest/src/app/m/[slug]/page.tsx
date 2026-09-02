@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { db } from "@repo/shared/db";
+import { headers } from "next/headers";
 import { formatPriceCents } from "@repo/shared";
+import { scegliLingua, traduci, type Traduzioni } from "@repo/shared/lingue";
+import { SelettoreLingua } from "./selettore-lingua";
 import { AnnuncioLocale } from "../../v/[slug]/t/[token]/annuncio";
 import { annuncioAttivo } from "@/lib/annuncio";
 
@@ -17,6 +20,7 @@ import { annuncioAttivo } from "@/lib/annuncio";
 
 interface PublicMenuItem {
   id: string;
+  translations?: Traduzioni;
   category_id: string | null;
   name: string;
   description: string | null;
@@ -36,21 +40,24 @@ interface VenuePublic {
   address_city: string | null;
   address_province: string | null;
   currency: string;
+  languages: string[];
 }
 
 async function loadVenue(slug: string) {
   const sql = db();
   const [venue] = await sql<VenuePublic[]>`
     select id, name, logo_url, brand_color, public_phone, public_email,
-           address, address_zip, address_city, address_province, currency
+           address, address_zip, address_city, address_province, currency,
+           languages
     from venues where slug = ${slug}`;
   if (!venue) return null;
 
-  const categories = await sql<{ id: string; name: string }[]>`
-    select id, name from menu_categories where venue_id = ${venue.id} order by sort_order`;
+  const categories = await sql<{ id: string; name: string; translations: Traduzioni }[]>`
+    select id, name, translations from menu_categories where venue_id = ${venue.id}
+     order by sort_order`;
 
   const items = await sql<PublicMenuItem[]>`
-    select id, category_id, name, description, price_cents, image_url
+    select id, category_id, name, description, price_cents, image_url, translations
     from menu_items
     where venue_id = ${venue.id} and available = true
     order by sort_order`;
@@ -83,13 +90,26 @@ export async function generateMetadata({
   };
 }
 
-export default async function PublicMenuPage({ params }: PageProps<"/m/[slug]">) {
+export default async function PublicMenuPage({
+  params,
+  searchParams,
+}: PageProps<"/m/[slug]">) {
   const { slug } = await params;
   const data = await loadVenue(slug);
   if (!data) notFound();
 
-  const { venue, categories, items } = data;
+  const { venue, categories: categorieBase, items: itemsBase } = data;
   const annuncio = await annuncioAttivo(venue.id);
+
+  // La lingua chiesta esplicitamente vince sul browser; il browser vince
+  // sull'italiano. Solo fra quelle che il locale ha davvero tradotto.
+  const sp = await searchParams;
+  const richiesta = Array.isArray(sp.lang) ? sp.lang[0] : sp.lang;
+  const accept = (await headers()).get("accept-language");
+  const lingua = scegliLingua(richiesta, accept, venue.languages ?? []);
+
+  const categories = categorieBase.map((c) => traduci(c, c.translations, lingua));
+  const items = itemsBase.map((i) => traduci(i, i.translations, lingua));
 
   const itemsByCategory = new Map<string | null, PublicMenuItem[]>();
   for (const item of items) {
@@ -191,6 +211,14 @@ export default async function PublicMenuPage({ params }: PageProps<"/m/[slug]">)
             >
               Prenota un tavolo
             </a>
+
+            <div className="mt-3">
+              <SelettoreLingua
+                base={`/m/${slug}`}
+                attiva={lingua}
+                disponibili={venue.languages ?? []}
+              />
+            </div>
           </div>
         </div>
       </header>

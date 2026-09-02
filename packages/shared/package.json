@@ -13,7 +13,8 @@
     "./tilby": "./tilby/index.ts",
     "./plans": "./plans.ts",
     "./email": "./email.ts",
-    "./prenotazioni": "./prenotazioni.ts"
+    "./prenotazioni": "./prenotazioni.ts",
+    "./lingue": "./lingue.ts"
   },
   "dependencies": {
     "postgres": "^3.4.5",
