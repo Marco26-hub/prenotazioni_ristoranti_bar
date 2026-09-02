@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { db } from "@repo/shared/db";
 import { formatPriceCents } from "@repo/shared";
+import { closeTableInPerson } from "./close-table-actions";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -21,20 +22,23 @@ export default async function DashboardPage() {
     order by code`;
 
   const openSessions = await sql<
-    { table_id: string; total_cents: string | null }[]
+    { table_id: string; session_id: string; total_cents: string | null }[]
   >`
-    select ts.table_id, sum(oi.quantity * oi.unit_price_cents) as total_cents
+    select ts.table_id, ts.id as session_id, sum(oi.quantity * oi.unit_price_cents) as total_cents
     from table_sessions ts
     left join orders o on o.table_session_id = ts.id and o.status != 'cancelled'
     left join order_items oi on oi.order_id = o.id and oi.status != 'cancelled'
     where ts.venue_id = ${venue.venueId} and ts.status = 'open'
-    group by ts.table_id`;
+    group by ts.table_id, ts.id`;
 
-  const totalsByTable = new Map(
-    openSessions.map((s) => [s.table_id, Number(s.total_cents ?? 0)])
+  const openByTable = new Map(
+    openSessions.map((s) => [
+      s.table_id,
+      { sessionId: s.session_id, totalCents: Number(s.total_cents ?? 0) },
+    ])
   );
 
-  const occupied = tables.filter((t) => totalsByTable.get(t.id)).length;
+  const occupied = tables.filter((t) => openByTable.has(t.id)).length;
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-5">
@@ -47,19 +51,35 @@ export default async function DashboardPage() {
 
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {tables.map((t) => {
-          const total = totalsByTable.get(t.id);
+          const open = openByTable.get(t.id);
           return (
             <li
               key={t.id}
               className={`rounded-xl border p-4 ${
-                total ? "border-accent bg-accent/10" : "border-border bg-surface"
+                open ? "border-accent bg-accent/10" : "border-border bg-surface"
               }`}
             >
               <p className="font-semibold">{t.code}</p>
               <p className="text-xs text-muted">{t.seats} posti</p>
               <p className="mt-2 font-medium tabular-nums">
-                {total ? formatPriceCents(total) : <span className="text-muted">libero</span>}
+                {open ? (
+                  formatPriceCents(open.totalCents)
+                ) : (
+                  <span className="text-muted">libero</span>
+                )}
               </p>
+              {open && (
+                <form
+                  action={async () => {
+                    "use server";
+                    await closeTableInPerson(open.sessionId);
+                  }}
+                >
+                  <button type="submit" className="mt-2 text-sm underline">
+                    Chiudi conto
+                  </button>
+                </form>
+              )}
             </li>
           );
         })}

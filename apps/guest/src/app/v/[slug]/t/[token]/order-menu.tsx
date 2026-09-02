@@ -22,6 +22,7 @@ interface CartLine {
   name: string;
   unitPriceCents: number;
   quantity: number;
+  notes?: string;
 }
 
 export function OrderMenu({
@@ -36,6 +37,7 @@ export function OrderMenu({
   items: MenuItem[];
 }) {
   const [cart, setCart] = useState<Record<string, CartLine>>({});
+  const [noteFor, setNoteFor] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,6 +62,8 @@ export function OrderMenu({
           name: item.name,
           unitPriceCents: item.price_cents,
           quantity: (existing?.quantity ?? 0) + 1,
+          // Senza questo la nota già scritta sparirebbe premendo "+".
+          notes: existing?.notes,
         },
       };
     });
@@ -91,7 +95,11 @@ export function OrderMenu({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sessionId,
-          items: lines.map((l) => ({ menuItemId: l.menuItemId, quantity: l.quantity })),
+          items: lines.map((l) => ({
+            menuItemId: l.menuItemId,
+            quantity: l.quantity,
+            notes: l.notes?.trim() || undefined,
+          })),
         }),
       });
       if (!res.ok) {
@@ -99,6 +107,7 @@ export function OrderMenu({
         throw new Error(body.error ?? "Errore invio ordine");
       }
       setCart({});
+      setNoteFor(null);
       setSubmitted(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Errore invio ordine");
@@ -107,13 +116,18 @@ export function OrderMenu({
     }
   };
 
+  const setNote = (itemId: string, notes: string) => {
+    setCart((prev) => (prev[itemId] ? { ...prev, [itemId]: { ...prev[itemId], notes } } : prev));
+  };
+
   const renderItem = (item: MenuItem) => {
     const inCart = cart[item.id];
     return (
       <li
         key={item.id}
-        className="flex items-start gap-3 rounded-xl border border-border bg-surface p-4"
+        className="rounded-xl border border-border bg-surface p-4"
       >
+      <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <p className="font-medium leading-snug">{item.name}</p>
           {item.description && (
@@ -149,6 +163,30 @@ export function OrderMenu({
             +
           </button>
         </div>
+      </div>
+
+      {inCart && (
+        <div className="mt-3 border-t border-border pt-3">
+          {noteFor === item.id || inCart.notes ? (
+            <input
+              value={inCart.notes ?? ""}
+              onChange={(e) => setNote(item.id, e.target.value)}
+              placeholder="Es. senza cipolla, senza glutine"
+              maxLength={140}
+              autoFocus={noteFor === item.id && !inCart.notes}
+              className="min-h-11 w-full rounded-lg border border-border bg-background px-3 text-sm"
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setNoteFor(item.id)}
+              className="text-sm text-muted underline underline-offset-2"
+            >
+              Aggiungi una nota
+            </button>
+          )}
+        </div>
+      )}
       </li>
     );
   };

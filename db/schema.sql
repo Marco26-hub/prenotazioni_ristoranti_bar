@@ -183,8 +183,8 @@ create table payments (
   amount_cents int not null,
   tip_cents int default 0,
   currency text default 'EUR',
-  method text not null check (method in ('card','apple_pay','google_pay','satispay')),
-  provider text not null default 'stripe' check (provider in ('stripe','satispay')),
+  method text not null check (method in ('card','apple_pay','google_pay','satispay','cash')),
+  provider text not null default 'stripe' check (provider in ('stripe','satispay','manual')), -- 'manual' = incassato al banco
   provider_payment_id text,              -- id transazione lato Stripe/Satispay
   split_type text check (split_type in ('full','per_person','per_item','custom')),
   status text not null default 'pending'

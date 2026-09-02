@@ -4,8 +4,11 @@ import { checkRateLimit, clientIp } from "@repo/shared/rate-limit";
 
 interface CreateOrderBody {
   sessionId: string;
-  items: Array<{ menuItemId: string; quantity: number }>;
+  items: Array<{ menuItemId: string; quantity: number; notes?: string }>;
 }
+
+/** Le note finiscono stampate in comanda: tagliate, non rifiutate. */
+const MAX_NOTE_LENGTH = 140;
 
 export async function POST(request: Request) {
   const { allowed } = await checkRateLimit(`orders:${clientIp(request)}`, 20, 60);
@@ -54,13 +57,19 @@ export async function POST(request: Request) {
       returning id`;
 
     for (const line of body.items) {
+      const notes =
+        typeof line.notes === "string" && line.notes.trim()
+          ? line.notes.trim().slice(0, MAX_NOTE_LENGTH)
+          : null;
+
       await tx`
-        insert into order_items (order_id, menu_item_id, quantity, unit_price_cents, status)
+        insert into order_items (order_id, menu_item_id, quantity, unit_price_cents, notes, status)
         values (
           ${order.id},
           ${line.menuItemId},
           ${line.quantity},
           ${priceByItem.get(line.menuItemId)!},
+          ${notes},
           'sent_to_kitchen'
         )`;
     }
