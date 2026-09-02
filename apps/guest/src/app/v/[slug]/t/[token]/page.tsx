@@ -1,8 +1,18 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { db } from "@repo/shared/db";
 import { resolveTableFromQr } from "@/lib/table";
 import { OrderMenu } from "./order-menu";
 import { Bill } from "./bill";
+
+/**
+ * Mai nei motori di ricerca: l'URL contiene il token stampato sul QR, e
+ * indicizzarlo permetterebbe di aprire un conto senza essere al tavolo.
+ * Il menu pubblico indicizzabile è /m/{slug}.
+ */
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 export default async function TablePage({
   params,
@@ -29,9 +39,10 @@ export default async function TablePage({
       description: string | null;
       price_cents: number;
       allergens: string[] | null;
+      image_url: string | null;
     }[]
   >`
-    select id, category_id, name, description, price_cents, allergens
+    select id, category_id, name, description, price_cents, allergens, image_url
     from menu_items
     where venue_id = ${resolved.venue.id} and available = true
     order by sort_order`;

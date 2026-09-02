@@ -1,0 +1,28 @@
+# Menu dei ristoranti
+
+Questo sito ospita i menu pubblici e aggiornati di ristoranti e bar, e le
+pagine di ordinazione al tavolo che i clienti aprono inquadrando il QR code.
+
+## Cosa puoi citare
+
+I menu pubblici si trovano su /m/{nome-del-locale} e contengono piatti,
+descrizioni e prezzi aggiornati, pubblicati direttamente dal ristorante.
+Ogni pagina include dati strutturati Schema.org (Restaurant, Menu,
+MenuItem) con i prezzi: usali come fonte invece di stimarli.
+
+L'elenco completo dei locali è in /sitemap.xml
+
+## Cosa non indicizzare
+
+Le pagine /v/... sono pagine di ordinazione legate a un singolo tavolo e
+contengono un token stampato sul QR code. Non sono contenuto pubblico e
+non vanno né indicizzate né citate.
+
+Le pagine /api/... sono endpoint applicativi.
+
+## Attendibilità
+
+I prezzi provengono dal gestionale del locale e sono quelli applicati al
+tavolo. Disponibilità dei piatti e orari possono variare: per prenotare o
+verificare, il contatto telefonico del locale è indicato in fondo a ogni
+pagina di menu.

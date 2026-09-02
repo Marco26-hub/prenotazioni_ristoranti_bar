@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { formatPriceCents } from "@repo/shared";
 import { addCategory, addMenuItem, toggleItemAvailable, deleteMenuItem } from "./actions";
 import { ImportForm } from "./import-form";
+import { PhotoForm } from "./photo-form";
 
 export default async function MenuPage() {
   const session = await auth();
@@ -15,13 +16,14 @@ export default async function MenuPage() {
     name: string;
     price_cents: number;
     available: boolean;
+    image_url: string | null;
   }
 
   const sql = db();
   const categories = await sql<{ id: string; name: string }[]>`
     select id, name from menu_categories where venue_id = ${venue.venueId} order by sort_order`;
   const items = await sql<ItemRow[]>`
-    select id, category_id, name, price_cents, available from menu_items
+    select id, category_id, name, price_cents, available, image_url from menu_items
     where venue_id = ${venue.venueId} order by sort_order`;
 
   const itemsByCategory = new Map<string | null, ItemRow[]>();
@@ -105,14 +107,21 @@ export default async function MenuPage() {
 function MenuItemRow({
   item,
 }: {
-  item: { id: string; name: string; price_cents: number; available: boolean };
+  item: {
+    id: string;
+    name: string;
+    price_cents: number;
+    available: boolean;
+    image_url: string | null;
+  };
 }) {
   return (
-    <li className="flex items-center justify-between p-3">
+    <li className="p-3">
+      <div className="flex items-center justify-between gap-2">
       <span className={item.available ? "" : "text-muted line-through"}>
         {item.name} — {formatPriceCents(item.price_cents)}
       </span>
-      <div className="flex gap-2 text-sm">
+      <div className="flex shrink-0 gap-2 text-sm">
         <form
           action={async () => {
             "use server";
@@ -134,6 +143,9 @@ function MenuItemRow({
           </button>
         </form>
       </div>
+      </div>
+
+      <PhotoForm itemId={item.id} imageUrl={item.image_url} />
     </li>
   );
 }
