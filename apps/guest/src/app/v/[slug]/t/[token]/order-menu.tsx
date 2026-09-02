@@ -2,20 +2,15 @@
 
 import { useMemo, useState } from "react";
 import { formatPriceCents } from "@repo/shared";
+import { DishSheet, type DishDetail } from "./dish-sheet";
 
 interface MenuCategory {
   id: string;
   name: string;
 }
 
-interface MenuItem {
-  id: string;
+interface MenuItem extends DishDetail {
   category_id: string | null;
-  name: string;
-  description: string | null;
-  price_cents: number;
-  allergens: string[] | null;
-  image_url: string | null;
 }
 
 interface CartLine {
@@ -39,6 +34,7 @@ export function OrderMenu({
 }) {
   const [cart, setCart] = useState<Record<string, CartLine>>({});
   const [noteFor, setNoteFor] = useState<string | null>(null);
+  const [openDish, setOpenDish] = useState<MenuItem | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -135,18 +131,31 @@ export function OrderMenu({
             src={item.image_url}
             alt=""
             loading="lazy"
-            className="h-20 w-20 shrink-0 rounded-lg object-cover"
+            onClick={() => setOpenDish(item)}
+            className="h-20 w-20 shrink-0 cursor-pointer rounded-lg object-cover"
           />
         )}
-        <div className="min-w-0 flex-1">
+        <button
+          type="button"
+          onClick={() => setOpenDish(item)}
+          className="min-w-0 flex-1 text-left"
+          aria-label={`Dettagli di ${item.name}`}
+        >
           <p className="font-medium leading-snug">{item.name}</p>
           {item.description && (
-            <p className="mt-0.5 text-sm leading-snug text-muted">{item.description}</p>
+            <p className="mt-0.5 line-clamp-2 text-sm leading-snug text-muted">
+              {item.description}
+            </p>
           )}
           <p className="mt-1.5 font-semibold tabular-nums">
             {formatPriceCents(item.price_cents, currency)}
           </p>
-        </div>
+          {(item.dietary_tags?.length || item.allergens?.length) && (
+            <p className="mt-1 text-xs text-muted underline underline-offset-2">
+              Allergeni e dettagli
+            </p>
+          )}
+        </button>
 
         <div className="flex shrink-0 items-center gap-2">
           {inCart && (
@@ -253,6 +262,21 @@ export function OrderMenu({
           </div>
           {error && <p className="mx-auto mt-2 max-w-2xl text-sm text-danger">{error}</p>}
         </div>
+      )}
+
+      {openDish && (
+        <DishSheet
+          dish={openDish}
+          currency={currency}
+          pairing={items.find((i) => i.id === openDish.pairing_item_id) ?? null}
+          inCartQuantity={cart[openDish.id]?.quantity ?? 0}
+          onAdd={() => addItem(openDish)}
+          onAddPairing={() => {
+            const p = items.find((i) => i.id === openDish.pairing_item_id);
+            if (p) addItem(p);
+          }}
+          onClose={() => setOpenDish(null)}
+        />
       )}
 
       {submitted && (

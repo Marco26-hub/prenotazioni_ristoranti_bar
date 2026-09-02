@@ -40,9 +40,13 @@ export default async function TablePage({
       price_cents: number;
       allergens: string[] | null;
       image_url: string | null;
+      dietary_tags: string[] | null;
+      ingredients: string | null;
+      pairing_item_id: string | null;
     }[]
   >`
-    select id, category_id, name, description, price_cents, allergens, image_url
+    select id, category_id, name, description, price_cents, allergens, image_url,
+           dietary_tags, ingredients, pairing_item_id
     from menu_items
     where venue_id = ${resolved.venue.id} and available = true
     order by sort_order`;

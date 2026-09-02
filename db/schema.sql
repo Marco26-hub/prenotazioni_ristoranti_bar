@@ -125,7 +125,12 @@ create table menu_items (
   price_cents int not null,              -- sempre interi, mai float su denaro
   vat_rate numeric(4,2) not null default 10.00, -- aliquota IVA ristorazione
   image_url text,
-  allergens text[],                      -- array allergeni
+  -- Gli allergeni sono obbligatori per legge (Reg. UE 1169/2011): un menu
+  -- digitale che non li riporta mette il locale fuori norma.
+  allergens text[],
+  dietary_tags text[],                   -- vegetariano, vegano, senza_glutine, piccante
+  ingredients text,
+  pairing_item_id uuid references menu_items(id) on delete set null, -- abbinamento suggerito (anche upselling)
   available boolean default true,
   sort_order int default 0
 );
