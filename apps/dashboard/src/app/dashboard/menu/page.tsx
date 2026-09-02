@@ -3,7 +3,6 @@ import { auth } from "@/auth";
 import { formatPriceCents } from "@repo/shared";
 import {
   addCategory,
-  addMenuItem,
   toggleItemAvailable,
   deleteMenuItem,
   deleteCategory,
@@ -15,8 +14,9 @@ import { ImportForm } from "./import-form";
 import { PhotoForm } from "./photo-form";
 import { TilbyImportForm } from "./tilby-import-form";
 import { EditItemForm, type EditableItem } from "./edit-item-form";
+import { AggiungiPiatto } from "./aggiungi-piatto";
 
-const ACTION_LINK = "flex min-h-11 items-center px-1 text-sm underline";
+const AZIONE = "flex min-h-11 items-center px-1 text-sm underline";
 
 type ItemRow = EditableItem & { image_url: string | null };
 
@@ -30,6 +30,14 @@ async function renameCategory(formData: FormData) {
   "use server";
   await updateCategory(formData);
 }
+
+const DIETA_ETICHETTA: Record<string, string> = {
+  vegetariano: "Vegetariano",
+  vegano: "Vegano",
+  senza_glutine: "Senza glutine",
+  senza_lattosio: "Senza lattosio",
+  piccante: "Piccante",
+};
 
 export default async function MenuPage() {
   const session = await auth();
@@ -59,16 +67,75 @@ export default async function MenuPage() {
   }
 
   const allNames = items.map((i) => ({ id: i.id, name: i.name }));
+  const nomePerId = new Map(allNames.map((i) => [i.id, i.name]));
+
+  // Un menu senza allergeni non è a norma (Reg. UE 1169/2011) e senza foto
+  // vende meno: il ristoratore deve vederlo, non scoprirlo dal cliente.
+  const senzaAllergeni = items.filter((i) => !i.allergens?.length).length;
+  const senzaFoto = items.filter((i) => !i.image_url).length;
+  const nascosti = items.filter((i) => !i.available).length;
 
   function renderItems(list: ItemRow[]) {
     return (
-      <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
+      <ul className="space-y-3">
         {list.map((item, index) => (
-          <li key={item.id} className="p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className={item.available ? "" : "text-muted line-through"}>
-                {item.name} — {formatPriceCents(item.price_cents)}
-              </span>
+          <li
+            key={item.id}
+            className={`rounded-xl border bg-surface p-4 ${
+              item.available ? "border-border" : "border-dashed border-border opacity-70"
+            }`}
+          >
+            <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+              <div className="min-w-0 flex-1">
+                <p className="flex flex-wrap items-baseline gap-x-2">
+                  <span className="font-medium">{item.name}</span>
+                  <span className="tabular-nums text-muted">
+                    {formatPriceCents(item.price_cents)}
+                  </span>
+                  <span className="text-xs text-muted">
+                    IVA {Number(item.vat_rate)}%
+                  </span>
+                  {!item.available && (
+                    <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">
+                      Nascosto
+                    </span>
+                  )}
+                </p>
+
+                {item.description && (
+                  <p className="mt-1 line-clamp-2 text-sm text-muted">
+                    {item.description}
+                  </p>
+                )}
+
+                <div className="mt-2 flex flex-wrap gap-1.5 text-xs">
+                  {item.dietary_tags?.map((t) => (
+                    <span
+                      key={t}
+                      className="rounded-full border border-accent px-2 py-0.5"
+                    >
+                      {DIETA_ETICHETTA[t] ?? t}
+                    </span>
+                  ))}
+
+                  {item.allergens?.length ? (
+                    <span className="rounded-full bg-background px-2 py-0.5 text-muted">
+                      Allergeni: {item.allergens.join(", ")}
+                    </span>
+                  ) : (
+                    <span className="rounded-full border border-amber-400 px-2 py-0.5 text-amber-700">
+                      Allergeni non indicati
+                    </span>
+                  )}
+
+                  {item.pairing_item_id && nomePerId.get(item.pairing_item_id) && (
+                    <span className="rounded-full bg-background px-2 py-0.5 text-muted">
+                      Con {nomePerId.get(item.pairing_item_id)}
+                    </span>
+                  )}
+                </div>
+              </div>
+
               <div className="flex shrink-0 flex-wrap items-center gap-x-3">
                 {index > 0 && (
                   <form
@@ -77,7 +144,11 @@ export default async function MenuPage() {
                       await moveMenuItem(item.id, "up");
                     }}
                   >
-                    <button type="submit" aria-label={`Sposta ${item.name} su`} className={ACTION_LINK}>
+                    <button
+                      type="submit"
+                      aria-label={`Sposta ${item.name} su`}
+                      className={AZIONE}
+                    >
                       ↑
                     </button>
                   </form>
@@ -89,7 +160,11 @@ export default async function MenuPage() {
                       await moveMenuItem(item.id, "down");
                     }}
                   >
-                    <button type="submit" aria-label={`Sposta ${item.name} giù`} className={ACTION_LINK}>
+                    <button
+                      type="submit"
+                      aria-label={`Sposta ${item.name} giù`}
+                      className={AZIONE}
+                    >
                       ↓
                     </button>
                   </form>
@@ -100,7 +175,7 @@ export default async function MenuPage() {
                     await toggleItemAvailable(item.id, !item.available);
                   }}
                 >
-                  <button type="submit" className={ACTION_LINK}>
+                  <button type="submit" className={AZIONE}>
                     {item.available ? "Nascondi" : "Riattiva"}
                   </button>
                 </form>
@@ -110,11 +185,15 @@ export default async function MenuPage() {
                     await deleteMenuItem(item.id);
                   }}
                 >
-                  <button type="submit" className={`${ACTION_LINK} text-danger`}>
+                  <button type="submit" className={`${AZIONE} text-danger`}>
                     Elimina
                   </button>
                 </form>
               </div>
+            </div>
+
+            <div className="mt-3 border-t border-border pt-3">
+              <PhotoForm itemId={item.id} imageUrl={item.image_url} />
             </div>
 
             <EditItemForm
@@ -122,7 +201,6 @@ export default async function MenuPage() {
               categories={categories}
               otherItems={allNames.filter((o) => o.id !== item.id)}
             />
-            <PhotoForm itemId={item.id} imageUrl={item.image_url} />
           </li>
         ))}
       </ul>
@@ -130,24 +208,55 @@ export default async function MenuPage() {
   }
 
   return (
-    <main className="mx-auto max-w-2xl space-y-6 px-4 py-5">
-      <h1 className="text-lg font-semibold">Menu</h1>
+    <main className="mx-auto max-w-3xl space-y-8 px-4 py-5">
+      <header className="space-y-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h1 className="text-lg font-semibold">Menu</h1>
+          <p className="text-sm text-muted">
+            {items.length} piatti in {categories.length} categorie
+          </p>
+        </div>
+
+        {(senzaAllergeni > 0 || senzaFoto > 0 || nascosti > 0) && (
+          <ul className="flex flex-wrap gap-2 text-xs">
+            {senzaAllergeni > 0 && (
+              <li className="rounded-full border border-amber-400 px-3 py-1 text-amber-700">
+                {senzaAllergeni} senza allergeni — obbligatori per legge
+              </li>
+            )}
+            {senzaFoto > 0 && (
+              <li className="rounded-full border border-border px-3 py-1 text-muted">
+                {senzaFoto} senza foto
+              </li>
+            )}
+            {nascosti > 0 && (
+              <li className="rounded-full border border-border px-3 py-1 text-muted">
+                {nascosti} nascosti al cliente
+              </li>
+            )}
+          </ul>
+        )}
+      </header>
 
       {categories.map((cat, index) => (
-        <section key={cat.id}>
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <section key={cat.id} className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <form action={renameCategory} className="flex min-w-0 flex-1 gap-2">
               <input type="hidden" name="categoryId" value={cat.id} />
               <input
                 name="name"
                 defaultValue={cat.name}
                 aria-label={`Nome della categoria ${cat.name}`}
-                className="min-h-11 w-full min-w-0 flex-1 rounded-lg border border-border bg-background px-3 font-semibold"
+                className="min-h-11 w-full min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-2 text-base font-semibold hover:border-border focus:border-border focus:bg-background"
               />
-              <button type="submit" className="min-h-11 rounded-lg border border-border px-3 text-sm">
+              <button
+                type="submit"
+                className="min-h-11 shrink-0 rounded-lg border border-border px-3 text-sm"
+              >
                 Rinomina
               </button>
             </form>
+
             <div className="flex shrink-0 items-center gap-x-3">
               {index > 0 && (
                 <form
@@ -156,7 +265,11 @@ export default async function MenuPage() {
                     await moveCategory(cat.id, "up");
                   }}
                 >
-                  <button type="submit" aria-label={`Sposta ${cat.name} su`} className={ACTION_LINK}>
+                  <button
+                    type="submit"
+                    aria-label={`Sposta ${cat.name} su`}
+                    className={AZIONE}
+                  >
                     ↑
                   </button>
                 </form>
@@ -168,7 +281,11 @@ export default async function MenuPage() {
                     await moveCategory(cat.id, "down");
                   }}
                 >
-                  <button type="submit" aria-label={`Sposta ${cat.name} giù`} className={ACTION_LINK}>
+                  <button
+                    type="submit"
+                    aria-label={`Sposta ${cat.name} giù`}
+                    className={AZIONE}
+                  >
                     ↓
                   </button>
                 </form>
@@ -179,92 +296,59 @@ export default async function MenuPage() {
                   await deleteCategory(cat.id);
                 }}
               >
-                <button type="submit" className={`${ACTION_LINK} text-danger`}>
+                <button type="submit" className={`${AZIONE} text-danger`}>
                   Elimina categoria
                 </button>
               </form>
             </div>
           </div>
+
           {renderItems(itemsByCategory.get(cat.id) ?? [])}
+
+          <AggiungiPiatto categoryId={cat.id} categoryName={cat.name} />
         </section>
       ))}
 
       {itemsByCategory.get(null) && (
-        <section>
-          <h2 className="mb-2 font-semibold">Senza categoria</h2>
+        <section className="space-y-3">
+          <h2 className="px-2 text-base font-semibold">Senza categoria</h2>
           {renderItems(itemsByCategory.get(null)!)}
         </section>
       )}
 
-      <section className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="mb-2 font-semibold">Importa dalla cassa</h2>
-        <TilbyImportForm connected={Boolean(venueRow?.tilby_token)} />
-      </section>
-
-      <section className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="mb-2 font-semibold">Importa il menu da file</h2>
-        <ImportForm />
-      </section>
-
-      <section className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="mb-2 font-semibold">Aggiungi categoria</h2>
+      <section className="space-y-3 border-t border-border pt-6">
+        <h2 className="font-semibold">Nuova categoria</h2>
         <form action={addCategory} className="flex flex-wrap gap-2">
           <input
             name="name"
-            placeholder="Nome categoria"
+            placeholder="Antipasti, Primi, Dolci…"
             required
             className="min-h-11 w-full min-w-0 flex-1 rounded-lg border border-border bg-background px-3 sm:w-auto"
           />
           <button
             type="submit"
-            className="min-h-11 flex-1 rounded-full bg-accent px-5 font-medium text-accent-foreground active:scale-95 sm:flex-none"
+            className="min-h-11 flex-1 rounded-full bg-accent px-5 font-medium text-accent-foreground sm:flex-none"
           >
-            Aggiungi
+            Aggiungi categoria
           </button>
         </form>
+        {categories.length === 0 && (
+          <AggiungiPiatto categoryId={null} categoryName="nessuna categoria" />
+        )}
       </section>
 
-      <section className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="mb-2 font-semibold">Aggiungi piatto</h2>
-        <p className="mb-3 text-sm text-muted">
-          Nome e prezzo bastano per iniziare. Descrizione, ingredienti,
-          allergeni e abbinamenti si aggiungono da <em>Modifica</em>.
-        </p>
-        <form action={addMenuItem} className="space-y-2">
-          <input
-            name="name"
-            placeholder="Nome piatto"
-            required
-            className="min-h-11 w-full rounded-lg border border-border bg-background px-3"
-          />
-          <input
-            name="price"
-            type="number"
-            step="0.01"
-            min="0"
-            placeholder="Prezzo (€)"
-            required
-            className="min-h-11 w-full rounded-lg border border-border bg-background px-3"
-          />
-          <select
-            name="categoryId"
-            aria-label="Categoria del nuovo piatto"
-            className="min-h-11 w-full rounded-lg border border-border bg-background px-3"
-          >
-            <option value="">Nessuna categoria</option>
-            {categories.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.name}
-              </option>
-            ))}
-          </select>
-          <button
-            type="submit"
-            className="min-h-11 w-full rounded-full bg-accent font-medium text-accent-foreground active:scale-95"
-          >
-            Aggiungi piatto
-          </button>
-        </form>
+      <section className="space-y-4 border-t border-border pt-6">
+        <h2 className="font-semibold">Importa un menu esistente</h2>
+
+        <div className="rounded-xl border border-border bg-surface p-4">
+          <h3 className="mb-2 text-sm font-medium">Dalla cassa</h3>
+          <TilbyImportForm connected={Boolean(venueRow?.tilby_token)} />
+        </div>
+
+        <div className="rounded-xl border border-border bg-surface p-4">
+          <h3 className="mb-2 text-sm font-medium">Da file CSV o TSV</h3>
+          <ImportForm />
+        </div>
       </section>
     </main>
   );

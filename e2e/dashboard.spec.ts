@@ -103,8 +103,13 @@ test("lo stato di una comanda avanza e resta salvato", async ({ page, context })
   await login(page);
   await page.getByRole("link", { name: "Ordini", exact: true }).click();
 
-  await page.getByRole("button", { name: /Segna: In preparazione/ }).first().click();
-  await expect(page.getByText("In preparazione").first()).toBeVisible();
+  // La board raggruppa per tavolo e offre l'azione di gruppo: è il gesto
+  // che si usa davvero in cucina, quindi è quello che il test esercita.
+  await page
+    .getByRole("button", { name: /Tutto in preparazione/ })
+    .first()
+    .click();
+  await expect(page.getByText("In preparazione").first()).toBeVisible({ timeout: 15000 });
 
   // Ricaricando, lo stato deve venire dal DB, non solo dallo state locale.
   await page.reload();
