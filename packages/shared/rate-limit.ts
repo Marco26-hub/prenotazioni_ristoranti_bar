@@ -30,6 +30,14 @@ export async function checkRateLimit(
       end
     returning count`;
 
+  // Pulizia opportunistica: le righe scadute non servono più e senza questo
+  // la tabella cresce all'infinito. Farlo su una richiesta su cento evita sia
+  // un job schedulato (che in serverless andrebbe ospitato da qualche parte)
+  // sia una DELETE su ogni singola chiamata.
+  if (Math.random() < 0.01) {
+    await sql`delete from rate_limits where window_start < now() - interval '1 day'`;
+  }
+
   return { allowed: row.count <= limit, count: row.count };
 }
 

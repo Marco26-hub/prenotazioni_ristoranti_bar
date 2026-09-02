@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@repo/shared/db";
 import { checkRateLimit, clientIp } from "@repo/shared/rate-limit";
 import { createSatispayPayment, getSatispayPayment } from "@repo/shared/satispay";
+import { decryptSecret } from "@repo/shared/crypto";
 import { outstandingBalanceCents } from "@/lib/balance";
 
 interface CreateSatispayBody {
@@ -46,6 +47,7 @@ export async function POST(request: Request) {
       { status: 409 }
     );
   }
+  const satispayPrivateKey = decryptSecret(venue.satispay_private_key);
 
   const origin = new URL(request.url).origin;
   const returnUrl = `${origin}/v/${session.venue_slug}/t/${session.qr_token}`;
@@ -66,7 +68,7 @@ export async function POST(request: Request) {
     const status = await getSatispayPayment(
       existingPending.provider_payment_id,
       venue.satispay_key_id,
-      venue.satispay_private_key
+      satispayPrivateKey
     );
 
     if (status.status === "PENDING" || status.status === "AUTHORIZED") {
@@ -86,7 +88,7 @@ export async function POST(request: Request) {
 
   const payment = await createSatispayPayment({
     keyId: venue.satispay_key_id,
-    privateKeyPem: venue.satispay_private_key,
+    privateKeyPem: satispayPrivateKey,
     amountCents,
     externalCode: session.id,
     callbackUrl: `${origin}/api/webhooks/satispay?payment_id={uuid}&venue_id=${session.venue_id}`,
@@ -113,7 +115,7 @@ export async function POST(request: Request) {
     const winnerStatus = await getSatispayPayment(
       winner.provider_payment_id,
       venue.satispay_key_id,
-      venue.satispay_private_key
+      satispayPrivateKey
     );
     return NextResponse.json({ redirectUrl: winnerStatus.redirect_url });
   }

@@ -186,9 +186,12 @@ create table payments (
   created_at timestamptz default now()
 );
 
--- Un solo pagamento pending per sessione: previene due PaymentIntent
--- Stripe paralleli da doppio tap sul bottone Paga.
-create unique index uq_session_pending_payment on payments (table_session_id) where status = 'pending';
+-- Un solo pagamento a saldo pieno pending per sessione: previene due
+-- PaymentIntent paralleli da doppio tap sul bottone Paga. Limitato a
+-- split_type='full' perché con lo split più commensali pagano davvero in
+-- contemporanea; lì la protezione è il lock sulle righe in payment_order_items.
+create unique index uq_session_pending_full_payment
+  on payments (table_session_id) where status = 'pending' and split_type = 'full';
 
 alter table reservations
   add constraint fk_deposit_payment
@@ -201,6 +204,8 @@ create table payment_order_items (
   amount_cents int not null,
   primary key (payment_id, order_item_id)
 );
+
+create index idx_payment_order_items_item on payment_order_items (order_item_id);
 
 -- ------------------------------------------------------------
 -- FATTURAZIONE ELETTRONICA (via provider esterno, no nodo SDI proprio)

@@ -15,5 +15,6 @@ declare module "next-auth/jwt" {
   interface JWT {
     userId: string;
     venues: VenueMembership[];
+    venuesCheckedAt: number;
   }
 }

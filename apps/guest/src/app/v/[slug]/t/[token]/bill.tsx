@@ -10,11 +10,19 @@ import {
 } from "@stripe/react-stripe-js";
 import { formatPriceCents } from "@repo/shared";
 
+interface UnpaidItem {
+  id: string;
+  name: string;
+  quantity: number;
+  totalCents: number;
+}
+
 interface BillState {
   balanceCents: number;
   currency: string;
   stripeAccountId: string | null;
   satispayEnabled: boolean;
+  unpaidItems: UnpaidItem[];
 }
 
 const stripeCache = new Map<string, Promise<Stripe | null>>();
@@ -34,6 +42,8 @@ export function Bill({ sessionId }: { sessionId: string }) {
   const [tipCents, setTipCents] = useState(0);
   const [paid, setPaid] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [splitMode, setSplitMode] = useState(false);
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
 
   const refreshBill = useCallback(async () => {
     const res = await fetch(`/api/bill?sessionId=${sessionId}`);
@@ -61,7 +71,11 @@ export function Bill({ sessionId }: { sessionId: string }) {
       const res = await fetch("/api/payments/create-intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId, tipCents }),
+        body: JSON.stringify({
+          sessionId,
+          tipCents,
+          ...(splitMode && selectedItems.length > 0 ? { orderItemIds: selectedItems } : {}),
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -108,6 +122,12 @@ export function Bill({ sessionId }: { sessionId: string }) {
 
   if (bill.balanceCents <= 0) return null;
 
+  const payableCents = splitMode
+    ? bill.unpaidItems
+        .filter((i) => selectedItems.includes(i.id))
+        .reduce((sum, i) => sum + i.totalCents, 0)
+    : bill.balanceCents;
+
   return (
     <section className="mt-8 rounded border p-4">
       <h2 className="mb-2 text-lg font-medium">Conto</h2>
@@ -123,6 +143,56 @@ export function Bill({ sessionId }: { sessionId: string }) {
 
       {(bill.stripeAccountId || bill.satispayEnabled) && !clientSecret && (
         <div className="space-y-3">
+          {bill.unpaidItems.length > 1 && (
+            <div className="rounded border p-3">
+              <div className="mb-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSplitMode(false);
+                    setSelectedItems([]);
+                  }}
+                  className={`rounded border px-3 py-1 text-sm ${!splitMode ? "bg-black text-white" : ""}`}
+                >
+                  Pago tutto
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSplitMode(true)}
+                  className={`rounded border px-3 py-1 text-sm ${splitMode ? "bg-black text-white" : ""}`}
+                >
+                  Pago solo i miei piatti
+                </button>
+              </div>
+
+              {splitMode && (
+                <ul className="space-y-1">
+                  {bill.unpaidItems.map((item) => (
+                    <li key={item.id}>
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={selectedItems.includes(item.id)}
+                          onChange={(e) =>
+                            setSelectedItems((prev) =>
+                              e.target.checked
+                                ? [...prev, item.id]
+                                : prev.filter((id) => id !== item.id)
+                            )
+                          }
+                        />
+                        <span>
+                          {item.quantity}× {item.name} —{" "}
+                          {formatPriceCents(item.totalCents, bill.currency)}
+                        </span>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
           <div>
             <label className="mb-1 block text-sm">Mancia (opzionale)</label>
             <div className="flex gap-2">
@@ -145,13 +215,20 @@ export function Bill({ sessionId }: { sessionId: string }) {
             <button
               type="button"
               onClick={startCheckout}
-              className="w-full rounded bg-black py-2 text-white"
+              disabled={splitMode && selectedItems.length === 0}
+              className="w-full rounded bg-black py-2 text-white disabled:opacity-50"
             >
-              Paga con carta — {formatPriceCents(bill.balanceCents + tipCents, bill.currency)}
+              Paga con carta — {formatPriceCents(payableCents + tipCents, bill.currency)}
             </button>
           )}
 
-          {bill.satispayEnabled && (
+          {bill.satispayEnabled && splitMode && (
+            <p className="text-xs text-gray-500">
+              Satispay al momento accetta solo il pagamento dell&apos;intero conto.
+            </p>
+          )}
+
+          {bill.satispayEnabled && !splitMode && (
             <button
               type="button"
               onClick={startSatispayCheckout}

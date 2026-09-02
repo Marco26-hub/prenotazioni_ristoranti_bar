@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@repo/shared/db";
 import { checkRateLimit, clientIp } from "@repo/shared/rate-limit";
-import { outstandingBalanceCents } from "@/lib/balance";
+import { outstandingBalanceCents, unpaidItems } from "@/lib/balance";
 
 export async function GET(request: Request) {
   const { allowed } = await checkRateLimit(`bill:${clientIp(request)}`, 60, 60);
@@ -26,7 +26,10 @@ export async function GET(request: Request) {
     { stripe_account_id: string | null; satispay_key_id: string | null; currency: string }[]
   >`select stripe_account_id, satispay_key_id, currency from venues where id = ${session.venue_id}`;
 
-  const balanceCents = await outstandingBalanceCents(session.id);
+  const [balanceCents, items] = await Promise.all([
+    outstandingBalanceCents(session.id),
+    unpaidItems(session.id),
+  ]);
 
   return NextResponse.json({
     balanceCents,
@@ -34,5 +37,6 @@ export async function GET(request: Request) {
     stripeAccountId: venue?.stripe_account_id ?? null,
     satispayEnabled: Boolean(venue?.satispay_key_id),
     sessionStatus: session.status,
+    unpaidItems: items,
   });
 }

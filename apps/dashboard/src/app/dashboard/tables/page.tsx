@@ -1,7 +1,13 @@
 import QRCode from "qrcode";
 import { db } from "@repo/shared/db";
 import { auth } from "@/auth";
-import { addTable, toggleTableActive } from "./actions";
+import {
+  addTable,
+  toggleTableActive,
+  updateTable,
+  regenerateQrToken,
+  deleteTable,
+} from "./actions";
 
 export default async function TablesPage() {
   const session = await auth();
@@ -47,20 +53,68 @@ export default async function TablesPage() {
               Scarica PNG
             </a>
             <p className="mt-1 break-all text-xs text-gray-500">{t.url}</p>
-            <form
-              action={async () => {
-                "use server";
-                await toggleTableActive(t.id, !t.active);
-              }}
-              className="mt-2"
-            >
-              <button type="submit" className="text-sm underline">
-                {t.active ? "Disattiva" : "Riattiva"}
+
+            <form action={updateTable} className="mt-3 flex gap-1">
+              <input type="hidden" name="tableId" value={t.id} />
+              <input
+                name="code"
+                defaultValue={t.code}
+                required
+                className="w-full min-w-0 rounded border p-1 text-sm"
+              />
+              <input
+                name="seats"
+                type="number"
+                min="1"
+                defaultValue={t.seats}
+                className="w-14 rounded border p-1 text-sm"
+              />
+              <button type="submit" className="rounded border px-2 text-sm">
+                Salva
               </button>
             </form>
+
+            <div className="mt-2 flex flex-wrap justify-center gap-3 text-sm">
+              <form
+                action={async () => {
+                  "use server";
+                  await toggleTableActive(t.id, !t.active);
+                }}
+              >
+                <button type="submit" className="underline">
+                  {t.active ? "Disattiva" : "Riattiva"}
+                </button>
+              </form>
+              <form
+                action={async () => {
+                  "use server";
+                  await regenerateQrToken(t.id);
+                }}
+              >
+                <button type="submit" className="underline">
+                  Rigenera QR
+                </button>
+              </form>
+              <form
+                action={async () => {
+                  "use server";
+                  await deleteTable(t.id);
+                }}
+              >
+                <button type="submit" className="text-red-600 underline">
+                  Elimina
+                </button>
+              </form>
+            </div>
           </li>
         ))}
       </ul>
+
+      <p className="text-xs text-gray-500">
+        Rigenerando il QR gli adesivi già stampati per quel tavolo smettono di
+        funzionare e vanno ristampati. Un tavolo con ordini a storico non viene
+        cancellato ma solo disattivato, per non perdere i dati contabili.
+      </p>
 
       <section className="rounded border p-4">
         <h2 className="mb-2 font-medium">Aggiungi tavolo</h2>

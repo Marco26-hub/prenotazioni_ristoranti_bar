@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
+import { encryptSecret } from "@repo/shared/crypto";
 import { requireRole } from "@/lib/authz";
 
 export async function saveInvoiceSettings(formData: FormData) {
@@ -25,7 +26,8 @@ export async function saveInvoiceSettings(formData: FormData) {
       update venues set
         vat_number = ${vatNumber}, fiscal_code = ${fiscalCode}, regime_fiscale = ${regimeFiscale},
         address = ${address}, address_zip = ${addressZip}, address_city = ${addressCity},
-        address_province = ${addressProvince}, invoice_provider_api_key = ${apiKey}
+        address_province = ${addressProvince},
+        invoice_provider_api_key = ${encryptSecret(apiKey)}
       where id = ${venue.venueId}`;
   } else {
     await sql`

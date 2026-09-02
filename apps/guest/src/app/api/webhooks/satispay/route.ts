@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@repo/shared/db";
 import { getSatispayPayment } from "@repo/shared/satispay";
+import { decryptSecret } from "@repo/shared/crypto";
 import { outstandingBalanceCents } from "@/lib/balance";
 
 /**
@@ -28,7 +29,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Locale non configurato" }, { status: 500 });
   }
 
-  const status = await getSatispayPayment(paymentId, venue.satispay_key_id, venue.satispay_private_key);
+  const status = await getSatispayPayment(
+    paymentId,
+    venue.satispay_key_id,
+    decryptSecret(venue.satispay_private_key)
+  );
 
   if (status.status === "ACCEPTED") {
     const [payment] = await sql<{ id: string; table_session_id: string | null }[]>`

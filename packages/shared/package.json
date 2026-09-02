@@ -8,6 +8,7 @@
     ".": "./index.ts",
     "./db": "./db.ts",
     "./rate-limit": "./rate-limit.ts",
+    "./crypto": "./crypto.ts",
     "./satispay": "./satispay/index.ts"
   },
   "dependencies": {

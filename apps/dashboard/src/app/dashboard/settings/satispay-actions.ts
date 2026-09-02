@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { obtainSatispayKeyId } from "@repo/shared/satispay";
+import { encryptSecret } from "@repo/shared/crypto";
 import { requireRole } from "@/lib/authz";
 
 export async function connectSatispay(formData: FormData) {
@@ -25,7 +26,8 @@ export async function connectSatispay(formData: FormData) {
 
     const sql = db();
     await sql`
-      update venues set satispay_key_id = ${keyId}, satispay_private_key = ${privateKey}
+      update venues set satispay_key_id = ${keyId},
+        satispay_private_key = ${encryptSecret(privateKey)}
       where id = ${venue.venueId}`;
 
     revalidatePath("/dashboard/settings");

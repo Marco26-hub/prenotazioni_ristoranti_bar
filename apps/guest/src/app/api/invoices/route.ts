@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@repo/shared/db";
 import { checkRateLimit, clientIp } from "@repo/shared/rate-limit";
+import { decryptSecret } from "@repo/shared/crypto";
 import { buildFatturaPaJson, type CustomerData } from "@/lib/invoice/fatturapa";
 import { invoicetronicClient } from "@/lib/invoice/invoicetronic-client";
 
@@ -160,7 +161,7 @@ export async function POST(request: Request) {
     invoiceDate: new Date(),
   });
 
-  const client = invoicetronicClient(venue.invoice_provider_api_key);
+  const client = invoicetronicClient(decryptSecret(venue.invoice_provider_api_key));
 
   try {
     // Idempotency-Key stabile sul payment: anche se questa route viene

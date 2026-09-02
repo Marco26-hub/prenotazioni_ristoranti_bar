@@ -74,6 +74,10 @@ function LoginForm() {
           {submitting ? "Accesso..." : "Accedi"}
         </button>
       </form>
+
+      <a href="/registrati" className="mt-4 text-center text-sm underline">
+        Registra un nuovo locale
+      </a>
     </main>
   );
 }
