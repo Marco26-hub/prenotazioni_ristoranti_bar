@@ -44,7 +44,13 @@ export function LiveBoard() {
     const next = NEXT_STATUS[item.status];
     if (!next) return;
     setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, status: next } : i)));
-    await setOrderItemStatus(item.id, next);
+    try {
+      await setOrderItemStatus(item.id, next);
+    } catch {
+      // Server action fallita (sessione scaduta, permessi) — non lasciare
+      // la UI a mostrare uno stato che il DB non ha mai registrato.
+      setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, status: item.status } : i)));
+    }
   };
 
   if (items.length === 0) {

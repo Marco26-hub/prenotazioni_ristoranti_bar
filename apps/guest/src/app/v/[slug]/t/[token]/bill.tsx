@@ -56,17 +56,21 @@ export function Bill({ sessionId }: { sessionId: string }) {
 
   const startCheckout = async () => {
     setError(null);
-    const res = await fetch("/api/payments/create-intent", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId, tipCents }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      setError(data.error ?? "Errore avvio pagamento");
-      return;
+    try {
+      const res = await fetch("/api/payments/create-intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, tipCents }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Errore avvio pagamento");
+        return;
+      }
+      setClientSecret(data.clientSecret);
+    } catch {
+      setError("Connessione assente — riprova.");
     }
-    setClientSecret(data.clientSecret);
   };
 
   if (!bill) return null;
@@ -178,19 +182,24 @@ function InvoiceRequest({ sessionId }: { sessionId: string }) {
         ? { type: "privato" as const, firstName, lastName, fiscalCode }
         : { type: "azienda" as const, companyName, vatNumber };
 
-    const res = await fetch("/api/invoices", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId, customer }),
-    });
-    const data = await res.json();
+    try {
+      const res = await fetch("/api/invoices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, customer }),
+      });
+      const data = await res.json();
 
-    if (!res.ok) {
+      if (!res.ok) {
+        setStatus("error");
+        setError(data.error ?? "Errore invio fattura");
+        return;
+      }
+      setStatus("sent");
+    } catch {
       setStatus("error");
-      setError(data.error ?? "Errore invio fattura");
-      return;
+      setError("Connessione assente — riprova.");
     }
-    setStatus("sent");
   };
 
   if (status === "sent") {

@@ -40,7 +40,18 @@ export async function POST(request: Request) {
       where provider_payment_id = ${intent.id}
       returning id, table_session_id`;
 
-    if (payment?.table_session_id) {
+    if (!payment) {
+      // Un pagamento riuscito lato Stripe che non trova riga da noi è
+      // un'anomalia seria (soldi incassati, nulla registrato) — mai
+      // ritornare 200 qui: Stripe deve ritentare la consegna, e l'errore
+      // deve comparire nei log invece di sparire.
+      console.error(
+        `[stripe-webhook] payment_intent.succeeded senza riga payments corrispondente: ${intent.id}`
+      );
+      return NextResponse.json({ error: "Payment record not found" }, { status: 500 });
+    }
+
+    if (payment.table_session_id) {
       const remaining = await outstandingBalanceCents(payment.table_session_id);
       if (remaining <= 0) {
         await sql`
@@ -52,9 +63,16 @@ export async function POST(request: Request) {
 
   if (event.type === "payment_intent.payment_failed") {
     const intent = event.data.object as { id: string };
-    await sql`
+    const [payment] = await sql<{ id: string }[]>`
       update payments set status = 'failed'
-      where provider_payment_id = ${intent.id}`;
+      where provider_payment_id = ${intent.id}
+      returning id`;
+
+    if (!payment) {
+      console.error(
+        `[stripe-webhook] payment_intent.payment_failed senza riga payments corrispondente: ${intent.id}`
+      );
+    }
   }
 
   return NextResponse.json({ received: true });

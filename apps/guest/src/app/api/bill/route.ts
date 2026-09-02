@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
 import { db } from "@repo/shared/db";
+import { checkRateLimit, clientIp } from "@repo/shared/rate-limit";
 import { outstandingBalanceCents } from "@/lib/balance";
 
 export async function GET(request: Request) {
+  const { allowed } = await checkRateLimit(`bill:${clientIp(request)}`, 60, 60);
+  if (!allowed) {
+    return NextResponse.json({ error: "Troppe richieste" }, { status: 429 });
+  }
+
   const sessionId = new URL(request.url).searchParams.get("sessionId");
   if (!sessionId) {
     return NextResponse.json({ error: "sessionId mancante" }, { status: 400 });

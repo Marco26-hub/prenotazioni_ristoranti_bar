@@ -6,12 +6,14 @@
   "types": "./index.ts",
   "exports": {
     ".": "./index.ts",
-    "./db": "./db.ts"
+    "./db": "./db.ts",
+    "./rate-limit": "./rate-limit.ts"
   },
   "dependencies": {
     "postgres": "^3.4.5"
   },
   "devDependencies": {
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "server-only": "^0.0.1"
   }
 }

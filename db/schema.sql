@@ -88,6 +88,10 @@ create table table_sessions (
   closed_at timestamptz
 );
 
+-- Una sola sessione aperta per tavolo: previene lo split ordini quando due
+-- scansioni dello stesso QR arrivano quasi simultanee (due ospiti allo stesso tavolo).
+create unique index uq_table_open_session on table_sessions (table_id) where status = 'open';
+
 -- ------------------------------------------------------------
 -- MENU
 -- ------------------------------------------------------------
@@ -181,6 +185,10 @@ create table payments (
   created_at timestamptz default now()
 );
 
+-- Un solo pagamento pending per sessione: previene due PaymentIntent
+-- Stripe paralleli da doppio tap sul bottone Paga.
+create unique index uq_session_pending_payment on payments (table_session_id) where status = 'pending';
+
 alter table reservations
   add constraint fk_deposit_payment
   foreign key (deposit_payment_id) references payments(id);
@@ -200,7 +208,8 @@ create table payment_order_items (
 create table invoices (
   id uuid primary key default gen_random_uuid(),
   venue_id uuid references venues(id) not null,
-  payment_id uuid references payments(id) not null,
+  payment_id uuid references payments(id) not null unique, -- 1 fattura per pagamento: previene doppia trasmissione SDI
+  invoice_number int,                    -- progressivo usato nell'XML, per retry coerenti
   customer_fiscal_code text,
   customer_vat_number text,
   customer_sdi_code text,
@@ -224,3 +233,14 @@ create index idx_orders_session on orders(table_session_id);
 create index idx_order_items_order on order_items(order_id);
 create index idx_payments_session on payments(table_session_id);
 create index idx_reservations_venue_date on reservations(venue_id, reserved_at);
+
+-- ------------------------------------------------------------
+-- RATE LIMITING (DB-backed: serverless/Vercel non ha memoria condivisa
+-- tra istanze, quindi un limiter in-process non funzionerebbe)
+-- ------------------------------------------------------------
+
+create table rate_limits (
+  bucket_key text primary key,
+  window_start timestamptz not null default now(),
+  count int not null default 0
+);

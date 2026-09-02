@@ -11,6 +11,8 @@ export default async function TablesPage() {
   const sql = db();
   const [venueRow] = await sql<{ slug: string }[]>`
     select slug from venues where id = ${venue.venueId}`;
+  if (!venueRow) return <main className="p-4">Locale non trovato.</main>;
+
   const tables = await sql<
     { id: string; code: string; seats: number; qr_token: string; active: boolean }[]
   >`select id, code, seats, qr_token, active from tables where venue_id = ${venue.venueId} order by code`;
@@ -19,7 +21,7 @@ export default async function TablesPage() {
 
   const tablesWithQr = await Promise.all(
     tables.map(async (t) => {
-      const url = `${guestAppUrl}/v/${venueRow!.slug}/t/${t.qr_token}`;
+      const url = `${guestAppUrl}/v/${venueRow.slug}/t/${t.qr_token}`;
       const qrDataUrl = await QRCode.toDataURL(url, { width: 240 });
       return { ...t, url, qrDataUrl };
     })

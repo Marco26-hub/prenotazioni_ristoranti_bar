@@ -40,12 +40,25 @@ export async function resolveTableFromQr(
   if (existingSession) {
     sessionId = existingSession.id;
   } else {
-    const [newSession] = await sql<{ id: string }[]>`
-      insert into table_sessions (table_id, venue_id, status)
-      values (${table.id}, ${venue.id}, 'open')
-      returning id`;
-    if (!newSession) return null;
-    sessionId = newSession.id;
+    try {
+      const [newSession] = await sql<{ id: string }[]>`
+        insert into table_sessions (table_id, venue_id, status)
+        values (${table.id}, ${venue.id}, 'open')
+        returning id`;
+      if (!newSession) return null;
+      sessionId = newSession.id;
+    } catch (err) {
+      // Due scansioni dello stesso QR quasi simultanee: l'indice unique su
+      // (table_id) where status='open' fa perdere la seconda insert — non è
+      // un errore, va solo letta la sessione che ha vinto la corsa.
+      const isUniqueViolation = err instanceof Error && "code" in err && err.code === "23505";
+      if (!isUniqueViolation) throw err;
+
+      const [winner] = await sql<{ id: string }[]>`
+        select id from table_sessions where table_id = ${table.id} and status = 'open'`;
+      if (!winner) return null;
+      sessionId = winner.id;
+    }
   }
 
   return {

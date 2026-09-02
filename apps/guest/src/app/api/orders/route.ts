@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@repo/shared/db";
+import { checkRateLimit, clientIp } from "@repo/shared/rate-limit";
 
 interface CreateOrderBody {
   sessionId: string;
@@ -7,6 +8,11 @@ interface CreateOrderBody {
 }
 
 export async function POST(request: Request) {
+  const { allowed } = await checkRateLimit(`orders:${clientIp(request)}`, 20, 60);
+  if (!allowed) {
+    return NextResponse.json({ error: "Troppe richieste, riprova tra poco" }, { status: 429 });
+  }
+
   const body = (await request.json().catch(() => null)) as CreateOrderBody | null;
 
   if (!body?.sessionId || !Array.isArray(body.items) || body.items.length === 0) {

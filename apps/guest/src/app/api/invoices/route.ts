@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@repo/shared/db";
+import { checkRateLimit, clientIp } from "@repo/shared/rate-limit";
 import { buildFatturaPaJson, type CustomerData } from "@/lib/invoice/fatturapa";
 import { invoicetronicClient } from "@/lib/invoice/invoicetronic-client";
 
@@ -8,10 +9,24 @@ interface InvoiceRequestBody {
   customer: CustomerData;
 }
 
+function isValidCustomer(customer: CustomerData): boolean {
+  if (customer.type === "privato") {
+    return Boolean(
+      customer.firstName?.trim() && customer.lastName?.trim() && customer.fiscalCode?.trim()
+    );
+  }
+  return Boolean(customer.companyName?.trim() && customer.vatNumber?.trim());
+}
+
 export async function POST(request: Request) {
+  const { allowed } = await checkRateLimit(`invoices:${clientIp(request)}`, 5, 60);
+  if (!allowed) {
+    return NextResponse.json({ error: "Troppe richieste, riprova tra poco" }, { status: 429 });
+  }
+
   const body = (await request.json().catch(() => null)) as InvoiceRequestBody | null;
-  if (!body?.sessionId || !body.customer) {
-    return NextResponse.json({ error: "Payload non valido" }, { status: 400 });
+  if (!body?.sessionId || !body.customer || !isValidCustomer(body.customer)) {
+    return NextResponse.json({ error: "Dati cliente incompleti" }, { status: 400 });
   }
 
   const sql = db();
@@ -36,6 +51,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Nessun pagamento trovato" }, { status: 409 });
   }
 
+  // Idempotenza: un pagamento ha al massimo una fattura (vincolo unique
+  // su invoices.payment_id). Se è già stata trasmessa con successo,
+  // ritorna quella — mai una seconda chiamata reale a SDI per retry/doppio click.
+  const [existing] = await sql<
+    { id: string; status: string; invoice_number: number | null; provider_invoice_id: string | null }[]
+  >`select id, status, invoice_number, provider_invoice_id from invoices where payment_id = ${payment.id}`;
+
+  if (existing && (existing.status === "sent" || existing.status === "delivered")) {
+    return NextResponse.json({ status: existing.status, invoiceId: existing.provider_invoice_id });
+  }
+
   const [venue] = await sql<
     {
       name: string;
@@ -47,10 +73,9 @@ export async function POST(request: Request) {
       address_city: string | null;
       address_province: string | null;
       invoice_provider_api_key: string | null;
-      invoice_counter: number;
     }[]
   >`select name, vat_number, fiscal_code, regime_fiscale, address, address_zip,
-           address_city, address_province, invoice_provider_api_key, invoice_counter
+           address_city, address_province, invoice_provider_api_key
     from venues where id = ${session.venue_id}`;
 
   if (
@@ -82,13 +107,36 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Nessuna riga da fatturare" }, { status: 409 });
   }
 
-  // Incremento atomico: la numerazione fattura non può avere duplicati,
-  // il pattern read-then-write sarebbe una race condition su due richieste
-  // concorrenti per lo stesso venue.
-  const [{ invoice_counter: invoiceNumber }] = await sql<{ invoice_counter: number }[]>`
-    update venues set invoice_counter = invoice_counter + 1
-    where id = ${session.venue_id}
-    returning invoice_counter`;
+  // La riga invoices va scritta PRIMA di chiamare il provider esterno: se
+  // la trasmissione riesce ma qualcosa fallisce dopo, resta comunque
+  // traccia (stato 'pending' con il numero già assegnato) invece di una
+  // fattura realmente inviata a SDI ma invisibile nel nostro DB.
+  let invoiceRowId: string;
+  let invoiceNumber: number;
+
+  if (existing) {
+    invoiceRowId = existing.id;
+    if (existing.invoice_number) {
+      invoiceNumber = existing.invoice_number;
+    } else {
+      const [{ invoice_counter }] = await sql<{ invoice_counter: number }[]>`
+        update venues set invoice_counter = invoice_counter + 1
+        where id = ${session.venue_id} returning invoice_counter`;
+      invoiceNumber = invoice_counter;
+      await sql`update invoices set invoice_number = ${invoiceNumber} where id = ${invoiceRowId}`;
+    }
+  } else {
+    const [{ invoice_counter }] = await sql<{ invoice_counter: number }[]>`
+      update venues set invoice_counter = invoice_counter + 1
+      where id = ${session.venue_id} returning invoice_counter`;
+    invoiceNumber = invoice_counter;
+
+    const [row] = await sql<{ id: string }[]>`
+      insert into invoices (venue_id, payment_id, invoice_number, status)
+      values (${session.venue_id}, ${payment.id}, ${invoiceNumber}, 'pending')
+      returning id`;
+    invoiceRowId = row.id;
+  }
 
   const invoiceJson = buildFatturaPaJson({
     venue: {
@@ -115,25 +163,30 @@ export async function POST(request: Request) {
   const client = invoicetronicClient(venue.invoice_provider_api_key);
 
   try {
+    // Idempotency-Key stabile sul payment: anche se questa route viene
+    // richiamata più volte (retry client, doppio submit), Invoicetronic
+    // ritorna la risposta della prima trasmissione invece di inviare due
+    // volte la stessa fattura a SDI.
     const { data } = await client.sendJsonPost(invoiceJson, true, "Auto", payment.id);
 
     await sql`
-      insert into invoices (venue_id, payment_id, provider_invoice_id, status, sdi_identifier)
-      values (${session.venue_id}, ${payment.id}, ${String(data.id)}, 'sent', ${data.identifier ?? null})`;
+      update invoices set status = 'sent', provider_invoice_id = ${String(data.id)},
+        sdi_identifier = ${data.identifier ?? null}
+      where id = ${invoiceRowId}`;
 
     return NextResponse.json({ status: "sent", invoiceId: data.id });
   } catch (err) {
-    const message =
+    console.error(`[invoices] invio fallito per payment ${payment.id}:`, err);
+
+    await sql`update invoices set status = 'rejected' where id = ${invoiceRowId}`;
+
+    const detail =
       err instanceof Error && "response" in err
         ? JSON.stringify((err as { response?: { data?: unknown } }).response?.data)
         : err instanceof Error
           ? err.message
           : "Errore invio fattura";
 
-    await sql`
-      insert into invoices (venue_id, payment_id, status)
-      values (${session.venue_id}, ${payment.id}, 'rejected')`;
-
-    return NextResponse.json({ error: "Invio fattura non riuscito", detail: message }, { status: 502 });
+    return NextResponse.json({ error: "Invio fattura non riuscito", detail }, { status: 502 });
   }
 }
