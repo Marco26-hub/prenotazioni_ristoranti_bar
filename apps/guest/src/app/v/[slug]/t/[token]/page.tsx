@@ -118,15 +118,14 @@ export default async function TablePage({
             )}
             <h1 className="truncate text-lg font-semibold tracking-tight">{venue.name}</h1>
           </div>
-          <span className="shrink-0 rounded-full bg-accent px-3 py-1.5 text-center text-xs font-medium text-accent-foreground">
-            <span className="block text-[10px] uppercase tracking-wider opacity-75">Codice tavolo</span>
-            <span className="block">{resolved.table.code}</span>
+          <span className="shrink-0 rounded-lg border border-accent bg-accent px-3 py-1.5 text-center text-xs font-medium text-accent-foreground">
+            <span className="block text-[10px] uppercase tracking-wider opacity-80">Tavolo</span>
+            <span className="block text-base font-semibold">{resolved.table.code}</span>
           </span>
           </div>
           <nav className="mt-3 flex gap-2" aria-label="Navigazione tavolo">
-            <a href="#ordine" className="rounded-full bg-accent px-4 py-2 text-sm font-medium text-accent-foreground">Ordina</a>
-            <a href="#conto" className="rounded-full border border-border px-4 py-2 text-sm font-medium">Il conto</a>
-            <a href={`/m/${slug}`} className="rounded-full border border-border px-4 py-2 text-sm text-muted">Menu</a>
+            <a href="#ordine" className="rounded-full border border-border px-4 py-2 text-sm font-medium">Menu e ordine</a>
+            <a href="#conto" className="rounded-full bg-accent px-4 py-2 text-sm font-medium text-accent-foreground">Paga ora</a>
           </nav>
         </div>
       </header>

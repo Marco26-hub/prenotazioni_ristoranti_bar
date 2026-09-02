@@ -18,8 +18,9 @@ test("il tavolo mostra il menu del locale", async ({ page }) => {
   await page.goto(`${GUEST_URL}/v/${venue.slug}/t/${venue.qrToken}`);
 
   await expect(page.getByRole("heading", { name: "E2E Test Venue" })).toBeVisible();
-  await expect(page.getByText("Codice tavolo")).toBeVisible();
+  await expect(page.getByText("Tavolo", { exact: true })).toBeVisible();
   await expect(page.getByText("T1", { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Paga ora" })).toHaveAttribute("href", "#conto");
   await expect(page.getByText(venue.menuItemName)).toBeVisible();
   await expect(page.getByText("15,00 €").first()).toBeVisible();
 });
@@ -29,6 +30,12 @@ test("il menu pubblico apre i dettagli e non contiene la prenotazione", async ({
 
   await expect(page.getByRole("heading", { name: "E2E Test Venue" })).toBeVisible();
   await expect(page.getByRole("link", { name: /prenota/i })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Dolci", exact: true }).click();
+  await expect(page.getByText("Dolce Test")).toBeVisible();
+  await expect(page.getByText(venue.menuItemName)).toHaveCount(0);
+  await page.getByRole("button", { name: "Tutti", exact: true }).click();
+  await expect(page.getByText(venue.menuItemName)).toBeVisible();
 
   await page.getByRole("button", { name: `Apri dettagli di ${venue.menuItemName}` }).click();
   await expect(page.getByRole("dialog", { name: venue.menuItemName })).toBeVisible();

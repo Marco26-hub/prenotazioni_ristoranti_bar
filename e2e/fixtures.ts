@@ -62,6 +62,15 @@ export async function createTestVenue(): Promise<TestVenue> {
       insert into menu_items (venue_id, category_id, name, price_cents, vat_rate, sort_order)
       values (${venue.id}, ${category.id}, 'Piatto Test', 1500, 10, 1)`;
 
+    const [dessertCategory] = await sql<{ id: string }[]>`
+      insert into menu_categories (venue_id, name, sort_order)
+      values (${venue.id}, 'Dolci', 2)
+      returning id`;
+
+    await sql`
+      insert into menu_items (venue_id, category_id, name, price_cents, vat_rate, sort_order)
+      values (${venue.id}, ${dessertCategory.id}, 'Dolce Test', 700, 10, 1)`;
+
     return {
       venueId: venue.id,
       userId: user.id,

@@ -21,8 +21,16 @@ Il template pubblico del menu ora usa una grafica premium editoriale: fondo
 avorio pulito, superfici calde, ombre leggere, gerarchia tipografica serif
 per nome locale e sezioni, card fotografiche coerenti e tema Giorno/Notte
 automatico per fascia oraria, con comando manuale. La navigazione categorie
-resta visibile durante lo scorrimento. Il menu non contiene prenotazioni:
-quelle vivono nella pagina dedicata `/p/[slug]`.
+resta visibile e ora filtra davvero la carta: `Tutti` mostra tutto, una
+categoria mostra soltanto le proprie voci. Il footer espone dati del locale,
+telefono, email, indicazioni stradali e collegamenti legali senza valori
+fittizi. Il menu non contiene prenotazioni: quelle vivono nella pagina
+dedicata `/p/[slug]`.
+
+L'app privata aperta dal QR evidenzia sempre il codice del tavolo e offre in
+testata i due percorsi operativi `Menu e ordine` e `Paga ora`. Il pagamento
+non compare nel menu pubblico `/m/[slug]`, che non ha una sessione tavolo e
+non deve poter attribuire un incasso alla persona o al conto sbagliato.
 
 La shell del gestionale usa la stessa identita cromatica in una variante piu
 neutra e operativa: header sticky, navigazione leggibile, focus da tastiera,
@@ -140,7 +148,10 @@ Tutto quanto segue esiste, è in produzione e passa i test.
 
 **Menu.** Categorie e piatti con foto, descrizione, ingredienti, allergeni,
 diciture dietetiche, abbinamento suggerito, IVA per voce. Riordino,
-rinomina, disattivazione. Import da CSV/TSV e dal listino Tilby.
+rinomina, disattivazione. Il prezzo si modifica direttamente dalla riga;
+`Duplica` copia scheda, foto, traduzioni e varianti e crea una voce pronta da
+ritoccare. L'inserimento rapido distingue chiaramente nome, prezzo e categoria.
+Import da CSV/TSV e dal listino Tilby.
 
 **Modelli per formato di locale.** Undici formati — ristorante, pizzeria,
 pizza al trancio, piadineria, steak house, paninoteca, hamburgeria, bar,
@@ -279,15 +290,17 @@ isolato, ordinano, pagano, chiudono e si ripuliscono. Vanno eseguiti con
 
 ### Percorsi cliente
 
-- `/m/[slug]`: carta pubblica indicizzabile, foto e popup dei piatti. Nessun
-  ordine, pagamento o prenotazione.
+- `/m/[slug]`: carta pubblica indicizzabile, filtro reale per categoria, foto,
+  popup dei piatti e informazioni del locale. Nessun ordine, pagamento o
+  prenotazione.
 - `/p/[slug]`: pagina pubblica per prenotare il tavolo, separata dal menu e
   collegata al menu del locale.
 - `/dashboard/reservations`: gestione admin delle richieste con calendario,
   conferma o rifiuto, coperti, arrivo e no-show.
-- `/v/[slug]/t/[token]`: applicazione privata aperta dal QR del tavolo. Qui
-  il cliente ordina, vede il conto e paga. Dopo il saldo compaiono ricevuta
-  di pagamento e richiesta fattura elettronica.
+- `/v/[slug]/t/[token]`: applicazione privata aperta dal QR del tavolo. Mostra
+  in modo permanente il codice tavolo; qui il cliente ordina, vede il conto e
+  usa `Paga ora`. Dopo il saldo compaiono ricevuta di pagamento e richiesta
+  fattura elettronica.
 - `/api/receipts/[sessionId]`: ricevuta di cortesia stampabile o salvabile
   in PDF; non è uno scontrino fiscale.
 

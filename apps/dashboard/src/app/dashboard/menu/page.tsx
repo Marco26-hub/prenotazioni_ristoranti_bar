@@ -1,6 +1,5 @@
 import { db } from "@repo/shared/db";
 import { auth } from "@/auth";
-import { formatPriceCents } from "@repo/shared";
 import {
   addCategory,
   toggleItemAvailable,
@@ -9,6 +8,8 @@ import {
   updateCategory,
   moveMenuItem,
   moveCategory,
+  updateMenuItemPrice,
+  duplicateMenuItem,
 } from "./actions";
 import { ImportForm } from "./import-form";
 import { PhotoForm } from "./photo-form";
@@ -122,9 +123,6 @@ export default async function MenuPage() {
               <div className="min-w-0 flex-1">
                 <p className="flex flex-wrap items-baseline gap-x-2">
                   <span className="font-medium">{item.name}</span>
-                  <span className="tabular-nums text-muted">
-                    {formatPriceCents(item.price_cents)}
-                  </span>
                   <span className="text-xs text-muted">
                     IVA {Number(item.vat_rate)}%
                   </span>
@@ -185,59 +183,105 @@ export default async function MenuPage() {
                 </div>
               </div>
 
-              <div className="flex shrink-0 flex-wrap items-center gap-x-3">
-                {index > 0 && (
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
+                <form
+                  action={updateMenuItemPrice}
+                  className="flex items-end gap-2 rounded-lg border border-border bg-background p-2"
+                >
+                  <input type="hidden" name="itemId" value={item.id} />
+                  <label className="text-xs font-medium text-muted">
+                    Prezzo
+                    <span className="mt-1 flex min-h-10 items-center rounded-md border border-border bg-surface px-2">
+                      <input
+                        name="price"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        required
+                        defaultValue={(item.price_cents / 100).toFixed(2)}
+                        aria-label={`Prezzo di ${item.name}`}
+                        className="w-20 bg-transparent text-right text-sm font-semibold tabular-nums outline-none"
+                      />
+                      <span className="ml-1 text-sm">€</span>
+                    </span>
+                  </label>
+                  <button
+                    type="submit"
+                    aria-label={`Salva prezzo di ${item.name}`}
+                    className="min-h-10 rounded-md bg-accent px-3 text-sm font-medium text-accent-foreground"
+                  >
+                    Salva
+                  </button>
+                </form>
+
+                <div className="flex flex-wrap items-center gap-x-3">
+                  {index > 0 && (
+                    <form
+                      action={async () => {
+                        "use server";
+                        await moveMenuItem(item.id, "up");
+                      }}
+                    >
+                      <button
+                        type="submit"
+                        aria-label={`Sposta ${item.name} su`}
+                        className={AZIONE}
+                      >
+                        ↑
+                      </button>
+                    </form>
+                  )}
+                  {index < list.length - 1 && (
+                    <form
+                      action={async () => {
+                        "use server";
+                        await moveMenuItem(item.id, "down");
+                      }}
+                    >
+                      <button
+                        type="submit"
+                        aria-label={`Sposta ${item.name} giù`}
+                        className={AZIONE}
+                      >
+                        ↓
+                      </button>
+                    </form>
+                  )}
                   <form
                     action={async () => {
                       "use server";
-                      await moveMenuItem(item.id, "up");
+                      await toggleItemAvailable(item.id, !item.available);
+                    }}
+                  >
+                    <button type="submit" className={AZIONE}>
+                      {item.available ? "Nascondi" : "Riattiva"}
+                    </button>
+                  </form>
+                  <form
+                    action={async () => {
+                      "use server";
+                      await duplicateMenuItem(item.id);
                     }}
                   >
                     <button
                       type="submit"
-                      aria-label={`Sposta ${item.name} su`}
+                      aria-label={`Duplica ${item.name}`}
                       className={AZIONE}
                     >
-                      ↑
+                      Duplica
                     </button>
                   </form>
-                )}
-                {index < list.length - 1 && (
                   <form
                     action={async () => {
                       "use server";
-                      await moveMenuItem(item.id, "down");
+                      await deleteMenuItem(item.id);
                     }}
                   >
-                    <button
-                      type="submit"
-                      aria-label={`Sposta ${item.name} giù`}
-                      className={AZIONE}
-                    >
-                      ↓
+                    <button type="submit" className={`${AZIONE} text-danger`}>
+                      Elimina
                     </button>
                   </form>
-                )}
-                <form
-                  action={async () => {
-                    "use server";
-                    await toggleItemAvailable(item.id, !item.available);
-                  }}
-                >
-                  <button type="submit" className={AZIONE}>
-                    {item.available ? "Nascondi" : "Riattiva"}
-                  </button>
-                </form>
-                <form
-                  action={async () => {
-                    "use server";
-                    await deleteMenuItem(item.id);
-                  }}
-                >
-                  <button type="submit" className={`${AZIONE} text-danger`}>
-                    Elimina
-                  </button>
-                </form>
+                </div>
               </div>
             </div>
 

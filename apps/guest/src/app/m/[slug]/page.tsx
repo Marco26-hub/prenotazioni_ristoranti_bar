@@ -7,7 +7,7 @@ import { SelettoreLingua } from "./selettore-lingua";
 import { Assistente } from "./assistente";
 import { AnnuncioLocale } from "../../v/[slug]/t/[token]/annuncio";
 import { annuncioAttivo } from "@/lib/annuncio";
-import { MenuItemCard } from "./menu-item-card";
+import { MenuCategories } from "./menu-categories";
 import { TemaMenu } from "./tema-menu";
 import { hasModulo } from "@repo/shared";
 
@@ -189,8 +189,22 @@ export default async function PublicMenuPage({
     ? ({ "--accent": venue.brand_color } as React.CSSProperties)
     : undefined;
 
+  const categorieConVoci = categories
+    .map((category) => ({
+      id: category.id,
+      name: category.name,
+      items: (itemsByCategory.get(category.id) ?? []).map((item) => ({
+        id: item.id,
+        name: item.name,
+        description: item.description,
+        priceCents: item.price_cents,
+        imageUrl: item.ha_foto ? `/api/foto/${item.id}` : null,
+      })),
+    }))
+    .filter((category) => category.items.length > 0);
+
   return (
-    <div className="menu-shell flex min-h-full flex-col" style={brandStyle}>
+    <div id="inizio" className="menu-shell flex min-h-full flex-col" style={brandStyle}>
       {annuncio && <AnnuncioLocale annuncio={annuncio} venueSlug={slug} />}
 
       {venue.assistant_enabled && (
@@ -238,72 +252,67 @@ export default async function PublicMenuPage({
         </div>
       </header>
 
-      <nav className="menu-category-nav sticky top-0 z-20 border-b border-border" aria-label="Categorie del menu">
-        <div className="mx-auto flex max-w-5xl gap-2 overflow-x-auto px-4 py-3 sm:px-6">
-          {categories.map((cat) => (
-            <a key={cat.id} href={`#categoria-${cat.id}`} className="shrink-0 rounded-full px-4 py-2 text-sm font-medium hover:bg-surface">
-              {cat.name}
-            </a>
-          ))}
-          <a href="#informazioni" className="shrink-0 rounded-full px-4 py-2 text-sm text-muted hover:bg-surface">Info</a>
-        </div>
-      </nav>
-
-      <main id="menu" className="mx-auto w-full max-w-5xl flex-1 space-y-12 px-4 py-9 sm:px-6 sm:py-12">
-        {categories.map((cat) => {
-          const catItems = itemsByCategory.get(cat.id) ?? [];
-          if (catItems.length === 0) return null;
-          return (
-            <section key={cat.id} id={`categoria-${cat.id}`} className="scroll-mt-20">
-              <div className="mb-4 flex items-center gap-4">
-                <h2 className="menu-section-title shrink-0 font-semibold text-pretty">
-                  {cat.name}
-                </h2>
-                <span className="menu-section-rule h-px flex-1" aria-hidden="true" />
-              </div>
-              <ul className="grid gap-4 sm:grid-cols-2">
-                {catItems.map((item) => (
-                  <MenuItemCard
-                    key={item.id}
-                    name={item.name}
-                    description={item.description}
-                    priceCents={item.price_cents}
-                    currency={venue.currency}
-                    imageUrl={item.ha_foto ? `/api/foto/${item.id}` : null}
-                  />
-                ))}
-              </ul>
-            </section>
-          );
-        })}
-
-        {items.length === 0 && (
-          <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted">
-            Il menu non è ancora pubblicato.
-          </p>
-        )}
-
-      </main>
+      <MenuCategories categories={categorieConVoci} currency={venue.currency} />
 
       <footer id="informazioni" className="mx-auto w-full max-w-5xl scroll-mt-20 px-4 pb-10 pt-2 sm:px-6">
-        <div className="space-y-2 border-t border-border pt-6 text-sm text-muted">
-          <p className="font-medium text-foreground">{venue.name}</p>
-          {address && <p>{address}</p>}
-          <p className="flex flex-wrap justify-center gap-x-4">
-            <a href={`/privacy/${slug}`} className="inline-block py-1.5 underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
-              Privacy
-            </a>
-            <a href="/cookie" className="inline-block py-1.5 underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
-              Cookie
-            </a>
-          </p>
-          {venue.public_phone && (
-            <p>
-              <a href={`tel:${venue.public_phone}`} className="inline-block py-1.5 underline underline-offset-2">
-                {venue.public_phone}
+        <div className="grid gap-8 border-t border-border py-8 text-sm sm:grid-cols-3">
+          <section aria-labelledby="footer-locale">
+            <h2 id="footer-locale" className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-muted">
+              Il locale
+            </h2>
+            <p className="font-semibold text-foreground">{venue.name}</p>
+            {address && <p className="mt-2 leading-relaxed text-muted">{address}</p>}
+            {address && (
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-2 inline-block py-1 font-medium text-accent underline underline-offset-4"
+              >
+                Apri le indicazioni
               </a>
-            </p>
-          )}
+            )}
+          </section>
+
+          <section aria-labelledby="footer-contatti">
+            <h2 id="footer-contatti" className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-muted">
+              Contatti
+            </h2>
+            <div className="space-y-1 text-muted">
+              {venue.public_phone ? (
+                <p>
+                  <a href={`tel:${venue.public_phone}`} className="inline-block py-1.5 underline underline-offset-4">
+                    Chiama {venue.public_phone}
+                  </a>
+                </p>
+              ) : (
+                <p>Contatti disponibili presso il locale.</p>
+              )}
+              {venue.public_email && (
+                <p>
+                  <a href={`mailto:${venue.public_email}`} className="inline-block break-all py-1.5 underline underline-offset-4">
+                    {venue.public_email}
+                  </a>
+                </p>
+              )}
+            </div>
+          </section>
+
+          <nav aria-label="Informazioni legali">
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-muted">
+              Informazioni
+            </h2>
+            <ul className="space-y-1 text-muted">
+              <li><a href={`/privacy/${slug}`} className="inline-block py-1.5 underline underline-offset-4">Privacy del locale</a></li>
+              <li><a href="/termini" className="inline-block py-1.5 underline underline-offset-4">Termini di servizio</a></li>
+              <li><a href="/cookie" className="inline-block py-1.5 underline underline-offset-4">Informativa cookie</a></li>
+              <li><a href="#inizio" className="inline-block py-1.5 font-medium text-accent underline underline-offset-4">Torna all&apos;inizio</a></li>
+            </ul>
+          </nav>
+        </div>
+        <div className="flex flex-wrap justify-between gap-2 border-t border-border pt-5 text-xs text-muted">
+          <p>© {new Date().getFullYear()} {venue.name}</p>
+          <p>Menu e prezzi aggiornati dal locale.</p>
         </div>
       </footer>
     </div>

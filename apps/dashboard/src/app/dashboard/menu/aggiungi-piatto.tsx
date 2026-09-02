@@ -33,9 +33,9 @@ export function AggiungiPiatto({
           // scrivere, non cercare il campo.
           requestAnimationFrame(() => nomeRef.current?.focus());
         }}
-        className="flex min-h-11 w-full items-center justify-center rounded-xl border border-dashed border-border text-sm text-muted hover:border-accent hover:text-foreground"
+        className="flex min-h-12 w-full items-center justify-center rounded-lg border border-dashed border-accent bg-accent/5 px-4 text-sm font-medium text-foreground hover:bg-accent/10"
       >
-        + Aggiungi piatto in {categoryName}
+        + Nuovo piatto o bevanda in {categoryName}
       </button>
     );
   }
@@ -48,44 +48,56 @@ export function AggiungiPiatto({
         formRef.current?.reset();
         nomeRef.current?.focus();
       }}
-      className="flex flex-wrap gap-2 rounded-xl border border-border bg-surface p-3"
+      className="rounded-lg border border-accent bg-surface p-4"
     >
       {categoryId && <input type="hidden" name="categoryId" value={categoryId} />}
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <h3 className="font-semibold">Nuova voce</h3>
+          <p className="text-xs text-muted">Categoria: {categoryName}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setAperto(false)}
+          className="min-h-10 px-2 text-sm text-muted underline underline-offset-4"
+        >
+          Annulla
+        </button>
+      </div>
 
-      <input
-        ref={nomeRef}
-        name="name"
-        placeholder={`Nome del piatto`}
-        required
-        className="min-h-11 w-full min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-sm sm:w-auto"
-      />
-      <input
-        name="price"
-        type="number"
-        step="0.01"
-        min="0"
-        placeholder="€"
-        required
-        aria-label="Prezzo"
-        className="min-h-11 w-24 rounded-lg border border-border bg-background px-3 text-sm"
-      />
-      <button
-        type="submit"
-        className="min-h-11 flex-1 rounded-full bg-accent px-5 text-sm font-medium text-accent-foreground sm:flex-none"
-      >
-        Aggiungi
-      </button>
-      <button
-        type="button"
-        onClick={() => setAperto(false)}
-        className="flex min-h-11 items-center px-3 text-sm text-muted underline"
-      >
-        Chiudi
-      </button>
+      <div className="grid gap-3 sm:grid-cols-[1fr_8rem_auto] sm:items-end">
+        <label className="text-xs font-medium text-muted">
+          Nome
+          <input
+            ref={nomeRef}
+            name="name"
+            placeholder="Es. Acqua naturale 0,75 L"
+            required
+            className="mt-1 min-h-11 w-full rounded-lg border border-border bg-background px-3 text-sm"
+          />
+        </label>
+        <label className="text-xs font-medium text-muted">
+          Prezzo (€)
+          <input
+            name="price"
+            type="number"
+            step="0.01"
+            min="0"
+            placeholder="0,00"
+            required
+            className="mt-1 min-h-11 w-full rounded-lg border border-border bg-background px-3 text-sm"
+          />
+        </label>
+        <button
+          type="submit"
+          className="min-h-11 rounded-lg bg-accent px-5 text-sm font-medium text-accent-foreground"
+        >
+          Crea voce
+        </button>
+      </div>
 
-      <p className="w-full text-xs text-muted">
-        Descrizione, allergeni e foto si aggiungono poi da <em>Modifica</em>.
-        Il campo resta aperto: puoi inserirne uno dopo l&apos;altro.
+      <p className="mt-3 text-xs text-muted">
+        Dopo la creazione usa “Modifica” per foto, descrizione, allergeni e varianti.
       </p>
     </form>
   );

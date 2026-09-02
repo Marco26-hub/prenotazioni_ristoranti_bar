@@ -45,6 +45,110 @@ export async function addMenuItem(formData: FormData) {
   revalidatePath("/dashboard/menu");
 }
 
+export async function updateMenuItemPrice(formData: FormData) {
+  const { venue } = await requireRole(["owner", "manager"]);
+  const itemId = String(formData.get("itemId") ?? "");
+  const priceEuro = Number.parseFloat(String(formData.get("price") ?? ""));
+  if (!itemId || !Number.isFinite(priceEuro) || priceEuro < 0) return;
+
+  const sql = db();
+  await sql`
+    update menu_items
+       set price_cents = ${Math.round(priceEuro * 100)}
+     where id = ${itemId} and venue_id = ${venue.venueId}`;
+  revalidatePath("/dashboard/menu");
+}
+
+/**
+ * Duplica la scheda completa e le sue varianti. La copia resta accanto
+ * all'originale, così il ristoratore può aprirla e cambiare solo i campi
+ * che distinguono la nuova voce.
+ */
+export async function duplicateMenuItem(itemId: string) {
+  const { venue } = await requireRole(["owner", "manager"]);
+  const sql = db();
+
+  await sql.begin(async (tx) => {
+    const [source] = await tx<
+      { id: string; category_id: string | null; sort_order: number | null }[]
+    >`
+      select id, category_id, sort_order
+        from menu_items
+       where id = ${itemId} and venue_id = ${venue.venueId}
+       for update`;
+    if (!source) return;
+
+    const nextOrder = (source.sort_order ?? 0) + 1;
+    await tx`
+      update menu_items
+         set sort_order = coalesce(sort_order, 0) + 1
+       where venue_id = ${venue.venueId}
+         and category_id is not distinct from ${source.category_id}
+         and coalesce(sort_order, 0) >= ${nextOrder}`;
+
+    const [copy] = await tx<{ id: string }[]>`
+      insert into menu_items (
+        venue_id, category_id, name, description, price_cents, vat_rate,
+        image_url, allergens, dietary_tags, ingredients, kind, producer,
+        vintage, denomination, origin, abv, serving_note, subcategory,
+        product_style, format, grape_variety, service_type, conservation,
+        origin_note, translations, pairing_item_id, available, sort_order
+      )
+      select venue_id, category_id, 'Copia di ' || name, description,
+             price_cents, vat_rate, image_url, allergens, dietary_tags,
+             ingredients, kind, producer, vintage, denomination, origin,
+             abv, serving_note, subcategory, product_style, format,
+             grape_variety, service_type, conservation, origin_note,
+             translations, pairing_item_id, available, ${nextOrder}
+        from menu_items
+       where id = ${source.id} and venue_id = ${venue.venueId}
+      returning id`;
+    if (!copy) return;
+
+    const groups = await tx<
+      {
+        id: string;
+        name: string;
+        kind: string;
+        required: boolean;
+        min_choices: number;
+        max_choices: number;
+        sort_order: number;
+        translations: object;
+      }[]
+    >`
+      select id, name, kind, required, min_choices, max_choices, sort_order,
+             translations
+        from menu_option_groups
+       where menu_item_id = ${source.id}
+       order by sort_order`;
+
+    for (const group of groups) {
+      const [newGroup] = await tx<{ id: string }[]>`
+        insert into menu_option_groups (
+          venue_id, menu_item_id, name, kind, required, min_choices,
+          max_choices, sort_order, translations
+        ) values (
+          ${venue.venueId}, ${copy.id}, ${group.name}, ${group.kind},
+          ${group.required}, ${group.min_choices}, ${group.max_choices},
+          ${group.sort_order}, ${tx.json(group.translations as never)}
+        ) returning id`;
+
+      await tx`
+        insert into menu_options (
+          group_id, name, price_delta_cents, available, sort_order,
+          translations
+        )
+        select ${newGroup.id}, name, price_delta_cents, available, sort_order,
+               translations
+          from menu_options
+         where group_id = ${group.id}`;
+    }
+  });
+
+  revalidatePath("/dashboard/menu");
+}
+
 /**
  * Modifica di un piatto già a menu.
  *
