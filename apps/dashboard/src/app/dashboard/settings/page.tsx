@@ -5,6 +5,7 @@ import { ConnectStripeButton } from "./connect-stripe-button";
 import { saveInvoiceSettings } from "./invoice-actions";
 import { SatispayForm } from "./satispay-form";
 import { PasswordForm } from "./password-form";
+import { TilbyForm } from "./tilby-form";
 import { BrandForm } from "./brand-form";
 
 export default async function SettingsPage() {
@@ -20,6 +21,7 @@ export default async function SettingsPage() {
       brand_color: string | null;
       public_phone: string | null;
       public_email: string | null;
+      tilby_shop_name: string | null;
       tips_enabled: boolean;
       tip_percents: number[] | null;
       google_review_url: string | null;
@@ -35,7 +37,7 @@ export default async function SettingsPage() {
       invoice_provider_api_key: string | null;
     }[]
   >`select name, logo_url, brand_color, public_phone, public_email,
-           tips_enabled, tip_percents, google_review_url,
+           tilby_shop_name, tips_enabled, tip_percents, google_review_url,
            stripe_account_id, satispay_key_id, vat_number, fiscal_code, regime_fiscale,
            address, address_zip, address_city, address_province, invoice_provider_api_key
     from venues where id = ${venue.venueId}`;
@@ -120,6 +122,25 @@ export default async function SettingsPage() {
             <SatispayForm />
           </div>
         )}
+      </section>
+
+      <section className="rounded-xl border border-border bg-surface p-4">
+        <h2 className="mb-1 font-semibold">Gestionale di cassa (Tilby)</h2>
+        <p className="mb-3 text-sm text-muted">
+          Collegando la cassa puoi importare il menu che hai già, con prezzi e
+          aliquote IVA corretti, senza reinserirlo a mano. Il token si ottiene
+          aderendo al{" "}
+          <a
+            href="https://developer.tilby.com/docs"
+            target="_blank"
+            rel="noreferrer"
+            className="underline"
+          >
+            Developer Program di Tilby
+          </a>
+          , che prevede approvazione e costi propri.
+        </p>
+        <TilbyForm shopName={venueRow?.tilby_shop_name ?? null} />
       </section>
 
       <section className="rounded-xl border border-border bg-surface p-4">

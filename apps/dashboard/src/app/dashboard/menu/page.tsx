@@ -4,6 +4,7 @@ import { formatPriceCents } from "@repo/shared";
 import { addCategory, addMenuItem, toggleItemAvailable, deleteMenuItem } from "./actions";
 import { ImportForm } from "./import-form";
 import { PhotoForm } from "./photo-form";
+import { TilbyImportForm } from "./tilby-import-form";
 
 export default async function MenuPage() {
   const session = await auth();
@@ -20,6 +21,9 @@ export default async function MenuPage() {
   }
 
   const sql = db();
+  const [venueRow] = await sql<{ tilby_token: string | null }[]>`
+    select tilby_token from venues where id = ${venue.venueId}`;
+
   const categories = await sql<{ id: string; name: string }[]>`
     select id, name from menu_categories where venue_id = ${venue.venueId} order by sort_order`;
   const items = await sql<ItemRow[]>`
@@ -58,6 +62,11 @@ export default async function MenuPage() {
           </ul>
         </section>
       )}
+
+      <section className="rounded-xl border border-border bg-surface p-4">
+        <h2 className="mb-2 font-semibold">Importa dalla cassa</h2>
+        <TilbyImportForm connected={Boolean(venueRow?.tilby_token)} />
+      </section>
 
       <section className="rounded-xl border border-border bg-surface p-4">
         <h2 className="mb-2 font-semibold">Importa il menu da file</h2>
