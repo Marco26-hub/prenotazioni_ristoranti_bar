@@ -229,10 +229,9 @@ export function MenuItemCard({
                   <strong className="font-medium">
                     * {CONSERVAZIONE_ETICHETTA[conservation]}.
                   </strong>{" "}
-                  Prodotto {CONSERVAZIONE_ETICHETTA[conservation].toLowerCase()}
                   {conservation === "abbattuto"
-                    ? ", sottoposto ad abbattimento rapido di temperatura come previsto dal Reg. CE 853/2004."
-                    : ", in assenza di reperibilità del fresco."}
+                    ? "Sottoposto ad abbattimento rapido di temperatura come previsto dal Reg. CE 853/2004."
+                    : "Prodotto non fresco, utilizzato in assenza di reperibilità del prodotto fresco."}
                 </p>
               )}
 
