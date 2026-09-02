@@ -23,8 +23,8 @@ export async function GET(request: Request) {
   }
 
   const [venue] = await sql<
-    { stripe_account_id: string | null; currency: string }[]
-  >`select stripe_account_id, currency from venues where id = ${session.venue_id}`;
+    { stripe_account_id: string | null; satispay_key_id: string | null; currency: string }[]
+  >`select stripe_account_id, satispay_key_id, currency from venues where id = ${session.venue_id}`;
 
   const balanceCents = await outstandingBalanceCents(session.id);
 
@@ -32,6 +32,7 @@ export async function GET(request: Request) {
     balanceCents,
     currency: venue?.currency ?? "EUR",
     stripeAccountId: venue?.stripe_account_id ?? null,
+    satispayEnabled: Boolean(venue?.satispay_key_id),
     sessionStatus: session.status,
   });
 }

@@ -14,6 +14,7 @@ interface BillState {
   balanceCents: number;
   currency: string;
   stripeAccountId: string | null;
+  satispayEnabled: boolean;
 }
 
 const stripeCache = new Map<string, Promise<Stripe | null>>();
@@ -73,6 +74,27 @@ export function Bill({ sessionId }: { sessionId: string }) {
     }
   };
 
+  const startSatispayCheckout = async () => {
+    setError(null);
+    try {
+      const res = await fetch("/api/payments/create-satispay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, tipCents }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Errore avvio pagamento Satispay");
+        return;
+      }
+      // Satispay non offre un widget embeddable: il pagamento si completa
+      // sulla loro pagina/app, poi torna sul redirect_url configurato.
+      window.location.href = data.redirectUrl;
+    } catch {
+      setError("Connessione assente — riprova.");
+    }
+  };
+
   if (!bill) return null;
 
   if (paid) {
@@ -93,13 +115,13 @@ export function Bill({ sessionId }: { sessionId: string }) {
         Totale: {formatPriceCents(bill.balanceCents, bill.currency)}
       </p>
 
-      {!bill.stripeAccountId && (
+      {!bill.stripeAccountId && !bill.satispayEnabled && (
         <p className="text-sm text-red-600">
           Pagamento online non ancora attivo per questo locale — chiedi al personale.
         </p>
       )}
 
-      {bill.stripeAccountId && !clientSecret && (
+      {(bill.stripeAccountId || bill.satispayEnabled) && !clientSecret && (
         <div className="space-y-3">
           <div>
             <label className="mb-1 block text-sm">Mancia (opzionale)</label>
@@ -118,13 +140,27 @@ export function Bill({ sessionId }: { sessionId: string }) {
               ))}
             </div>
           </div>
-          <button
-            type="button"
-            onClick={startCheckout}
-            className="w-full rounded bg-black py-2 text-white"
-          >
-            Paga {formatPriceCents(bill.balanceCents + tipCents, bill.currency)}
-          </button>
+
+          {bill.stripeAccountId && (
+            <button
+              type="button"
+              onClick={startCheckout}
+              className="w-full rounded bg-black py-2 text-white"
+            >
+              Paga con carta — {formatPriceCents(bill.balanceCents + tipCents, bill.currency)}
+            </button>
+          )}
+
+          {bill.satispayEnabled && (
+            <button
+              type="button"
+              onClick={startSatispayCheckout}
+              className="w-full rounded border border-black py-2 text-black"
+            >
+              Paga con Satispay — {formatPriceCents(bill.balanceCents + tipCents, bill.currency)}
+            </button>
+          )}
+
           {error && <p className="text-sm text-red-600">{error}</p>}
         </div>
       )}

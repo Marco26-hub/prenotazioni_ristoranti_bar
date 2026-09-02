@@ -33,11 +33,15 @@ export async function verifyStaffCredentials(
 
 export async function membershipsForUser(userId: string): Promise<VenueMembership[]> {
   const sql = db();
+  // ORDER BY esplicito: senza, quale venue sia session.venues[0] non è
+  // garantito stabile tra una richiesta e l'altra per uno staff multi-locale.
+  // Non è ancora un vero selettore locale in UI — solo un ordine deterministico.
   const rows = await sql<{ venue_id: string; venue_name: string; role: StaffRole }[]>`
     select v.id as venue_id, v.name as venue_name, vs.role
     from venue_staff vs
     join venues v on v.id = vs.venue_id
-    where vs.user_id = ${userId}`;
+    where vs.user_id = ${userId}
+    order by vs.created_at`;
 
   return rows.map((r) => ({ venueId: r.venue_id, venueName: r.venue_name, role: r.role }));
 }

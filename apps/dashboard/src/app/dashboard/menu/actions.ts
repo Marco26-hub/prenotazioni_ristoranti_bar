@@ -2,10 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
-import { requireVenue } from "@/lib/authz";
+import { requireVenue, requireRole } from "@/lib/authz";
 
 export async function addCategory(formData: FormData) {
-  const { venue } = await requireVenue();
+  const { venue } = await requireRole(["owner", "manager"]);
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return;
 
@@ -16,7 +16,7 @@ export async function addCategory(formData: FormData) {
 }
 
 export async function addMenuItem(formData: FormData) {
-  const { venue } = await requireVenue();
+  const { venue } = await requireRole(["owner", "manager"]);
   const name = String(formData.get("name") ?? "").trim();
   const categoryId = String(formData.get("categoryId") ?? "") || null;
   const priceEuro = Number.parseFloat(String(formData.get("price") ?? "0"));
@@ -48,7 +48,7 @@ export async function toggleItemAvailable(itemId: string, available: boolean) {
 }
 
 export async function deleteMenuItem(itemId: string) {
-  const { venue } = await requireVenue();
+  const { venue } = await requireRole(["owner", "manager"]);
   const sql = db();
   await sql`delete from menu_items where id = ${itemId} and venue_id = ${venue.venueId}`;
   revalidatePath("/dashboard/menu");

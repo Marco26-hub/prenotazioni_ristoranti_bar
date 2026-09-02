@@ -3,6 +3,7 @@ import { db } from "@repo/shared/db";
 import { stripeClient } from "@/lib/stripe";
 import { ConnectStripeButton } from "./connect-stripe-button";
 import { saveInvoiceSettings } from "./invoice-actions";
+import { SatispayForm } from "./satispay-form";
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -13,6 +14,7 @@ export default async function SettingsPage() {
   const [venueRow] = await sql<
     {
       stripe_account_id: string | null;
+      satispay_key_id: string | null;
       vat_number: string | null;
       fiscal_code: string | null;
       regime_fiscale: string | null;
@@ -22,8 +24,8 @@ export default async function SettingsPage() {
       address_province: string | null;
       invoice_provider_api_key: string | null;
     }[]
-  >`select stripe_account_id, vat_number, fiscal_code, regime_fiscale, address,
-           address_zip, address_city, address_province, invoice_provider_api_key
+  >`select stripe_account_id, satispay_key_id, vat_number, fiscal_code, regime_fiscale,
+           address, address_zip, address_city, address_province, invoice_provider_api_key
     from venues where id = ${venue.venueId}`;
 
   let chargesEnabled = false;
@@ -56,6 +58,30 @@ export default async function SettingsPage() {
               chiesti dati dell&apos;attività e coordinate bancarie sulla pagina Stripe.
             </p>
             <ConnectStripeButton label="Connetti Stripe" />
+          </div>
+        )}
+      </section>
+
+      <section className="rounded border p-4">
+        <h2 className="mb-2 font-medium">Pagamenti (Satispay)</h2>
+        {venueRow?.satispay_key_id ? (
+          <p className="text-sm text-green-700">Connesso.</p>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-sm text-gray-600">
+              Serve prima un{" "}
+              <a
+                href="https://business.satispay.com"
+                target="_blank"
+                rel="noreferrer"
+                className="underline"
+              >
+                account Satispay Business
+              </a>{" "}
+              attivato, con un negozio creato e un codice di attivazione generato
+              dalla loro dashboard — incollalo qui sotto.
+            </p>
+            <SatispayForm />
           </div>
         )}
       </section>

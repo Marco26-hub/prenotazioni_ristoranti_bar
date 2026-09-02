@@ -1,5 +1,6 @@
 import "server-only";
 import { auth } from "@/auth";
+import type { StaffRole } from "@repo/shared";
 import type { VenueMembership } from "./staff";
 
 /**
@@ -14,4 +15,19 @@ export async function requireVenue(): Promise<{ userId: string; venue: VenueMemb
     throw new Error("Non autorizzato");
   }
   return { userId: session.user.id, venue };
+}
+
+/**
+ * Per azioni sensibili (dati fiscali, pagamenti, cancellazioni) non basta
+ * "è staff di questo venue" — cameriere/cucina non devono poter toccare
+ * queste operazioni solo perché conoscono l'action id.
+ */
+export async function requireRole(
+  allowedRoles: StaffRole[]
+): Promise<{ userId: string; venue: VenueMembership }> {
+  const result = await requireVenue();
+  if (!allowedRoles.includes(result.venue.role)) {
+    throw new Error("Permessi insufficienti per questa operazione");
+  }
+  return result;
 }

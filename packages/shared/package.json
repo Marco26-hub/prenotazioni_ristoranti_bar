@@ -7,13 +7,14 @@
   "exports": {
     ".": "./index.ts",
     "./db": "./db.ts",
-    "./rate-limit": "./rate-limit.ts"
+    "./rate-limit": "./rate-limit.ts",
+    "./satispay": "./satispay/index.ts"
   },
   "dependencies": {
-    "postgres": "^3.4.5"
+    "postgres": "^3.4.5",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
-    "typescript": "^5.9.3",
-    "server-only": "^0.0.1"
+    "typescript": "^5.9.3"
   }
 }

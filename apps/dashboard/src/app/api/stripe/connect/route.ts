@@ -15,6 +15,9 @@ export async function POST() {
   if (!venue) {
     return NextResponse.json({ error: "Nessun locale associato" }, { status: 403 });
   }
+  if (!["owner", "manager"].includes(venue.role)) {
+    return NextResponse.json({ error: "Permessi insufficienti" }, { status: 403 });
+  }
 
   const sql = db();
   const [venueRow] = await sql<

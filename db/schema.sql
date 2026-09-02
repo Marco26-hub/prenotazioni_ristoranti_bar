@@ -43,7 +43,8 @@ create table venues (
   timezone text default 'Europe/Rome',
   currency text default 'EUR',
   stripe_account_id text,                -- Stripe Connect account
-  satispay_shop_id text,                 -- opzionale
+  satispay_key_id text,                  -- key_id ottenuto da /authentication_keys
+  satispay_private_key text,             -- PEM, controparte della chiave pubblica registrata su Satispay
   invoice_provider text default 'invoicetronic', -- provider SDI esterno
   invoice_provider_api_key text,         -- da cifrare a livello applicativo prima di salvare
   invoice_counter int default 0,         -- numerazione progressiva fatture, azzerare a inizio anno

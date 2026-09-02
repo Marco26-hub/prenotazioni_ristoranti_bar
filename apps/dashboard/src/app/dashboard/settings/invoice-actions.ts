@@ -2,10 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
-import { requireVenue } from "@/lib/authz";
+import { requireRole } from "@/lib/authz";
 
 export async function saveInvoiceSettings(formData: FormData) {
-  const { venue } = await requireVenue();
+  const { venue } = await requireRole(["owner", "manager"]);
 
   const vatNumber = String(formData.get("vatNumber") ?? "").trim();
   const fiscalCode = String(formData.get("fiscalCode") ?? "").trim();
