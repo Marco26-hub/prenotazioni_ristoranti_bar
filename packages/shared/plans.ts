@@ -52,7 +52,7 @@ export const TRIAL_DAYS = 14;
  * che è trattabile. Lo sconto sull'annuale resta dov'è utile, cioè sui due
  * mesi di canone.
  */
-export const SETUP_CENTS = 24900;
+export const SETUP_CENTS = 64900;
 
 export function setupDovuto(_plan: Plan): boolean {
   return true;
@@ -64,7 +64,7 @@ export const PLANS: Plan[] = [
     key: "ordini-mensile",
     label: "Ordini e pagamenti",
     moduli: ["ordini"],
-    amountCents: 5900,
+    amountCents: 10900,
     cadence: "al mese",
     descrizione: "Menu QR, ordine al tavolo, conto alla romana, fattura elettronica.",
     note: "Disdetta in qualsiasi momento",
@@ -74,7 +74,7 @@ export const PLANS: Plan[] = [
     key: "prenotazioni-mensile",
     label: "Solo prenotazioni",
     moduli: ["prenotazioni"],
-    amountCents: 2900,
+    amountCents: 4900,
     cadence: "al mese",
     descrizione: "Pagina di prenotazione per il tuo sito, calendario e conferme.",
     note: "Senza gestionale di sala",
@@ -84,17 +84,17 @@ export const PLANS: Plan[] = [
     key: "completo-mensile",
     label: "Tutto",
     moduli: ["ordini", "prenotazioni"],
-    amountCents: 7900,
+    amountCents: 13900,
     cadence: "al mese",
     descrizione: "Ordini, pagamenti e prenotazioni insieme.",
-    note: "9 € in meno dei due separati",
+    note: "19 € in meno dei due separati",
   },
   {
     interval: "year",
     key: "ordini-annuale",
     label: "Ordini e pagamenti",
     moduli: ["ordini"],
-    amountCents: 59000,
+    amountCents: 109000,
     cadence: "all'anno",
     descrizione: "Menu QR, ordine al tavolo, conto alla romana, fattura elettronica.",
     note: "Due mesi in omaggio",
@@ -104,7 +104,7 @@ export const PLANS: Plan[] = [
     key: "prenotazioni-annuale",
     label: "Solo prenotazioni",
     moduli: ["prenotazioni"],
-    amountCents: 29000,
+    amountCents: 49000,
     cadence: "all'anno",
     descrizione: "Pagina di prenotazione per il tuo sito, calendario e conferme.",
     note: "Due mesi in omaggio",
@@ -114,7 +114,7 @@ export const PLANS: Plan[] = [
     key: "completo-annuale",
     label: "Tutto",
     moduli: ["ordini", "prenotazioni"],
-    amountCents: 79000,
+    amountCents: 139000,
     cadence: "all'anno",
     descrizione: "Ordini, pagamenti e prenotazioni insieme.",
     note: "Due mesi in omaggio",

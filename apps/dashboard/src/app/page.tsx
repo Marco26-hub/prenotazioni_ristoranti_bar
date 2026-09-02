@@ -107,13 +107,21 @@ const FUNZIONI = [
 ];
 
 const CONFRONTO: Array<[string, string, string]> = [
-  ["Canone", "da 29 €/mese", "29–99 €/mese"],
-  ["Costo di attivazione", "249 €", "Fino a 600 €"],
+  ["Canone", "da 49 €/mese", "29–249 €/mese"],
+  ["Costo di attivazione", "649 €", "0–600 €"],
   ["Commissione sui tuoi incassi", "Nessuna", "Spesso 1,9–2%"],
   ["Il tuo marchio sulle pagine cliente", "Incluso", "Raro, o a pagamento"],
   ["Fattura elettronica dal tavolo", "Inclusa", "Quasi mai"],
   ["Prenotazioni online incluse", "Sì", "Spesso a parte"],
   ["Compri solo il modulo che ti serve", "Sì", "Quasi mai"],
+];
+
+/** Costo totale a confronto: canone più percentuale sugli incassi. */
+const COSTO_TOTALE: Array<[string, string, string, string]> = [
+  ["5.000 €", "159 €/mese", "139 €/mese", "240 €"],
+  ["15.000 €", "279 €/mese", "139 €/mese", "1.680 €"],
+  ["30.000 €", "459 €/mese", "139 €/mese", "3.840 €"],
+  ["50.000 €", "699 €/mese", "139 €/mese", "6.720 €"],
 ];
 
 const SERVE = [
@@ -358,11 +366,60 @@ export default async function LandingPage() {
             </table>
           </div>
 
-          <p className="compare mt-4 text-sm text-muted">
-            Prezzi IVA esclusa. Le commissioni sulle carte sono quelle di
-            Stripe e vanno dal cliente direttamente a te: non passano da noi.
-            La colonna di destra riporta i listini pubblici dei concorrenti
-            italiani a settembre 2026; molti non pubblicano i propri prezzi.
+          <div className="compare mt-10">
+            <h3 className="mb-2 text-lg font-medium">
+              Quello che conta è quanto spendi in tutto
+            </h3>
+            <p className="mb-4 max-w-2xl text-muted">
+              Chi ti fa pagare poco di canone si prende una percentuale sui
+              tuoi incassi. Più lavori, più paghi. Da noi il canone è tutto:
+              le commissioni della carta vanno da Stripe direttamente a te.
+            </p>
+
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[34rem] border-collapse text-sm">
+                <thead>
+                  <tr className="border-b border-border text-left">
+                    <th className="py-3 pr-4 font-medium">
+                      Incassi con carta al mese
+                    </th>
+                    <th className="py-3 pr-4 font-medium text-muted">
+                      Un concorrente all&apos;1,2%
+                    </th>
+                    <th className="py-3 pr-4 font-medium">Noi</th>
+                    <th className="py-3 font-medium">Risparmio all&apos;anno</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {COSTO_TOTALE.map(([volume, loro, noi, anno]) => (
+                    <tr key={volume} className="border-b border-border/70">
+                      <td className="py-3 pr-4 tabular-nums">{volume}</td>
+                      <td className="py-3 pr-4 tabular-nums text-muted">{loro}</td>
+                      <td className="py-3 pr-4 font-medium tabular-nums text-accent">
+                        {noi}
+                      </td>
+                      <td className="py-3 font-medium tabular-nums">{anno}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <p className="mt-3 text-sm text-muted">
+              Calcolato su Qromo All-in-One, 99 €/mese più 1,2% sugli incassi
+              in presenza, listino pubblico a settembre 2026. Il pareggio è a
+              circa 3.300 € di incassi con carta al mese: sopra quella soglia
+              costiamo meno, e la distanza cresce insieme al tuo fatturato
+              invece di stringersi.
+            </p>
+          </div>
+
+          <p className="compare mt-6 text-sm text-muted">
+            Prezzi IVA esclusa. L&apos;attivazione è una sola volta e comprende
+            il menu caricato, i QR pronti da stampare, Stripe collegato e il
+            marchio configurato. La colonna di destra riporta i listini
+            pubblici dei concorrenti italiani a settembre 2026; molti non
+            pubblicano i propri prezzi.
           </p>
         </div>
       </section>
