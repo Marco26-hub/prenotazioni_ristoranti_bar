@@ -10,6 +10,8 @@ const INCLUSO = [
   "Il tuo logo e i tuoi colori sulle pagine cliente",
   "Fattura elettronica richiedibile dal tavolo",
   "Accessi separati per titolare, sala e cucina",
+  "Nessun costo di attivazione",
+  "Nessuna commissione sui tuoi incassi",
 ];
 
 function formatDate(d: Date | null) {
