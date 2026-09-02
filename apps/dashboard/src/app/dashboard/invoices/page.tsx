@@ -1,5 +1,6 @@
 import { db } from "@repo/shared/db";
 import { auth } from "@/auth";
+import Link from "next/link";
 import { PrintButton } from "./print-button";
 
 const STATUS: Record<string, string> = {
@@ -87,12 +88,18 @@ export default async function InvoicesPage() {
                     {invoice.sdi_identifier ?? invoice.provider_invoice_id ?? "In attesa"}
                   </td>
                   <td className="px-4 py-4">
+                    <Link href={`/dashboard/invoices/${invoice.id}`} className="underline underline-offset-2">
+                      Dettagli
+                    </Link>
                     {invoice.xml_url ? (
+                      <>
+                        {" · "}
                       <a href={invoice.xml_url} className="underline underline-offset-2" target="_blank" rel="noreferrer">
                         Apri XML
                       </a>
+                      </>
                     ) : (
-                      <span className="text-muted">Disponibile su Invoicetronic</span>
+                      <span className="ml-2 text-muted">XML su Invoicetronic</span>
                     )}
                   </td>
                 </tr>
