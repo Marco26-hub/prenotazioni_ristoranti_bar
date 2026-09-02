@@ -5,7 +5,7 @@ import { db } from "@repo/shared/db";
 import { requireVenue } from "@/lib/authz";
 import { inviaEmail } from "@repo/shared/email";
 import { decryptSecret } from "@repo/shared/crypto";
-import { slotAlternativi, formattaOrario } from "@repo/shared/prenotazioni";
+import { slotAlternativi, formattaOrario, interpretaOrario } from "@repo/shared/prenotazioni";
 
 export interface EsitoPrenotazione {
   error?: string;
@@ -229,11 +229,19 @@ export async function addReservation(formData: FormData) {
   if (!customerName || !Number.isFinite(partySize) || partySize < 1 || !reservedAt) return;
 
   const sql = db();
+  const [locale] = await sql<{ timezone: string | null }[]>`
+    select timezone from venues where id = ${venue.venueId}`;
+
+  // Il campo del modulo manda l'ora senza fuso: va letta come ora del
+  // locale, o la prenotazione presa al telefono finisce spostata.
+  const quando = interpretaOrario(reservedAt, locale?.timezone ?? "Europe/Rome");
+  if (!quando) return;
+
   await sql`
     insert into reservations (venue_id, customer_name, customer_phone, customer_email,
                               party_size, reserved_at, notes, status, confirmed_at)
     values (${venue.venueId}, ${customerName}, ${phone}, ${email}, ${partySize},
-            ${reservedAt}, ${notes}, 'confirmed', now())`;
+            ${quando}, ${notes}, 'confirmed', now())`;
   revalidatePath("/dashboard/reservations");
 }
 

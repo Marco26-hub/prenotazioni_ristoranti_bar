@@ -97,6 +97,86 @@ export async function slotAlternativi(
   return trovati.sort((a, b) => a.getTime() - b.getTime());
 }
 
+/**
+ * Scarto fra il fuso indicato e UTC in un dato istante.
+ *
+ * Calcolato con Intl e non con una tabella: l'ora legale cambia due volte
+ * l'anno e le regole cambiano per legge.
+ */
+function scartoFuso(istante: Date, timezone: string): number {
+  const parti = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  })
+    .formatToParts(istante)
+    .reduce<Record<string, string>>((acc, p) => {
+      if (p.type !== "literal") acc[p.type] = p.value;
+      return acc;
+    }, {});
+
+  const comeSeUtc = Date.UTC(
+    Number(parti.year),
+    Number(parti.month) - 1,
+    Number(parti.day),
+    // A mezzanotte alcune localizzazioni restituiscono 24 invece di 0.
+    Number(parti.hour) % 24,
+    Number(parti.minute),
+    Number(parti.second)
+  );
+
+  return comeSeUtc - istante.getTime();
+}
+
+/**
+ * Converte un orario "nudo" nell'istante giusto.
+ *
+ * Il modulo di prenotazione manda `2026-09-06T20:30`, senza fuso: è quello
+ * che produce un campo datetime-local. Interpretarlo come UTC — cosa che
+ * fa `new Date()` sul server — sposta la prenotazione di due ore in estate,
+ * e il locale se la vede arrivare alle 22:30 invece che alle 20:30.
+ *
+ * Se il fuso è già indicato nella stringa non si tocca nulla: chi lo manda
+ * sa cosa sta dicendo.
+ */
+export function interpretaOrario(valore: string, timezone = "Europe/Rome"): Date | null {
+  const grezzo = valore.trim();
+  if (!grezzo) return null;
+
+  const haFuso = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(grezzo);
+  if (haFuso) {
+    const d = new Date(grezzo);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  const m = grezzo.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (!m) {
+    const d = new Date(grezzo);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  const comeUtc = Date.UTC(
+    Number(m[1]),
+    Number(m[2]) - 1,
+    Number(m[3]),
+    Number(m[4]),
+    Number(m[5]),
+    Number(m[6] ?? 0)
+  );
+
+  // Due passaggi: il primo scarto si misura nel punto sbagliato, e a
+  // cavallo del cambio d'ora sarebbe quello dell'ora precedente.
+  const primo = new Date(comeUtc - scartoFuso(new Date(comeUtc), timezone));
+  const secondo = new Date(comeUtc - scartoFuso(primo, timezone));
+
+  return Number.isNaN(secondo.getTime()) ? null : secondo;
+}
+
 export function formattaOrario(d: Date, timezone = "Europe/Rome"): string {
   return new Intl.DateTimeFormat("it-IT", {
     weekday: "long",

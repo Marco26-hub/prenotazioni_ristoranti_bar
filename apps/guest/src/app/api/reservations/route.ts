@@ -4,7 +4,12 @@ import { checkRateLimit, clientKey } from "@repo/shared/rate-limit";
 import { hasModulo } from "@repo/shared";
 import { inviaEmail } from "@repo/shared/email";
 import { decryptSecret } from "@repo/shared/crypto";
-import { disponibilita, slotAlternativi, formattaOrario } from "@repo/shared/prenotazioni";
+import {
+  disponibilita,
+  slotAlternativi,
+  formattaOrario,
+  interpretaOrario,
+} from "@repo/shared/prenotazioni";
 
 interface Body {
   slug: string;
@@ -66,17 +71,6 @@ export async function POST(request: Request) {
     );
   }
 
-  const when = new Date(body.reservedAt);
-  if (Number.isNaN(when.getTime())) {
-    return NextResponse.json({ error: "Data non valida" }, { status: 400 });
-  }
-  if (when.getTime() < Date.now()) {
-    return NextResponse.json({ error: "La data è già passata" }, { status: 400 });
-  }
-  if (when.getTime() > Date.now() + MAX_DAYS_AHEAD * 86400_000) {
-    return NextResponse.json({ error: "Data troppo lontana — controlla l'anno" }, { status: 400 });
-  }
-
   const phone = body.phone?.trim() || null;
   const email = body.email?.trim() || null;
 
@@ -115,6 +109,21 @@ export async function POST(request: Request) {
   }
 
   const fuso = venue.timezone ?? "Europe/Rome";
+
+  // L'orario arriva senza fuso dal campo datetime-local: va letto come ora
+  // del locale, non del server. Interpretarlo come UTC sposterebbe la
+  // prenotazione di due ore in estate.
+  const when = interpretaOrario(body.reservedAt, fuso);
+  if (!when) {
+    return NextResponse.json({ error: "Data non valida" }, { status: 400 });
+  }
+  if (when.getTime() < Date.now()) {
+    return NextResponse.json({ error: "La data è già passata" }, { status: 400 });
+  }
+  if (when.getTime() > Date.now() + MAX_DAYS_AHEAD * 86400_000) {
+    return NextResponse.json({ error: "Data troppo lontana — controlla l'anno" }, { status: 400 });
+  }
+
 
   // La chiave è cifrata a riposo: si decifra qui, al momento dell'uso, e se
   // è illeggibile si prosegue col mittente della piattaforma invece di
