@@ -2,3 +2,5 @@
 // (packages/shared/db.ts) va importato come "@repo/shared/db", MAI da qui
 // — altrimenti finisce nel bundle browser (dipende da moduli Node come tls).
 export * from "./types";
+
+export * from "./plans";

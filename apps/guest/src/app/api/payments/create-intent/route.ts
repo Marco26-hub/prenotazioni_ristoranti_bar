@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@repo/shared/db";
 import { checkRateLimit, clientIp } from "@repo/shared/rate-limit";
+import { isEntitled } from "@repo/shared";
 import { stripeClient } from "@/lib/stripe";
 import { outstandingBalanceCents } from "@/lib/balance";
 
@@ -31,8 +32,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Sessione tavolo non valida" }, { status: 404 });
   }
 
-  const [venue] = await sql<{ stripe_account_id: string | null; currency: string }[]>`
-    select stripe_account_id, currency from venues where id = ${session.venue_id}`;
+  const [venue] = await sql<
+    { stripe_account_id: string | null; currency: string; subscription_status: string }[]
+  >`select stripe_account_id, currency, subscription_status
+      from venues where id = ${session.venue_id}`;
+
+  if (!isEntitled(venue?.subscription_status)) {
+    return NextResponse.json(
+      { error: "Pagamento dal tavolo non attivo per questo locale — chiedi al personale" },
+      { status: 402 }
+    );
+  }
 
   if (!venue?.stripe_account_id) {
     return NextResponse.json(

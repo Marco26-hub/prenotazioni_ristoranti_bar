@@ -44,7 +44,7 @@ export default async function TablesPage() {
               Tavolo {t.code} — {t.seats} posti
             </p>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={t.qrDataUrl} alt={`QR tavolo ${t.code}`} className="mx-auto" />
+            <img src={t.qrDataUrl} alt={`QR tavolo ${t.code}`} className="mx-auto h-auto w-full max-w-56" />
             <a
               href={t.qrDataUrl}
               download={`qr-tavolo-${t.code}.png`}
@@ -60,28 +60,28 @@ export default async function TablesPage() {
                 name="code"
                 defaultValue={t.code}
                 required
-                className="min-h-10 w-full min-w-0 rounded-lg border border-border bg-background px-2 text-sm"
+                className="min-h-11 w-full min-w-0 rounded-lg border border-border bg-background px-2 text-sm"
               />
               <input
                 name="seats"
                 type="number"
                 min="1"
                 defaultValue={t.seats}
-                className="min-h-10 w-14 rounded-lg border border-border bg-background px-2 text-sm"
+                className="min-h-11 w-16 rounded-lg border border-border bg-background px-2 text-sm"
               />
-              <button type="submit" className="min-h-10 rounded-lg border border-border px-3 text-sm">
+              <button type="submit" className="min-h-11 rounded-lg border border-border px-3 text-sm">
                 Salva
               </button>
             </form>
 
-            <div className="mt-2 flex flex-wrap justify-center gap-3 text-sm">
+            <div className="mt-2 flex flex-wrap items-center justify-center gap-x-3 text-sm">
               <form
                 action={async () => {
                   "use server";
                   await toggleTableActive(t.id, !t.active);
                 }}
               >
-                <button type="submit" className="underline">
+                <button type="submit" className="flex min-h-11 items-center px-1 underline">
                   {t.active ? "Disattiva" : "Riattiva"}
                 </button>
               </form>
@@ -91,7 +91,7 @@ export default async function TablesPage() {
                   await regenerateQrToken(t.id);
                 }}
               >
-                <button type="submit" className="underline">
+                <button type="submit" className="flex min-h-11 items-center px-1 underline">
                   Rigenera QR
                 </button>
               </form>
@@ -101,7 +101,7 @@ export default async function TablesPage() {
                   await deleteTable(t.id);
                 }}
               >
-                <button type="submit" className="text-danger underline">
+                <button type="submit" className="flex min-h-11 items-center px-1 text-danger underline">
                   Elimina
                 </button>
               </form>

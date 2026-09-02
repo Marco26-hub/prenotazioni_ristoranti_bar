@@ -54,7 +54,18 @@ create table venues (
   regime_fiscale text default 'RF01',    -- RF01 = ordinario, cambiare se forfettario/altro
   timezone text default 'Europe/Rome',
   currency text default 'EUR',
-  stripe_account_id text,                -- Stripe Connect account
+  stripe_account_id text,                -- Stripe Connect account: con cui il LOCALE incassa
+  -- Abbonamento alla piattaforma: con cui il locale paga NOI. Flusso opposto
+  -- rispetto a stripe_account_id, e webhook distinto.
+  billing_customer_id text unique,
+  subscription_id text unique,
+  subscription_status text not null default 'none'
+    check (subscription_status in (
+      'none','trialing','active','past_due','canceled','incomplete','unpaid')),
+  subscription_plan text,
+  subscription_period_end timestamptz,
+  subscription_updated_at timestamptz,   -- gli eventi Stripe arrivano fuori ordine
+  trial_ends_at timestamptz,
   satispay_key_id text,                  -- key_id ottenuto da /authentication_keys
   satispay_private_key text,             -- PEM, controparte della chiave pubblica registrata su Satispay
   invoice_provider text default 'invoicetronic', -- provider SDI esterno

@@ -10,7 +10,8 @@
     "./rate-limit": "./rate-limit.ts",
     "./crypto": "./crypto.ts",
     "./satispay": "./satispay/index.ts",
-    "./tilby": "./tilby/index.ts"
+    "./tilby": "./tilby/index.ts",
+    "./plans": "./plans.ts"
   },
   "dependencies": {
     "postgres": "^3.4.5",

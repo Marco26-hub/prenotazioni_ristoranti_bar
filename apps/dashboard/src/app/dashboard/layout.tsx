@@ -9,6 +9,7 @@ const NAV = [
   { href: "/dashboard/reservations", label: "Prenotazioni" },
   { href: "/dashboard/staff", label: "Personale" },
   { href: "/dashboard/settings", label: "Impostazioni" },
+  { href: "/dashboard/billing", label: "Abbonamento" },
 ];
 
 export default async function DashboardLayout({ children }: LayoutProps<"/dashboard">) {

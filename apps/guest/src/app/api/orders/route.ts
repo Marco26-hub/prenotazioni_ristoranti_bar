@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@repo/shared/db";
 import { checkRateLimit, clientIp } from "@repo/shared/rate-limit";
+import { isEntitled } from "@repo/shared";
 
 interface CreateOrderBody {
   sessionId: string;
@@ -34,6 +35,19 @@ export async function POST(request: Request) {
 
   if (!session || session.status !== "open") {
     return NextResponse.json({ error: "Sessione tavolo non valida" }, { status: 404 });
+  }
+
+  // Il servizio è a canone: se il locale non ha un abbonamento valido i suoi
+  // clienti non possono ordinare. Il controllo sta qui e non solo in UI
+  // perché questo endpoint è pubblico.
+  const [venueSub] = await sql<{ subscription_status: string }[]>`
+    select subscription_status from venues where id = ${session.venue_id}`;
+
+  if (!isEntitled(venueSub?.subscription_status)) {
+    return NextResponse.json(
+      { error: "Ordine dal tavolo non attivo per questo locale — chiedi al personale" },
+      { status: 402 }
+    );
   }
 
   const menuItemIds = body.items.map((i) => i.menuItemId);
