@@ -25,7 +25,7 @@ Non esiste ancora recupero password: per cambiarne una si aggiorna `users.passwo
 
 ## Cosa funziona, verificato end-to-end in produzione
 
-Suite Playwright: `pnpm test:e2e` — 12/12 verdi contro produzione.
+Suite Playwright: `pnpm test:e2e` — 17/17 verdi.
 
 - Cliente: scansiona QR → menu → carrello → ordine → conto aggiornato
 - Cucina: board ordini live (polling 4s), avanzamento stato persistito
@@ -34,6 +34,9 @@ Suite Playwright: `pnpm test:e2e` — 12/12 verdi contro produzione.
 - Menu: CRUD categorie e piatti
 - Prenotazioni: creazione e annullamento
 - Pagine privacy/termini (bozze)
+- White label: logo, colore e contatti del locale nella pagina cliente
+- Cambio password dall'app, registrazione self-service, stampa comande
+- Rigenerazione QR che invalida davvero i codici già stampati
 
 ## Cosa NON funziona ancora (e perché)
 
@@ -50,12 +53,13 @@ Builder FatturaPA + invio via Invoicetronic (intermediario accreditato SDI) sono
 
 ## Debito tecnico ancora aperto
 
+0. **Il logo è salvato come data URL nel DB** (limite 200 KB). Funziona, ma con molti locali conviene spostarlo su object storage e tenere in colonna solo l'URL.
 1. **Staff multi-locale**: si opera sempre su `session.venues[0]`, non c'è selettore del locale in UI. L'ordine è deterministico (`order by vs.created_at`) ma chi lavora in due locali non può scegliere.
 2. **Nessun logging strutturato / observability.** Ci sono `console.error` sui rami critici (webhook, fatture, signup), ma niente Sentry né alert in produzione.
 3. **Stampa comande ESC/POS**: non implementata. La cucina usa la board a schermo.
 4. **Satispay non supporta lo split**: paga solo l'intero conto. Con carta lo split per piatto funziona.
 5. **`ENCRYPTION_KEY` non ha rotazione.** Il formato dei segreti cifrati è versionato (`v1:`) proprio per permetterla, ma la procedura non esiste ancora.
-6. **Recupero password**: non implementato. Una password dimenticata si risolve solo aggiornando `users.password_hash` a mano.
+6. **Recupero password via email**: non implementato (manca un provider email). Chi è dentro può però cambiarsi la password da Impostazioni; chi l'ha dimenticata va sbloccato aggiornando `users.password_hash`.
 
 ## Debito già chiuso (per contesto)
 
@@ -66,6 +70,8 @@ Builder FatturaPA + invio via Invoicetronic (intermediario accreditato SDI) sono
 - Modifica tavolo, rigenerazione QR, eliminazione con degrado a disattivazione
 - Signup self-service dei locali (`/registrati`, con rate limit)
 - Migrazioni versionate (`pnpm db:migrate`, `db/migrations/`)
+- Redesign mobile-first di entrambe le app, palette condivisa
+- Cambio password in autonomia, stampa comande via dialogo di stampa del browser
 
 ## Architettura in breve
 
@@ -93,4 +99,6 @@ pnpm -r build
 pnpm -r lint
 ```
 
-Schema e dati demo: `db/schema.sql`, `db/seed.sql`. Le migrazioni finora sono state applicate a mano sul DB Neon — **non esiste ancora un sistema di migrazioni versionate**, `schema.sql` è la fonte di verità per installazioni nuove.
+Materiale commerciale: `docs/Presentazione-ristoratori.pdf` (rigenerabile, lo script è nello scratchpad di sessione).
+
+Schema e dati demo: `db/schema.sql`, `db/seed.sql`. Le migrazioni ora sono versionate in `db/migrations/` e si applicano con `pnpm db:migrate` (idempotente, registra in `schema_migrations`). `db/schema.sql` resta la fonte di verità per installazioni da zero.
