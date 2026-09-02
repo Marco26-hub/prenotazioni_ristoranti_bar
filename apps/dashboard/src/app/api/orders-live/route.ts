@@ -17,10 +17,11 @@ export async function GET() {
       status: string;
       notes: string | null;
       created_at: string;
+      selected_options: Array<{ opzione: string }>;
     }[]
   >`
     select oi.id, t.code as table_code, mi.name as item_name, oi.quantity, oi.status,
-           oi.notes, o.created_at
+           oi.notes, o.created_at, oi.selected_options
     from order_items oi
     join orders o on o.id = oi.order_id
     join table_sessions ts on ts.id = o.table_session_id

@@ -1,7 +1,23 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { formatPriceCents } from "@repo/shared";
+
+export interface OpzioneCliente {
+  id: string;
+  name: string;
+  price_delta_cents: number;
+  available: boolean;
+}
+
+export interface GruppoCliente {
+  id: string;
+  name: string;
+  required: boolean;
+  min_choices: number;
+  max_choices: number;
+  opzioni: OpzioneCliente[];
+}
 
 export interface DishDetail {
   id: string;
@@ -13,6 +29,7 @@ export interface DishDetail {
   allergens: string[] | null;
   dietary_tags: string[] | null;
   pairing_item_id: string | null;
+  gruppi?: GruppoCliente[];
 }
 
 const DIETARY_LABEL: Record<string, string> = {
@@ -42,10 +59,62 @@ export function DishSheet({
   currency: string;
   pairing: DishDetail | null;
   inCartQuantity: number;
-  onAdd: () => void;
+  onAdd: (opzioni: string[], prezzoUnitario: number, etichetta: string | null) => void;
   onAddPairing: () => void;
   onClose: () => void;
 }) {
+  const gruppi = dish.gruppi ?? [];
+  const [scelte, setScelte] = useState<Record<string, string[]>>({});
+  const [errore, setErrore] = useState<string | null>(null);
+
+  function commuta(g: GruppoCliente, opzioneId: string) {
+    setErrore(null);
+    setScelte((prev) => {
+      const attuali = prev[g.id] ?? [];
+      if (g.max_choices === 1) {
+        // Scelta singola: selezionare la seconda sostituisce la prima, non
+        // la affianca. È come si comporta un gruppo di radio.
+        return { ...prev, [g.id]: attuali.includes(opzioneId) ? [] : [opzioneId] };
+      }
+      if (attuali.includes(opzioneId)) {
+        return { ...prev, [g.id]: attuali.filter((x) => x !== opzioneId) };
+      }
+      if (attuali.length >= g.max_choices) return prev;
+      return { ...prev, [g.id]: [...attuali, opzioneId] };
+    });
+  }
+
+  const idScelti = Object.values(scelte).flat();
+  const supplementi = gruppi
+    .flatMap((g) => g.opzioni)
+    .filter((o) => idScelti.includes(o.id))
+    .reduce((s, o) => s + o.price_delta_cents, 0);
+  const prezzoUnitario = dish.price_cents + supplementi;
+
+  const etichetta =
+    gruppi
+      .flatMap((g) => g.opzioni)
+      .filter((o) => idScelti.includes(o.id))
+      .map((o) => o.name)
+      .join(" · ") || null;
+
+  function aggiungi() {
+    // La stessa verifica gira anche sul server: qui serve a dirlo subito,
+    // là a impedirlo davvero.
+    for (const g of gruppi) {
+      const n = (scelte[g.id] ?? []).length;
+      if (g.required && n === 0) {
+        setErrore(`Scegli ${g.name.toLowerCase()}`);
+        return;
+      }
+      if (n < g.min_choices) {
+        setErrore(`Per ${g.name.toLowerCase()} scegli almeno ${g.min_choices}`);
+        return;
+      }
+    }
+    onAdd(idScelti, prezzoUnitario, etichetta);
+  }
+
   // Con la scheda aperta la pagina sotto non deve scorrere.
   useEffect(() => {
     const previous = document.body.style.overflow;
@@ -137,6 +206,51 @@ export function DishSheet({
             )}
           </div>
 
+          {gruppi.map((g) => (
+            <div key={g.id}>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted">
+                {g.name}
+                {g.required && <span className="ml-1 text-accent">obbligatorio</span>}
+                {g.max_choices > 1 && (
+                  <span className="ml-1 font-normal normal-case">
+                    — fino a {g.max_choices}
+                  </span>
+                )}
+              </h3>
+              <ul className="mt-2 space-y-1.5">
+                {g.opzioni.map((o) => {
+                  const scelta = (scelte[g.id] ?? []).includes(o.id);
+                  return (
+                    <li key={o.id}>
+                      <button
+                        type="button"
+                        disabled={!o.available}
+                        onClick={() => commuta(g, o.id)}
+                        aria-pressed={scelta}
+                        className={`flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border px-4 text-left disabled:opacity-40 ${
+                          scelta ? "border-accent bg-accent/10" : "border-border"
+                        }`}
+                      >
+                        <span>
+                          {o.name}
+                          {!o.available && (
+                            <span className="ml-2 text-xs text-muted">esaurito</span>
+                          )}
+                        </span>
+                        {o.price_delta_cents !== 0 && (
+                          <span className="shrink-0 text-sm tabular-nums text-muted">
+                            {o.price_delta_cents > 0 ? "+" : "−"}
+                            {formatPriceCents(Math.abs(o.price_delta_cents), currency)}
+                          </span>
+                        )}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+
           {pairing && (
             <div className="rounded-xl border border-border p-3">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted">
@@ -160,14 +274,25 @@ export function DishSheet({
             </div>
           )}
 
+          {errore && (
+            <p role="alert" className="text-sm font-medium text-danger">
+              {errore}
+            </p>
+          )}
+
           <button
             type="button"
-            onClick={onAdd}
-            className="min-h-12 w-full rounded-full bg-accent font-medium text-accent-foreground active:scale-95"
+            onClick={aggiungi}
+            className="flex min-h-12 w-full items-center justify-between rounded-full bg-accent px-5 font-medium text-accent-foreground active:scale-95"
           >
-            {inCartQuantity > 0
-              ? `Aggiungi ancora (${inCartQuantity} nel carrello)`
-              : "Aggiungi al carrello"}
+            <span>
+              {inCartQuantity > 0
+                ? `Aggiungi ancora (${inCartQuantity} nel carrello)`
+                : "Aggiungi al carrello"}
+            </span>
+            <span className="tabular-nums">
+              {formatPriceCents(prezzoUnitario, currency)}
+            </span>
           </button>
         </div>
       </div>

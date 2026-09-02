@@ -2,10 +2,17 @@ import { NextResponse } from "next/server";
 import { db } from "@repo/shared/db";
 import { checkRateLimit, clientKey } from "@repo/shared/rate-limit";
 import { hasModulo } from "@repo/shared";
+import { gruppiPerPiatti, calcolaPrezzo } from "@repo/shared/varianti";
 
 interface CreateOrderBody {
   sessionId: string;
-  items: Array<{ menuItemId: string; quantity: number; notes?: string }>;
+  items: Array<{
+    menuItemId: string;
+    quantity: number;
+    notes?: string;
+    /** Solo gli id delle opzioni scelte: il prezzo lo calcola il server. */
+    optionIds?: string[];
+  }>;
 }
 
 /** Le note finiscono stampate in comanda: tagliate, non rifiutate. */
@@ -77,27 +84,64 @@ export async function POST(request: Request) {
 
   const priceByItem = new Map(menuItems.map((m) => [m.id, m.price_cents]));
 
+  // Il prezzo definitivo di ogni riga si ricava qui dagli id delle opzioni:
+  // quello che arriva dal browser non viene mai usato, perché chiunque può
+  // riscriverlo prima di inviarlo.
+  const gruppi = await gruppiPerPiatti(sql, session.venue_id, menuItemIds);
+
+  const righe: Array<{
+    menuItemId: string;
+    quantity: number;
+    notes: string | null;
+    prezzoUnitario: number;
+    scelte: unknown[];
+  }> = [];
+
+  for (const line of body.items) {
+    const scelteIds = Array.isArray(line.optionIds)
+      ? line.optionIds.filter((id): id is string => typeof id === "string")
+      : [];
+
+    const esito = calcolaPrezzo(
+      priceByItem.get(line.menuItemId)!,
+      gruppi.get(line.menuItemId) ?? [],
+      scelteIds
+    );
+
+    if (esito.errore) {
+      return NextResponse.json({ error: esito.errore }, { status: 409 });
+    }
+
+    righe.push({
+      menuItemId: line.menuItemId,
+      quantity: line.quantity,
+      notes:
+        typeof line.notes === "string" && line.notes.trim()
+          ? line.notes.trim().slice(0, MAX_NOTE_LENGTH)
+          : null,
+      prezzoUnitario: esito.prezzoUnitario!,
+      scelte: esito.scelte!,
+    });
+  }
+
   const orderId = await sql.begin(async (tx) => {
     const [order] = await tx<{ id: string }[]>`
       insert into orders (venue_id, table_session_id, status)
       values (${session.venue_id}, ${session.id}, 'confirmed')
       returning id`;
 
-    for (const line of body.items) {
-      const notes =
-        typeof line.notes === "string" && line.notes.trim()
-          ? line.notes.trim().slice(0, MAX_NOTE_LENGTH)
-          : null;
-
+    for (const r of righe) {
       await tx`
-        insert into order_items (order_id, menu_item_id, quantity, unit_price_cents, notes, status)
+        insert into order_items (order_id, menu_item_id, quantity, unit_price_cents,
+                                 notes, status, selected_options)
         values (
           ${order.id},
-          ${line.menuItemId},
-          ${line.quantity},
-          ${priceByItem.get(line.menuItemId)!},
-          ${notes},
-          'sent_to_kitchen'
+          ${r.menuItemId},
+          ${r.quantity},
+          ${r.prezzoUnitario},
+          ${r.notes},
+          'sent_to_kitchen',
+          ${tx.json(r.scelte as never)}
         )`;
     }
 

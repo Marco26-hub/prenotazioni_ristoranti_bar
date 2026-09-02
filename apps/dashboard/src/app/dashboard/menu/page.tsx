@@ -18,6 +18,8 @@ import { AggiungiPiatto } from "./aggiungi-piatto";
 import { TraduzioniForm } from "./traduzioni-form";
 import { LingueForm } from "./lingue-form";
 import { LINGUE, type Traduzioni } from "@repo/shared/lingue";
+import { gruppiPerPiatti } from "@repo/shared/varianti";
+import { VariantiForm, type GruppoAdmin } from "./varianti-form";
 
 const AZIONE = "flex min-h-11 items-center px-1 text-sm underline";
 
@@ -72,6 +74,12 @@ export default async function MenuPage() {
     if (!itemsByCategory.has(key)) itemsByCategory.set(key, []);
     itemsByCategory.get(key)!.push(item);
   }
+
+  const varianti = await gruppiPerPiatti(
+    sql,
+    venue.venueId,
+    items.map((i) => i.id)
+  );
 
   const allNames = items.map((i) => ({ id: i.id, name: i.name }));
   const nomePerId = new Map(allNames.map((i) => [i.id, i.name]));
@@ -215,6 +223,11 @@ export default async function MenuPage() {
               item={item}
               categories={categories}
               otherItems={allNames.filter((o) => o.id !== item.id)}
+            />
+
+            <VariantiForm
+              itemId={item.id}
+              gruppi={(varianti.get(item.id) ?? []) as GruppoAdmin[]}
             />
 
             <TraduzioniForm

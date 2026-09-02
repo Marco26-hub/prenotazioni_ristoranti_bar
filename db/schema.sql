@@ -192,7 +192,11 @@ create table order_items (
   unit_price_cents int not null,         -- snapshot prezzo al momento ordine
   notes text,                            -- "senza cipolla"
   status text not null default 'pending'
-    check (status in ('pending','sent_to_kitchen','preparing','ready','served','cancelled'))
+    check (status in ('pending','sent_to_kitchen','preparing','ready','served','cancelled')),
+  -- Varianti scelte dal cliente. Restano scritte qui: il menu cambia, la
+  -- comanda già passata in cucina no. unit_price_cents comprende già i
+  -- supplementi, così i totali storici non vanno ricalcolati.
+  selected_options jsonb not null default '[]'::jsonb
 );
 
 -- ------------------------------------------------------------

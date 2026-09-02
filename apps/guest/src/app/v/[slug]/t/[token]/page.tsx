@@ -5,6 +5,7 @@ import { resolveTableFromQr } from "@/lib/table";
 import { OrderMenu } from "./order-menu";
 import { AnnuncioLocale } from "./annuncio";
 import { annuncioAttivo } from "@/lib/annuncio";
+import { gruppiPerPiatti } from "@repo/shared/varianti";
 import { Bill } from "./bill";
 
 /**
@@ -56,6 +57,17 @@ export default async function TablePage({
   const { venue } = resolved;
   const annuncio = await annuncioAttivo(venue.id);
 
+  // Varianti e aggiunte, caricate in blocco per tutti i piatti del menu.
+  const varianti = await gruppiPerPiatti(
+    sql,
+    venue.id,
+    items.map((i) => i.id)
+  );
+  const itemsConVarianti = items.map((i) => ({
+    ...i,
+    gruppi: varianti.get(i.id) ?? [],
+  }));
+
   // Il colore scelto dal locale sovrascrive l'accento di default solo per
   // questo sottoalbero: il prodotto è white-label, il cliente finale deve
   // vedere il marchio del ristorante.
@@ -95,7 +107,7 @@ export default async function TablePage({
           sessionId={resolved.sessionId}
           currency={resolved.venue.currency}
           categories={categories}
-          items={items}
+          items={itemsConVarianti}
         />
 
         <Bill sessionId={resolved.sessionId} privacyHref={`/privacy/${slug}`} />

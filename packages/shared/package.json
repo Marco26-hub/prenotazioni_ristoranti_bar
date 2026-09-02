@@ -14,7 +14,8 @@
     "./plans": "./plans.ts",
     "./email": "./email.ts",
     "./prenotazioni": "./prenotazioni.ts",
-    "./lingue": "./lingue.ts"
+    "./lingue": "./lingue.ts",
+    "./varianti": "./varianti.ts"
   },
   "dependencies": {
     "postgres": "^3.4.5",

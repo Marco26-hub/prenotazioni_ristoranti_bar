@@ -24,6 +24,7 @@ interface RigaComanda {
   quantita: number;
   stato: string;
   note: string | null;
+  scelte: Array<{ opzione: string }>;
 }
 
 export default async function DashboardPage() {
@@ -62,7 +63,7 @@ export default async function DashboardPage() {
 
   const comande = await sql<RigaComanda[]>`
     select o.table_session_id, mi.name as nome, oi.quantity as quantita,
-           oi.status as stato, oi.notes as note
+           oi.status as stato, oi.notes as note, oi.selected_options as scelte
       from order_items oi
       join orders o on o.id = oi.order_id
       join menu_items mi on mi.id = oi.menu_item_id
@@ -74,7 +75,14 @@ export default async function DashboardPage() {
   const righePerSessione = new Map<string, RigaOrdine[]>();
   for (const c of comande) {
     const lista = righePerSessione.get(c.table_session_id) ?? [];
-    lista.push({ nome: c.nome, quantita: c.quantita, stato: c.stato, note: c.note });
+    // La variante viaggia accanto alla nota: in sala servono entrambe.
+    const etichetta = (c.scelte ?? []).map((s) => s.opzione).join(" · ");
+    lista.push({
+      nome: etichetta ? `${c.nome} — ${etichetta}` : c.nome,
+      quantita: c.quantita,
+      stato: c.stato,
+      note: c.note,
+    });
     righePerSessione.set(c.table_session_id, lista);
   }
 

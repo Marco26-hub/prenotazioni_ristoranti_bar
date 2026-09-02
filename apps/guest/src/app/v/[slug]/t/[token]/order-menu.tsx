@@ -19,6 +19,21 @@ interface CartLine {
   unitPriceCents: number;
   quantity: number;
   notes?: string;
+  optionIds: string[];
+  /** "12 pezzi · Avocado", per mostrare al cliente cosa ha scelto. */
+  optionsLabel: string | null;
+}
+
+/**
+ * Chiave della riga di carrello.
+ *
+ * Lo stesso piatto con varianti diverse è una riga diversa: due sushi da 6
+ * e uno da 12 non si sommano, hanno prezzo e comanda distinti.
+ */
+function chiaveRiga(itemId: string, optionIds: string[]): string {
+  return optionIds.length === 0
+    ? itemId
+    : `${itemId}::${[...optionIds].sort().join(",")}`;
 }
 
 export function OrderMenu({
@@ -49,33 +64,41 @@ export function OrderMenu({
     return map;
   }, [items]);
 
-  const addItem = (item: MenuItem) => {
+  const addItem = (
+    item: MenuItem,
+    optionIds: string[] = [],
+    unitPriceCents?: number,
+    optionsLabel: string | null = null
+  ) => {
+    const chiave = chiaveRiga(item.id, optionIds);
     setCart((prev) => {
-      const existing = prev[item.id];
+      const existing = prev[chiave];
       return {
         ...prev,
-        [item.id]: {
+        [chiave]: {
           menuItemId: item.id,
           name: item.name,
-          unitPriceCents: item.price_cents,
+          unitPriceCents: unitPriceCents ?? item.price_cents,
           quantity: (existing?.quantity ?? 0) + 1,
           // Senza questo la nota già scritta sparirebbe premendo "+".
           notes: existing?.notes,
+          optionIds,
+          optionsLabel,
         },
       };
     });
   };
 
-  const removeItem = (itemId: string) => {
+  const removeItem = (chiave: string) => {
     setCart((prev) => {
-      const existing = prev[itemId];
+      const existing = prev[chiave];
       if (!existing) return prev;
       if (existing.quantity <= 1) {
         const rest = { ...prev };
-        delete rest[itemId];
+        delete rest[chiave];
         return rest;
       }
-      return { ...prev, [itemId]: { ...existing, quantity: existing.quantity - 1 } };
+      return { ...prev, [chiave]: { ...existing, quantity: existing.quantity - 1 } };
     });
   };
 
@@ -96,6 +119,8 @@ export function OrderMenu({
             menuItemId: l.menuItemId,
             quantity: l.quantity,
             notes: l.notes?.trim() || undefined,
+            // Solo gli id: il prezzo lo ricalcola il server.
+            optionIds: l.optionIds,
           })),
         }),
       });
@@ -118,7 +143,11 @@ export function OrderMenu({
   };
 
   const renderItem = (item: MenuItem) => {
-    const inCart = cart[item.id];
+    // Il "+" in lista e i comandi rapidi agiscono sulla riga senza varianti:
+    // le combinazioni si gestiscono dalla scheda, dove si vedono.
+    const chiaveSemplice = chiaveRiga(item.id, []);
+    const inCart = cart[chiaveSemplice];
+    const haVarianti = (item.gruppi?.length ?? 0) > 0;
     return (
       <li
         key={item.id}
@@ -150,6 +179,13 @@ export function OrderMenu({
           <p className="mt-1.5 font-semibold tabular-nums">
             {formatPriceCents(item.price_cents, currency)}
           </p>
+          {haVarianti && (
+            <p className="mt-1 text-xs text-accent underline underline-offset-2">
+              {item.gruppi!.some((g) => g.required)
+                ? "Da scegliere"
+                : "Varianti e aggiunte"}
+            </p>
+          )}
           {(item.dietary_tags?.length || item.allergens?.length) && (
             <p className="mt-1 text-xs text-muted underline underline-offset-2">
               Allergeni e dettagli
@@ -162,7 +198,7 @@ export function OrderMenu({
             <>
               <button
                 type="button"
-                onClick={() => removeItem(item.id)}
+                onClick={() => removeItem(chiaveSemplice)}
                 aria-label={`Togli ${item.name}`}
                 className="h-11 w-11 rounded-full border border-border text-xl leading-none active:scale-95"
               >
@@ -175,7 +211,9 @@ export function OrderMenu({
           )}
           <button
             type="button"
-            onClick={() => addItem(item)}
+            // Con varianti da scegliere il "+" non può decidere al posto del
+            // cliente quale: apre la scheda, dove sceglie lui.
+            onClick={() => (haVarianti ? setOpenDish(item) : addItem(item))}
             aria-label={`Aggiungi ${item.name}`}
             className="h-11 w-11 rounded-full bg-accent text-xl leading-none text-accent-foreground active:scale-95"
           >
@@ -189,7 +227,7 @@ export function OrderMenu({
           {noteFor === item.id || inCart.notes ? (
             <input
               value={inCart.notes ?? ""}
-              onChange={(e) => setNote(item.id, e.target.value)}
+              onChange={(e) => setNote(chiaveSemplice, e.target.value)}
               placeholder="Es. senza cipolla, senza glutine"
               maxLength={140}
               autoFocus={noteFor === item.id && !inCart.notes}
@@ -269,8 +307,10 @@ export function OrderMenu({
           dish={openDish}
           currency={currency}
           pairing={items.find((i) => i.id === openDish.pairing_item_id) ?? null}
-          inCartQuantity={cart[openDish.id]?.quantity ?? 0}
-          onAdd={() => addItem(openDish)}
+          inCartQuantity={cart[chiaveRiga(openDish.id, [])]?.quantity ?? 0}
+          onAdd={(opzioni, prezzo, etichetta) =>
+            addItem(openDish, opzioni, prezzo, etichetta)
+          }
           onAddPairing={() => {
             const p = items.find((i) => i.id === openDish.pairing_item_id);
             if (p) addItem(p);

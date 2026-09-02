@@ -13,6 +13,7 @@ interface LiveItem {
   status: OrderItemStatus;
   notes: string | null;
   created_at?: string;
+  selected_options?: Array<{ opzione: string }>;
 }
 
 const PROSSIMO: Partial<Record<OrderItemStatus, OrderItemStatus>> = {
@@ -306,6 +307,13 @@ export function LiveBoard() {
                       <span className="min-w-0">
                         <span className="tabular-nums font-medium">{r.quantity}×</span>{" "}
                         {r.item_name}
+                        {/* Senza le scelte la cucina prepara la variante
+                            sbagliata: vanno più in evidenza della nota. */}
+                        {r.selected_options && r.selected_options.length > 0 && (
+                          <span className="block text-sm font-medium text-accent">
+                            {r.selected_options.map((o) => o.opzione).join(" · ")}
+                          </span>
+                        )}
                         {r.notes && (
                           <span className="block text-sm italic text-muted">{r.notes}</span>
                         )}
