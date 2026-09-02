@@ -14,10 +14,14 @@ Database: **Neon** (progetto `prenotazioni`, regione eu-central-1). Un solo data
 
 Deploy: due progetti Vercel (`ristoranti-guest` root `apps/guest`, `ristoranti-dashboard` root `apps/dashboard`), entrambi collegati a `main` — **ogni push in main va in produzione**.
 
-### Credenziali già create
+### Account esistenti
 
-- **Trattoria da Luca** (locale reale): login `softipost@gmail.com`, password `LBfW6B7FU+JN9EJS` — 10 tavoli con QR, 5 categorie menu vuote. **Cambiare la password al primo accesso** (non c'è ancora una UI: va fatto aggiornando `users.password_hash` con un hash bcrypt).
-- **Trattoria Demo** (dati di prova, cancellabile): `demo@ristorante.test` / `demo1234`.
+- **Trattoria da Luca** (locale reale): owner `softipost@gmail.com` — 10 tavoli con QR, 5 categorie menu da riempire.
+- **Trattoria Demo** (dati di prova, cancellabile): `demo@ristorante.test`.
+
+⚠️ **Le password non vanno scritte qui: questo repo è pubblico.** Vanno passate a voce o via canale privato. Una password committata per errore va considerata bruciata e ruotata, perché resta nella storia git anche dopo la rimozione.
+
+Non esiste ancora recupero password: per cambiarne una si aggiorna `users.password_hash` con un hash bcrypt.
 
 ## Cosa funziona, verificato end-to-end in produzione
 
@@ -44,17 +48,24 @@ Stripe Connect (carte/Apple Pay/Google Pay) e Satispay sono implementati per int
 Builder FatturaPA + invio via Invoicetronic (intermediario accreditato SDI) sono scritti e integrati. Serve che ogni locale apra un account Invoicetronic e incolli la sua API key in Impostazioni, oltre a compilare i dati fiscali (P.IVA, CF, regime, indirizzo).
 ⚠️ **Il tracciato copre il caso standard TD01 (vendita a privato/azienda, prezzi IVA inclusa). Numerazione progressiva, regime fiscale e casi particolari vanno validati da un commercialista prima dell'uso reale** — sono documenti fiscali, non solo JSON.
 
-## Debito tecnico noto (da audit, non ancora risolto)
+## Debito tecnico ancora aperto
 
-1. **Sessione JWT non rivalidata contro il DB.** Uno staff rimosso da `venue_staff` resta operativo finché il token non scade (default 30 giorni). Serve un check server-side o `maxAge` più corto.
-2. **Staff multi-locale**: si opera sempre su `session.venues[0]`, non c'è selettore del locale in UI. L'ordine è deterministico (`order by created_at`) ma se un utente lavora in due locali non può scegliere.
-3. **Nessun signup self-service**: i locali si creano solo via SQL. Per il secondo cliente serve una UI di onboarding.
-4. **Nessun logging strutturato / observability.** Ci sono `console.error` solo sui rami critici (webhook, fatture). In produzione non c'è Sentry né alert.
-5. **`rate_limits`** cresce senza pulizia — va aggiunto un job che cancella le righe con `window_start` vecchio.
-6. **Split conto per persona/piatto**: schema pronto (`payment_order_items`), UI e logica non implementate. Oggi si paga solo a saldo pieno.
-7. **Stampa comande ESC/POS**: non implementata. La cucina usa la board a schermo.
-8. **Modifica tavolo** (rinomina/posti) e rigenerazione QR: non implementate, solo creazione e attiva/disattiva.
-9. **`satispay_private_key` e `invoice_provider_api_key` sono in chiaro nel DB.** Vanno cifrate a livello applicativo prima di avere clienti veri.
+1. **Staff multi-locale**: si opera sempre su `session.venues[0]`, non c'è selettore del locale in UI. L'ordine è deterministico (`order by vs.created_at`) ma chi lavora in due locali non può scegliere.
+2. **Nessun logging strutturato / observability.** Ci sono `console.error` sui rami critici (webhook, fatture, signup), ma niente Sentry né alert in produzione.
+3. **Stampa comande ESC/POS**: non implementata. La cucina usa la board a schermo.
+4. **Satispay non supporta lo split**: paga solo l'intero conto. Con carta lo split per piatto funziona.
+5. **`ENCRYPTION_KEY` non ha rotazione.** Il formato dei segreti cifrati è versionato (`v1:`) proprio per permetterla, ma la procedura non esiste ancora.
+6. **Recupero password**: non implementato. Una password dimenticata si risolve solo aggiornando `users.password_hash` a mano.
+
+## Debito già chiuso (per contesto)
+
+- Segreti dei locali cifrati a riposo (AES-256-GCM, `packages/shared/crypto.ts`)
+- Sessioni staff rivalidate contro il DB ogni 5 minuti, scadenza 12h
+- Pulizia opportunistica di `rate_limits`
+- Split conto per piatto (con lock transazionale sulle righe)
+- Modifica tavolo, rigenerazione QR, eliminazione con degrado a disattivazione
+- Signup self-service dei locali (`/registrati`, con rate limit)
+- Migrazioni versionate (`pnpm db:migrate`, `db/migrations/`)
 
 ## Architettura in breve
 
