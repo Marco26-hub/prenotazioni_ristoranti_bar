@@ -71,8 +71,6 @@ create table venues (
   invoice_provider text default 'invoicetronic', -- provider SDI esterno
   invoice_provider_api_key text,         -- da cifrare a livello applicativo prima di salvare
   invoice_counter int default 0,         -- numerazione progressiva fatture, azzerare a inizio anno
-  subscription_plan text default 'starter', -- starter/pro/enterprise
-  subscription_status text default 'trialing',
   created_at timestamptz default now()
 );
 

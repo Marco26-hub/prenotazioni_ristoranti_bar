@@ -33,11 +33,16 @@ export async function POST(request: Request) {
   }
 
   const [venue] = await sql<
-    { stripe_account_id: string | null; currency: string; subscription_status: string }[]
-  >`select stripe_account_id, currency, subscription_status
+    {
+      stripe_account_id: string | null;
+      currency: string;
+      subscription_status: string;
+      subscription_period_end: Date | null;
+    }[]
+  >`select stripe_account_id, currency, subscription_status, subscription_period_end
       from venues where id = ${session.venue_id}`;
 
-  if (!isEntitled(venue?.subscription_status)) {
+  if (!isEntitled(venue?.subscription_status, venue?.subscription_period_end)) {
     return NextResponse.json(
       { error: "Pagamento dal tavolo non attivo per questo locale — chiedi al personale" },
       { status: 402 }

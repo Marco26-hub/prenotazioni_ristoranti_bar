@@ -40,10 +40,12 @@ export async function POST(request: Request) {
   // Il servizio è a canone: se il locale non ha un abbonamento valido i suoi
   // clienti non possono ordinare. Il controllo sta qui e non solo in UI
   // perché questo endpoint è pubblico.
-  const [venueSub] = await sql<{ subscription_status: string }[]>`
-    select subscription_status from venues where id = ${session.venue_id}`;
+  const [venueSub] = await sql<
+    { subscription_status: string; subscription_period_end: Date | null }[]
+  >`select subscription_status, subscription_period_end
+      from venues where id = ${session.venue_id}`;
 
-  if (!isEntitled(venueSub?.subscription_status)) {
+  if (!isEntitled(venueSub?.subscription_status, venueSub?.subscription_period_end)) {
     return NextResponse.json(
       { error: "Ordine dal tavolo non attivo per questo locale — chiedi al personale" },
       { status: 402 }

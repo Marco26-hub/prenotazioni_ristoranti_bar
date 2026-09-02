@@ -53,9 +53,19 @@ const ENTITLED = new Set(["trialing", "active", "past_due"]);
  * `past_due` è incluso di proposito: Stripe riprova l'addebito per giorni e
  * spegnere il servizio al primo tentativo fallito significherebbe fermare la
  * sala per una carta scaduta. La pagina mostra comunque un avviso.
+ *
+ * `periodEnd` è obbligatorio perché conta durante la prova: uno stato
+ * 'trialing' senza scadenza vale servizio gratuito a tempo indeterminato,
+ * ed è esattamente il buco che c'era prima.
  */
-export function isEntitled(status: string | null | undefined): boolean {
-  return ENTITLED.has(status ?? "");
+export function isEntitled(
+  status: string | null | undefined,
+  periodEnd?: Date | string | null
+): boolean {
+  if (!ENTITLED.has(status ?? "")) return false;
+  if (status !== "trialing") return true;
+  if (!periodEnd) return false;
+  return new Date(periodEnd).getTime() > Date.now();
 }
 
 export const SUBSCRIPTION_STATUS_LABEL: Record<string, string> = {

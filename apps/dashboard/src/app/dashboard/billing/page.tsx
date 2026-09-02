@@ -46,7 +46,7 @@ export default async function BillingPage() {
       from venues where id = ${venue.venueId}`;
 
   const status = row?.subscription_status ?? "none";
-  const entitled = isEntitled(status);
+  const entitled = isEntitled(status, row?.subscription_period_end ?? null);
   const periodEnd = formatDate(row?.subscription_period_end ?? null);
 
   return (
