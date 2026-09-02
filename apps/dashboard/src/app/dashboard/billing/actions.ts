@@ -98,6 +98,10 @@ export async function startSubscription(planKey: string): Promise<BillingResult>
       // l'inversione contabile sulle vendite intracomunitarie.
       tax_id_collection: { enabled: true },
       billing_address_collection: "required",
+      // Obbligatorio quando si riusa un Customer esistente: senza questo
+      // Stripe rifiuta la sessione perché raccoglierebbe ragione sociale e
+      // indirizzo senza poterli riportare sul Customer.
+      customer_update: { name: "auto", address: "auto" },
       success_url: `${appUrl()}/dashboard/billing?ok=1`,
       cancel_url: `${appUrl()}/dashboard/billing`,
     });
