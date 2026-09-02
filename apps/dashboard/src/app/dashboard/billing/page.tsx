@@ -42,9 +42,10 @@ export default async function BillingPage() {
       subscription_plan: string | null;
       subscription_period_end: Date | null;
       billing_customer_id: string | null;
+      subscription_id: string | null;
     }[]
   >`select subscription_status, subscription_plan, subscription_period_end,
-           billing_customer_id
+           billing_customer_id, subscription_id
       from venues where id = ${venue.venueId}`;
 
   const status = row?.subscription_status ?? "none";
@@ -92,8 +93,11 @@ export default async function BillingPage() {
       </section>
 
       <section className="rounded-xl border border-border bg-surface p-4">
+        {/* Il portale si apre solo se un abbonamento esiste davvero: avere
+            un Customer significa soltanto aver aperto il Checkout una volta,
+            e chi si era fermato lì restava senza modo di sottoscrivere. */}
         <PlanButtons
-          hasSubscription={Boolean(row?.billing_customer_id) && status !== "none"}
+          hasSubscription={Boolean(row?.subscription_id)}
           neverSubscribed={status === "none"}
         />
       </section>
