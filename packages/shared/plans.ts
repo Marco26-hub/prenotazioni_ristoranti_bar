@@ -40,19 +40,22 @@ export interface Plan {
 export const TRIAL_DAYS = 14;
 
 /**
- * Attivazione una tantum.
+ * Attivazione una tantum, dovuta sempre.
  *
  * Copre il lavoro che c'è davvero al primo giorno: menu caricato, QR
  * stampabili, Stripe collegato, marchio configurato. È la norma fra i
- * fornitori di cassa — EasyCassa 399 €, TheFork 300-400 € — mentre i menu
- * QR puri la azzerano. Noi stiamo nel mezzo, e la togliamo a chi sceglie
- * l'annuale: è il modo più semplice per spostare le sottoscrizioni dove
- * conviene a entrambi.
+ * fornitori di cassa — EasyCassa 399 €, TheFork 300-400 €, Qamarero fino a
+ * 500 €.
+ *
+ * Non si sconta sull'annuale: il lavoro di avviamento è lo stesso a
+ * prescindere da come il locale paga il canone, e regalarlo insegnerebbe
+ * che è trattabile. Lo sconto sull'annuale resta dov'è utile, cioè sui due
+ * mesi di canone.
  */
 export const SETUP_CENTS = 24900;
 
-export function setupDovuto(plan: Plan): boolean {
-  return plan.interval === "month";
+export function setupDovuto(_plan: Plan): boolean {
+  return true;
 }
 
 export const PLANS: Plan[] = [
@@ -94,7 +97,7 @@ export const PLANS: Plan[] = [
     amountCents: 59000,
     cadence: "all'anno",
     descrizione: "Menu QR, ordine al tavolo, conto alla romana, fattura elettronica.",
-    note: "Due mesi in omaggio, attivazione gratuita",
+    note: "Due mesi in omaggio",
   },
   {
     interval: "year",
@@ -104,7 +107,7 @@ export const PLANS: Plan[] = [
     amountCents: 29000,
     cadence: "all'anno",
     descrizione: "Pagina di prenotazione per il tuo sito, calendario e conferme.",
-    note: "Due mesi in omaggio, attivazione gratuita",
+    note: "Due mesi in omaggio",
   },
   {
     interval: "year",
@@ -114,7 +117,7 @@ export const PLANS: Plan[] = [
     amountCents: 79000,
     cadence: "all'anno",
     descrizione: "Ordini, pagamenti e prenotazioni insieme.",
-    note: "Due mesi in omaggio, attivazione gratuita",
+    note: "Due mesi in omaggio",
   },
 ];
 

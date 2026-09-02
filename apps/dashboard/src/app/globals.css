@@ -290,12 +290,14 @@ textarea {
 
 /* --- Mockup del telefono -------------------------------------------------- */
 .telefono {
-  border-radius: 2.2rem;
-  background: var(--surface);
-  border: 8px solid color-mix(in oklab, var(--foreground) 88%, transparent);
+  --scocca: #1b1b1f;
+  border-radius: 2.25rem;
+  padding: 10px;
+  background: linear-gradient(160deg, #3a3a40, var(--scocca) 30%, var(--scocca) 70%, #2a2a2f);
   box-shadow:
-    0 40px 80px -32px rgb(0 0 0 / 0.55),
-    0 0 0 1px color-mix(in oklab, var(--border) 60%, transparent);
+    0 50px 90px -34px rgb(0 0 0 / 0.65),
+    0 2px 0 rgb(255 255 255 / 0.06) inset,
+    0 0 0 1px rgb(0 0 0 / 0.5);
   animation: fluttua 7s ease-in-out infinite alternate;
 }
 @keyframes fluttua {
