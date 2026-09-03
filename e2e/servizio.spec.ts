@@ -112,7 +112,7 @@ test("con una carta in corso l'incasso al banco viene rifiutato", async ({
     const [s] = await sql<{ id: string }[]>`
       select ts.id from table_sessions ts
        where ts.venue_id = ${venue.venueId} and ts.status = 'open'
-       order by ts.created_at desc limit 1`;
+       order by ts.opened_at desc limit 1`;
 
     await sql`
       insert into payments (venue_id, table_session_id, amount_cents, method,
