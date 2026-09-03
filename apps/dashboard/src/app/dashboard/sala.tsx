@@ -37,6 +37,20 @@ const STATO_ETICHETTA: Record<string, string> = {
   served: "servito",
 };
 
+/**
+ * Cosa serve sapere di un tavolo guardando la pianta, in ordine di urgenza.
+ *
+ * Il piatto pronto e non portato viene prima di tutto: è l'unica situazione
+ * che peggiora da sola. Poi il tavolo già saldato, che è un coperto
+ * recuperabile subito se qualcuno lo sparecchia.
+ */
+function statoTavolo(t: TavoloSala): "libero" | "incorso" | "pronto" | "saldato" {
+  if (!t.sessionId) return "libero";
+  if (t.righe.some((r) => r.stato === "ready")) return "pronto";
+  if (t.ordinatoCents > 0 && t.pagatoCents >= t.ordinatoCents) return "saldato";
+  return "incorso";
+}
+
 /** Ogni quanto la sala si riallinea al database. */
 const INTERVALLO_MS = 15_000;
 
@@ -114,7 +128,7 @@ export function Sala({
           forma: t.forma,
           x: t.x,
           y: t.y,
-          occupato: Boolean(t.sessionId),
+          stato: statoTavolo(t),
         }))}
         piantina={piantina}
         piantinaOpacita={piantinaOpacita}

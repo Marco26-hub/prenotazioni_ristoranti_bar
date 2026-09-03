@@ -16,8 +16,32 @@ export interface TavoloPianta {
   forma: string;
   x: number | null;
   y: number | null;
-  occupato: boolean;
+  stato: StatoTavolo;
 }
+
+/**
+ * Lo stato che conta guardando la sala da lontano.
+ *
+ * "Occupato o libero" non basta: un tavolo che ha appena ordinato e uno con
+ * due piatti fermi al passe da dieci minuti hanno bisogni opposti, e finché
+ * erano dello stesso colore la pianta non diceva dove correre.
+ */
+export type StatoTavolo = "libero" | "incorso" | "pronto" | "saldato";
+
+const COLORE: Record<StatoTavolo, string> = {
+  libero: "border-border bg-background text-foreground",
+  incorso: "border-accent bg-accent text-accent-foreground",
+  // Rosso: è l'unica cosa in sala che peggiora da sola mentre la guardi.
+  pronto: "border-danger bg-danger text-white animate-pulse",
+  saldato: "border-success bg-success/25 text-foreground",
+};
+
+const VOCE: Record<StatoTavolo, string> = {
+  libero: "libero",
+  incorso: "in corso",
+  pronto: "piatti pronti da portare",
+  saldato: "saldato, da liberare",
+};
 
 const FORME: Record<string, string> = {
   rettangolo: "rounded-lg",
@@ -290,15 +314,11 @@ export function PiantaSala({
               aria-label={
                 disponi
                   ? `Sposta ${t.codice}, ${t.posti} posti`
-                  : `Apri ${t.codice}, ${t.occupato ? "occupato" : "libero"}`
+                  : `Apri ${t.codice}, ${VOCE[t.stato]}`
               }
               className={`absolute flex flex-col items-center justify-center border text-center leading-none shadow-sm transition-colors ${
                 FORME[t.forma] ?? FORME.rettangolo
-              } ${
-                t.occupato
-                  ? "border-accent bg-accent text-accent-foreground"
-                  : "border-border bg-background text-foreground"
-              } ${disponi ? "cursor-grab touch-none active:cursor-grabbing" : ""} ${
+              } ${COLORE[t.stato]} ${disponi ? "cursor-grab touch-none active:cursor-grabbing" : ""} ${
                 selezionato === t.id && disponi ? "ring-2 ring-accent ring-offset-1" : ""
               }`}
               style={{
@@ -332,6 +352,22 @@ export function PiantaSala({
             setNuovoAperto(false);
           }}
         />
+      )}
+
+      {!disponi && tavoli.some((t) => t.stato !== "libero") && (
+        <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
+          {(["incorso", "pronto", "saldato"] as StatoTavolo[])
+            .filter((k) => tavoli.some((t) => t.stato === k))
+            .map((k) => (
+              <li key={k} className="flex items-center gap-1.5">
+                <span
+                  aria-hidden
+                  className={`inline-block h-3 w-3 rounded-sm border ${COLORE[k].replace("animate-pulse", "")}`}
+                />
+                {VOCE[k]}
+              </li>
+            ))}
+        </ul>
       )}
 
       {/* Sotto la pianta e non sopra: comparendo sopra spingeva giù l'area
