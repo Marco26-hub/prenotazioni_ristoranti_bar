@@ -344,7 +344,12 @@ export function LiveBoard() {
             const inCorso = righe.filter(
               (r) => r.status === "preparing" && !r.held_at
             ).length;
-            const pronti = righe.filter((r) => r.status === "ready").length;
+            // Anche i pronti: un piatto cotto ma trattenuto esiste — si
+            // aspetta che il tavolo finisca gli antipasti — e l'azione in
+            // blocco lo salta, quindi il conteggio deve saltarlo pure.
+            const pronti = righe.filter(
+              (r) => r.status === "ready" && !r.held_at
+            ).length;
             const trattenuti = righe.filter((r) => r.held_at).length;
 
             const piuVecchia = righe.reduce<number | null>((acc, r) => {
@@ -360,7 +365,7 @@ export function LiveBoard() {
               <li
                 key={codice}
                 className={`rounded-xl border bg-surface p-4 ${
-                  pronti === righe.length
+                  pronti > 0 && pronti === righe.length
                     ? "border-success"
                     : inRitardo
                       ? "border-danger"
