@@ -43,3 +43,8 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# Il video si rigenera dai fotogrammi: dieci megabyte per commit non
+# hanno senso in un repo pubblico.
+guida/*.mp4
+guida/out/
