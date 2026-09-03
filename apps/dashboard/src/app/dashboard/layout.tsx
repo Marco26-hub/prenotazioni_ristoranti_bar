@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { auth, signOut } from "@/auth";
 import { db } from "@repo/shared/db";
 import { DPA_VERSION } from "@/lib/dpa";
@@ -21,6 +22,17 @@ const NAV = [
 
 export default async function DashboardLayout({ children }: LayoutProps<"/dashboard">) {
   const session = await auth();
+
+  /*
+   * Il super amministratore non ha locali: senza questo vedrebbe "Nessun
+   * locale associato" e non avrebbe modo di arrivare al suo pannello.
+   */
+  if (session?.user.id) {
+    const sqlAdmin = db();
+    const [chi] = await sqlAdmin<{ is_super_admin: boolean }[]>`
+      select is_super_admin from users where id = ${session.user.id}`;
+    if (chi?.is_super_admin) redirect("/admin");
+  }
   const venue = session?.venues[0];
 
   // Stato di conformità: serve a ogni pagina del gestionale, quindi si legge

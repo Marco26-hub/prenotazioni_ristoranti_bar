@@ -104,3 +104,33 @@ export async function moduloAttivo(
     r?.modules ?? null
   );
 }
+
+/**
+ * Il super amministratore della piattaforma.
+ *
+ * Riletto dal database a ogni chiamata e non messo nel token: un token dura
+ * dodici ore, e revocare questo ruolo deve avere effetto subito, non domani.
+ * È l'unico ruolo che vede i dati di tutti i locali.
+ */
+export async function requireSuperAdmin(): Promise<{
+  userId: string;
+  email: string;
+  deveCambiarePassword: boolean;
+}> {
+  const session = await auth();
+  if (!session?.user.id) throw new Error("Non autorizzato");
+
+  const sql = db();
+  const [u] = await sql<
+    { email: string; is_super_admin: boolean; must_change_password: boolean }[]
+  >`select email, is_super_admin, must_change_password
+      from users where id = ${session.user.id}`;
+
+  if (!u?.is_super_admin) throw new Error("Non autorizzato");
+
+  return {
+    userId: session.user.id,
+    email: u.email,
+    deveCambiarePassword: u.must_change_password,
+  };
+}
