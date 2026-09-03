@@ -414,10 +414,15 @@ In ordine di quanto bloccano una vendita in Italia:
 - **Menu combinati assenti.** Panino più patatine più bibita a prezzo fisso
   va caricato come voce a sé.
 - **`db/seed.sql` è solo per lo sviluppo.** Non applicarlo in produzione.
-- ~~Il repo GitHub è pubblico.~~ **Reso privato il 3 settembre 2026**
-  (`Marco26-hub/prenotazioni_ristoranti_bar`). Al momento del passaggio non
-  aveva fork né stelle, quindi non ne esistono copie pubbliche in giro.
-  L'accesso va concesso nominalmente a chi lavora al progetto.
+- **Il repo GitHub è pubblico** (`Marco26-hub/prenotazioni_ristoranti_bar`),
+  e resta tale finché il lavoro è in corso. Il 3 settembre 2026 è stato reso
+  privato per una prova e riportato pubblico subito dopo: la prova ha
+  confermato che Vercel continua a costruire da un repo privato, quindi il
+  passaggio si può fare quando serve, senza sorprese sul deploy. Al momento
+  della prova non c'erano né fork né stelle.
+  **Finché è pubblico vale la regola di sempre: nessuna password, nessuna
+  chiave, nessun segreto nei file committati.** Un segreto finito qui per
+  sbaglio va considerato bruciato e ruotato, non solo rimosso.
 - **Nessun test automatico sulle nuove aree.** Trattenute, permessi di
   reparto, codice operatore e chiamate dal tavolo sono stati verificati a
   mano contro la produzione, non da una suite. Gli E2E esistenti coprono il
