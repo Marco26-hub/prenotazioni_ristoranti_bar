@@ -19,6 +19,7 @@ export interface EditableItem {
   ingredients: string | null;
   price_cents: number;
   vat_rate: string | number;
+  fuori_formula?: boolean;
   category_id: string | null;
   pairing_item_id: string | null;
   allergens: string[] | null;
@@ -56,6 +57,7 @@ export function EditItemForm({
   otherItems,
   letturaEtichettaAttiva = false,
   apriSubito = false,
+  mostraFormula = false,
 }: {
   item: EditableItem;
   categories: Array<{ id: string; name: string }>;
@@ -63,6 +65,11 @@ export function EditItemForm({
   letturaEtichettaAttiva?: boolean;
   /** La copia appena creata si apre da sola: serve a essere modificata. */
   apriSubito?: boolean;
+  /**
+   * La spunta "fuori formula" compare solo se il locale una formula ce
+   * l'ha: altrove sarebbe una casella che non fa niente.
+   */
+  mostraFormula?: boolean;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [open, setOpen] = useState(apriSubito);
@@ -165,6 +172,24 @@ export function EditItemForm({
           />
         </div>
       </div>
+
+      {mostraFormula && (
+        <label className="flex min-h-11 items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="fuoriFormula"
+            defaultChecked={item.fuori_formula ?? false}
+            className="h-4 w-4"
+          />
+          <span>
+            Fuori formula
+            <span className="ml-1 text-xs text-muted">
+              — si paga a parte anche al tavolo a prezzo fisso (dolci, caffè,
+              amari, bevande, piatti premium)
+            </span>
+          </span>
+        </label>
+      )}
 
       <div>
         <label className={LABEL} htmlFor={`kind-${item.id}`}>

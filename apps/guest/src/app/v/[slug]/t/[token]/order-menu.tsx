@@ -11,6 +11,8 @@ interface MenuCategory {
 
 interface MenuItem extends DishDetail {
   category_id: string | null;
+  /** Si paga a parte anche al tavolo che ha preso la formula. */
+  fuori_formula?: boolean;
 }
 
 interface CartLine {
@@ -42,6 +44,7 @@ export function OrderMenu({
   categories,
   items,
   intervalloMin,
+  aFormula,
 }: {
   sessionId: string;
   currency: string;
@@ -49,6 +52,8 @@ export function OrderMenu({
   items: MenuItem[];
   /** Minuti fra un'ordinazione e la successiva. 0 = nessuna attesa. */
   intervalloMin: number;
+  /** Il tavolo paga a prezzo fisso: le voci fuori formula si pagano a parte. */
+  aFormula: boolean;
 }) {
   const [cart, setCart] = useState<Record<string, CartLine>>({});
   const [noteFor, setNoteFor] = useState<string | null>(null);
@@ -125,6 +130,18 @@ export function OrderMenu({
   // annotare proprio quella combinazione, non il piatto in generale.
   const lines = Object.entries(cart).map(([chiave, riga]) => ({ ...riga, chiave }));
   const totalCents = lines.reduce((sum, l) => sum + l.unitPriceCents * l.quantity, 0);
+
+  /*
+   * La conferma se ne va da sola dopo qualche secondo.
+   *
+   * Restando a schermo diventa arredamento: al secondo giro non si distingue
+   * più dalla prima volta, e non si sa se l'ordine è partito davvero.
+   */
+  useEffect(() => {
+    if (!submitted) return;
+    const t = setTimeout(() => setSubmitted(false), 8000);
+    return () => clearTimeout(t);
+  }, [submitted]);
 
   useEffect(() => {
     if (mancanoSecondi <= 0) return;
@@ -234,9 +251,27 @@ export function OrderMenu({
               {item.description}
             </p>
           )}
-          <p className="mt-1.5 font-semibold tabular-nums">
-            {formatPriceCents(item.price_cents, currency)}
-          </p>
+          {/*
+            A formula il prezzo di una voce compresa non vuol dire niente —
+            mostrarlo fa credere che si paghi. Le voci fuori formula, invece,
+            il prezzo ce l'hanno eccome, e va detto qui: un caffè che spunta
+            sul conto senza che il menu l'avesse segnalato è la discussione
+            che il cameriere si fa al momento di pagare.
+          */}
+          {aFormula && !item.fuori_formula ? (
+            <p className="mt-1.5 text-sm font-medium text-success">
+              Compreso nella formula
+            </p>
+          ) : (
+            <p className="mt-1.5 font-semibold tabular-nums">
+              {formatPriceCents(item.price_cents, currency)}
+              {aFormula && (
+                <span className="ml-1.5 rounded-full bg-amber-100 px-2 py-0.5 align-middle text-xs font-medium text-amber-900">
+                  fuori formula
+                </span>
+              )}
+            </p>
+          )}
           {haVarianti && (
             <p className="mt-1 text-xs text-accent underline underline-offset-2">
               {item.gruppi!.some((g) => g.required)
@@ -656,10 +691,18 @@ export function OrderMenu({
         />
       )}
 
+      {/*
+        In basso, non in cima.
+        
+        Appiccicata a top-0 copriva l'intestazione: il nome del locale, il
+        numero del tavolo e i due bottoni sparivano dietro una striscia
+        verde. In basso sta dove è appena stato premuto "Ordina", e sopra non
+        copre niente perché il carrello a quel punto è vuoto.
+      */}
       {submitted && (
         <p
           role="status"
-          className="fixed inset-x-0 top-0 z-30 bg-success p-3 text-center text-sm font-medium text-white"
+          className="fixed inset-x-0 bottom-0 z-30 bg-success px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 text-center text-sm font-medium text-white"
         >
           Ordine inviato in cucina.
         </p>

@@ -85,6 +85,18 @@ create table venues (
   -- senza, un tavolo da sei manda ottanta piatti in tre minuti. 0 = libero.
   ordine_intervallo_min smallint not null default 0
     check (ordine_intervallo_min between 0 and 120),
+  -- Formula a prezzo fisso: si paga a persona e i piatti valgono zero.
+  formula_attiva boolean not null default false,
+  formula_predefinita boolean not null default true,
+  formula_pranzo_cents int not null default 0,
+  formula_cena_cents int not null default 0,
+  formula_ora_cena time not null default '17:00',
+  -- NULL = i bambini pagano come gli adulti, 0 = non pagano.
+  formula_bambino_cents int,
+  -- Solo per dirlo al cliente: "gratis fino a 4 anni", "ridotto fino a 10".
+  formula_bambino_eta_max smallint,
+  formula_supplemento_cents int not null default 0,
+  formula_nota text,
   cover_charge_label text,
   currency text default 'EUR',
   stripe_account_id text,                -- Stripe Connect account: con cui il LOCALE incassa
@@ -251,6 +263,11 @@ create table table_sessions (
   venue_id uuid references venues(id) not null,
   status text not null default 'open' check (status in ('open','billing','closed','cancelled')),
   guest_count int default 1,
+  -- Formula a prezzo fisso su questo tavolo, con i bambini contati a parte
+  -- e il supplemento per l'avanzato deciso dallo staff alla chiusura.
+  formula boolean not null default false,
+  bambini int not null default 0 check (bambini >= 0),
+  supplemento_cents int not null default 0,
   opened_at timestamptz default now(),
   closed_at timestamptz
 );
@@ -280,6 +297,9 @@ create table menu_items (
   description text,
   price_cents int not null,              -- sempre interi, mai float su denaro
   vat_rate numeric(4,2) not null default 10.00, -- aliquota IVA ristorazione
+  -- Si paga a parte anche al tavolo che ha preso la formula: dolci, caffè,
+  -- amari, bevande, piatti premium.
+  fuori_formula boolean not null default false,
   image_url text,
   -- Gli allergeni sono obbligatori per legge (Reg. UE 1169/2011): un menu
   -- digitale che non li riporta mette il locale fuori norma.

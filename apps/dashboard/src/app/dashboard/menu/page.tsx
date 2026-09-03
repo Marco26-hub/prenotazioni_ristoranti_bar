@@ -72,8 +72,10 @@ export default async function MenuPage({
       languages: string[];
       venue_type: string;
       openrouter_api_key: string | null;
+      formula_attiva: boolean;
     }[]
-  >`select tilby_token, languages, venue_type, openrouter_api_key
+  >`select tilby_token, languages, venue_type, openrouter_api_key,
+           formula_attiva
       from venues where id = ${venue.venueId}`;
 
   const lingueAttive = venueRow?.languages ?? [];
@@ -84,6 +86,7 @@ export default async function MenuPage({
 
   const items = await sql<ItemRow[]>`
     select id, category_id, name, description, ingredients, price_cents, vat_rate,
+           fuori_formula,
            pairing_item_id, allergens, dietary_tags, available, image_url,
            translations, kind, producer, vintage, denomination, origin, abv,
            serving_note, conservation, origin_note
@@ -313,6 +316,7 @@ export default async function MenuPage({
               otherItems={allNames.filter((o) => o.id !== item.id)}
               letturaEtichettaAttiva={Boolean(venueRow?.openrouter_api_key)}
               apriSubito={item.id === daAprire}
+              mostraFormula={venueRow?.formula_attiva ?? false}
             />
 
             <VariantiForm

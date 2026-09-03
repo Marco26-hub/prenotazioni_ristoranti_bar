@@ -10,6 +10,7 @@ import { BrandForm } from "./brand-form";
 import { PrenotazioniForm } from "./prenotazioni-form";
 import { EmailForm } from "./email-form";
 import { CopertoForm } from "./coperto-form";
+import { FormulaForm } from "./formula-form";
 import { TestiForm } from "./testi-form";
 import { SogliaForm } from "./soglia-form";
 import { OpenRouterForm } from "./openrouter-form";
@@ -46,6 +47,15 @@ export default async function SettingsPage() {
       service_vat_rate: string;
       ordine_intervallo_min: number;
       venue_type: string | null;
+      formula_attiva: boolean;
+      formula_predefinita: boolean;
+      formula_pranzo_cents: number;
+      formula_cena_cents: number;
+      formula_ora_cena: string;
+      formula_bambino_cents: number | null;
+      formula_bambino_eta_max: number | null;
+      formula_supplemento_cents: number;
+      formula_nota: string | null;
       cover_charge_label: string | null;
       soglia_attesa_min: number;
       soglia_liberazione_min: number;
@@ -81,6 +91,10 @@ export default async function SettingsPage() {
            resend_api_key, resend_from,
            cover_charge_cents, service_percent, service_vat_rate,
            ordine_intervallo_min, venue_type,
+           formula_attiva, formula_predefinita, formula_pranzo_cents,
+           formula_cena_cents, formula_ora_cena::text as formula_ora_cena,
+           formula_bambino_cents, formula_bambino_eta_max,
+           formula_supplemento_cents, formula_nota,
            cover_charge_label, public_texts,
            soglia_attesa_min, soglia_liberazione_min,
            openrouter_api_key, openrouter_model,
@@ -238,6 +252,26 @@ export default async function SettingsPage() {
             (venueRow?.ordine_intervallo_min ?? 0) > 0
           }
           etichetta={venueRow?.cover_charge_label ?? null}
+        />
+      </section>
+
+      <section className="rounded-xl border border-border bg-surface p-4">
+        <h2 className="mb-1 font-semibold">Formula a prezzo fisso</h2>
+        <p className="mb-3 text-sm text-muted">
+          Si paga a persona e i piatti compresi non si pagano a piatto: è il
+          modello dell&apos;all you can eat. Il tavolo può comunque essere
+          passato alla carta dallo staff.
+        </p>
+        <FormulaForm
+          attiva={venueRow?.formula_attiva ?? false}
+          predefinita={venueRow?.formula_predefinita ?? true}
+          pranzoCents={venueRow?.formula_pranzo_cents ?? 0}
+          cenaCents={venueRow?.formula_cena_cents ?? 0}
+          oraCena={venueRow?.formula_ora_cena ?? "17:00"}
+          bambinoCents={venueRow?.formula_bambino_cents ?? null}
+          etaMax={venueRow?.formula_bambino_eta_max ?? null}
+          supplementoCents={venueRow?.formula_supplemento_cents ?? 0}
+          nota={venueRow?.formula_nota ?? ""}
         />
       </section>
 

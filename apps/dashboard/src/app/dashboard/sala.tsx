@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { formatPriceCents } from "@repo/shared";
 import { impostaCoperti } from "./sala-actions";
+import { FormulaTavolo } from "./formula-tavolo";
 import { DettaglioTavolo } from "./dettaglio-tavolo";
 import { PiantaSala, type StatoTavolo } from "./pianta-sala";
 
@@ -29,6 +30,10 @@ export interface TavoloSala {
   sessionId: string | null;
   apertoDa: string | null;
   coperti: number;
+  /** Il tavolo paga a formula invece che a piatto. */
+  formula: boolean;
+  bambini: number;
+  supplementoCents: number;
   ordinatoCents: number;
   pagatoCents: number;
   nPagamenti: number;
@@ -139,6 +144,8 @@ function orario(daISO: string): string {
 export function Sala({
   tavoli,
   chiudiConto,
+  formulaAttiva,
+  supplementoPrevisto,
   avanzaRiga,
   piantina,
   piantinaOpacita,
@@ -148,6 +155,9 @@ export function Sala({
 }: {
   tavoli: TavoloSala[];
   chiudiConto: (sessionId: string) => Promise<{ ok?: string; error?: string }>;
+  /** Il locale propone una formula a prezzo fisso. */
+  formulaAttiva: boolean;
+  supplementoPrevisto: number;
   avanzaRiga: (
     itemId: string,
     a: string,
@@ -267,9 +277,15 @@ export function Sala({
                     <select
                       defaultValue={t.coperti}
                       aria-label={`Coperti del tavolo ${t.codice}`}
-                      onChange={(e) =>
-                        impostaCoperti(t.sessionId!, Number(e.target.value))
-                      }
+                      onChange={(e) => {
+                        // Attesa, non lanciata e dimenticata: se la scrittura
+                        // fallisce il numero a schermo resterebbe quello
+                        // scelto e il conto userebbe l'altro.
+                        const n = Number(e.target.value);
+                        void impostaCoperti(t.sessionId!, n).then((r) =>
+                          setAvvisoRiga(r?.error ?? null)
+                        );
+                      }}
                       className="min-h-9 rounded-lg border border-border bg-background px-2 text-sm text-foreground"
                     >
                       {Array.from({ length: 20 }, (_, i) => i + 1).map((n) => (
@@ -279,6 +295,19 @@ export function Sala({
                       ))}
                     </select>
                   </label>
+
+                  {formulaAttiva && t.sessionId && (
+                    <FormulaTavolo
+                      sessionId={t.sessionId}
+                      codice={t.codice}
+                      formula={t.formula}
+                      bambini={t.bambini}
+                      coperti={t.coperti}
+                      supplementoCents={t.supplementoCents}
+                      supplementoPrevisto={supplementoPrevisto}
+                      onAvviso={setAvvisoRiga}
+                    />
+                  )}
 
                   {t.righe.length > 0 ? (
                     <ul className="mt-3 space-y-1 border-t border-border/60 pt-2 text-sm">

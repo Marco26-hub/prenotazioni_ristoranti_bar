@@ -63,12 +63,28 @@ export default async function TablePage({
     select id, category_id, name, description, price_cents, allergens,
            (image_url is not null) as ha_foto,
            dietary_tags, ingredients, pairing_item_id, conservation, origin_note,
-           kind, producer, vintage, denomination, origin, abv, serving_note
+           kind, producer, vintage, denomination, origin, abv, serving_note,
+           fuori_formula
     from menu_items
     where venue_id = ${resolved.venue.id} and available = true
     order by sort_order`;
 
   const { venue } = resolved;
+
+  /*
+   * Il tavolo sta pagando a formula?
+   *
+   * Serve al menu, non al conto: le voci fuori formula vanno segnate mentre
+   * si ordina, non scoperte alla fine. Un caffè che compare sul conto di un
+   * all you can eat, senza che il menu l'avesse detto, è la discussione che
+   * il cameriere si trova a fare al momento di pagare.
+   */
+  const [statoFormula] = await sql<{ a_formula: boolean }[]>`
+    select (ts.formula and v.formula_attiva) as a_formula
+      from table_sessions ts
+      join venues v on v.id = ts.venue_id
+     where ts.id = ${resolved.sessionId}`;
+  const sessioneAFormula = Boolean(statoFormula?.a_formula);
   const annuncio = await annuncioAttivo(venue.id);
 
   // Varianti e aggiunte, caricate in blocco per tutti i piatti del menu.
@@ -142,6 +158,7 @@ export default async function TablePage({
             categories={categories}
             items={itemsConVarianti}
             intervalloMin={venue.ordine_intervallo_min ?? 0}
+            aFormula={sessioneAFormula}
           />
         </section>
 

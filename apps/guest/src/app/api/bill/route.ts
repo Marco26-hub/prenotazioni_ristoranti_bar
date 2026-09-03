@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { db } from "@repo/shared/db";
 import { checkRateLimit, clientKey } from "@repo/shared/rate-limit";
-import { outstandingBalanceCents, unpaidItems, supplementiCents } from "@/lib/balance";
+import {
+  outstandingBalanceCents,
+  unpaidItems,
+  supplementiCents,
+  formulaCents,
+} from "@/lib/balance";
 
 export async function GET(request: Request) {
   const { allowed } = await checkRateLimit(clientKey(request, "bill"), 60, 60);
@@ -35,10 +40,11 @@ export async function GET(request: Request) {
            tips_enabled, tip_percents, google_review_url
     from venues where id = ${session.venue_id}`;
 
-  const [balanceCents, items, extra, incassato] = await Promise.all([
+  const [balanceCents, items, extra, formula, incassato] = await Promise.all([
     outstandingBalanceCents(session.id),
     unpaidItems(session.id),
     supplementiCents(session.id),
+    formulaCents(session.id),
     // Quanto e' gia entrato. Senza questo il cliente non puo distinguere un
     // tavolo saldato da un tavolo che non ha ancora ordinato niente: hanno
     // entrambi saldo zero.
@@ -75,5 +81,18 @@ export async function GET(request: Request) {
       extra.servizioCents > 0
         ? { percent: extra.servizioPercent, totaleCents: extra.servizioCents }
         : null,
+    // A formula il totale non torna con la somma dei piatti, ed è giusto
+    // così: va detto da dove viene, o il primo gesto è chiamare il cameriere.
+    formula: formula.attiva
+      ? {
+          fascia: formula.fascia,
+          prezzoUnitarioCents: formula.prezzoUnitarioCents,
+          adulti: formula.adulti,
+          bambini: formula.bambini,
+          prezzoBambinoCents: formula.prezzoBambinoCents,
+          supplementoCents: formula.supplementoCents,
+          totaleCents: formula.totaleCents,
+        }
+      : null,
   });
 }

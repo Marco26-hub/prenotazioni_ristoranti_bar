@@ -28,6 +28,16 @@ interface BillState {
   tipPercents: number[];
   googleReviewUrl: string | null;
   unpaidItems: UnpaidItem[];
+  /** Presente solo se il tavolo è a prezzo fisso. */
+  formula: {
+    fascia: "pranzo" | "cena";
+    prezzoUnitarioCents: number;
+    adulti: number;
+    bambini: number;
+    prezzoBambinoCents: number | null;
+    supplementoCents: number;
+    totaleCents: number;
+  } | null;
 }
 
 const stripeCache = new Map<string, Promise<Stripe | null>>();
@@ -215,6 +225,65 @@ export function Bill({
           {formatPriceCents(bill.balanceCents, bill.currency)}
         </span>
       </div>
+
+      {/*
+        A formula il totale non torna con la somma dei piatti, ed è giusto
+        così: qui si dice da dove viene. Un conto che non si spiega è il
+        primo motivo per chiamare il cameriere.
+      */}
+      {bill.formula && (
+        <dl className="mb-4 space-y-1 rounded-lg bg-background p-3 text-sm">
+          <div className="flex justify-between gap-3">
+            <dt>
+              Formula {bill.formula.fascia}
+              {bill.formula.adulti > 0 && (
+                <> · {bill.formula.adulti} × {formatPriceCents(bill.formula.prezzoUnitarioCents, bill.currency)}</>
+              )}
+            </dt>
+            <dd className="tabular-nums">
+              {formatPriceCents(
+                bill.formula.adulti * bill.formula.prezzoUnitarioCents,
+                bill.currency
+              )}
+            </dd>
+          </div>
+
+          {bill.formula.bambini > 0 && (
+            <div className="flex justify-between gap-3">
+              <dt>
+                {bill.formula.bambini}{" "}
+                {bill.formula.bambini === 1 ? "bambino" : "bambini"}
+                {bill.formula.prezzoBambinoCents !== null && (
+                  <>
+                    {" "}· {formatPriceCents(bill.formula.prezzoBambinoCents, bill.currency)}
+                  </>
+                )}
+              </dt>
+              <dd className="tabular-nums">
+                {formatPriceCents(
+                  bill.formula.bambini *
+                    (bill.formula.prezzoBambinoCents ?? bill.formula.prezzoUnitarioCents),
+                  bill.currency
+                )}
+              </dd>
+            </div>
+          )}
+
+          {bill.formula.supplementoCents > 0 && (
+            <div className="flex justify-between gap-3">
+              <dt>Supplemento per l&apos;avanzato</dt>
+              <dd className="tabular-nums">
+                {formatPriceCents(bill.formula.supplementoCents, bill.currency)}
+              </dd>
+            </div>
+          )}
+
+          <p className="pt-1 text-xs text-muted">
+            I piatti della formula sono compresi. Dolci, caffè, amari, bevande e
+            le voci segnate come extra si pagano a parte e li trovi qui sotto.
+          </p>
+        </dl>
+      )}
 
       {!bill.stripeAccountId && !bill.satispayEnabled && (
         <p className="rounded-lg bg-background p-3 text-sm text-muted">

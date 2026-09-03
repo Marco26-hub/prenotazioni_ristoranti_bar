@@ -22,6 +22,9 @@ interface RigaSessione {
   session_id: string;
   opened_at: Date;
   guest_count: number;
+  formula: boolean;
+  bambini: number;
+  supplemento_cents: number;
   ordinato: string | null;
   pagato: string | null;
   n_pagamenti: number;
@@ -82,9 +85,12 @@ export default async function DashboardPage() {
         openrouter_api_key: string | null;
         soglia_attesa_min: number;
         soglia_liberazione_min: number;
+      formula_attiva: boolean;
+      formula_supplemento_cents: number;
       }[]
     >`select floor_plan_url, floor_plan_opacity, openrouter_api_key,
-             soglia_attesa_min, soglia_liberazione_min
+             soglia_attesa_min, soglia_liberazione_min,
+             formula_attiva, formula_supplemento_cents
         from venues where id = ${venue.venueId}`,
 
   // Ordinato e pagato in due sottoquery invece che con due join: incrociarli
@@ -92,6 +98,7 @@ export default async function DashboardPage() {
   // delle comande, gonfiando entrambi i totali.
     sql<RigaSessione[]>`
     select ts.table_id, ts.id as session_id, ts.opened_at, ts.guest_count,
+           ts.formula, ts.bambini, ts.supplemento_cents,
            (select sum(oi.quantity * oi.unit_price_cents)
               from order_items oi
               join orders o on o.id = oi.order_id
@@ -160,6 +167,9 @@ export default async function DashboardPage() {
       // componente server e componente client.
       apertoDa: s ? s.opened_at.toISOString() : null,
       coperti: s?.guest_count ?? 1,
+      formula: s?.formula ?? false,
+      bambini: s?.bambini ?? 0,
+      supplementoCents: Number(s?.supplemento_cents ?? 0),
       ordinatoCents: Number(s?.ordinato ?? 0),
       pagatoCents: Number(s?.pagato ?? 0),
       nPagamenti: s?.n_pagamenti ?? 0,
@@ -192,6 +202,8 @@ export default async function DashboardPage() {
         aiAttiva={Boolean(locale?.openrouter_api_key)}
         sogliaMin={locale?.soglia_attesa_min ?? 20}
         sogliaLiberazioneMin={locale?.soglia_liberazione_min ?? 15}
+        formulaAttiva={locale?.formula_attiva ?? false}
+        supplementoPrevisto={locale?.formula_supplemento_cents ?? 0}
       />
 
 

@@ -9,6 +9,22 @@ export interface UnpaidItem {
   totalCents: number;
 }
 
+export interface Formula {
+  /** Il tavolo è a formula: i piatti inclusi non si pagano a piatto. */
+  attiva: boolean;
+  /** Prezzo a persona della fascia in corso. */
+  prezzoUnitarioCents: number;
+  adulti: number;
+  bambini: number;
+  /** Tariffa bambino applicata: null = pagano come gli adulti. */
+  prezzoBambinoCents: number | null;
+  /** Supplemento per l'avanzato, deciso dallo staff alla chiusura. */
+  supplementoCents: number;
+  /** Coperti × prezzo + bambini + supplemento. */
+  totaleCents: number;
+  fascia: "pranzo" | "cena";
+}
+
 export interface Supplementi {
   copertoUnitarioCents: number;
   coperti: number;
@@ -17,6 +33,88 @@ export interface Supplementi {
   servizioCents: number;
   totaleCents: number;
   etichettaCoperto: string;
+}
+
+/**
+ * La formula a prezzo fisso di una sessione.
+ *
+ * Si paga a persona e i piatti inclusi valgono zero: è il modello
+ * dell'all you can eat, dove sommare i piatti darebbe un conto che non
+ * c'entra niente con quello che il cliente deve.
+ *
+ * La fascia si decide dall'apertura del tavolo, non dal momento in cui si
+ * guarda il conto: un tavolo seduto alle 12:30 paga il pranzo anche se
+ * chiede il conto alle 17:10. Il confronto avviene nel fuso del locale,
+ * perché il server sta altrove.
+ */
+export async function formulaCents(sessionId: string): Promise<Formula> {
+  const sql = db();
+
+  const [riga] = await sql<
+    {
+      formula: boolean;
+      guest_count: number;
+      bambini: number;
+      supplemento_cents: number;
+      formula_attiva: boolean;
+      pranzo: number;
+      cena: number;
+      bambino: number | null;
+      e_cena: boolean;
+    }[]
+  >`
+    select ts.formula, ts.guest_count, ts.bambini, ts.supplemento_cents,
+           v.formula_attiva,
+           v.formula_pranzo_cents as pranzo,
+           v.formula_cena_cents as cena,
+           v.formula_bambino_cents as bambino,
+           -- Confronto nel fuso del locale, sull'ora di apertura.
+           (ts.opened_at at time zone coalesce(v.timezone, 'Europe/Rome'))::time
+             >= v.formula_ora_cena as e_cena
+      from table_sessions ts
+      join venues v on v.id = ts.venue_id
+     where ts.id = ${sessionId}`;
+
+  const spenta: Formula = {
+    attiva: false,
+    prezzoUnitarioCents: 0,
+    adulti: 0,
+    bambini: 0,
+    prezzoBambinoCents: null,
+    supplementoCents: 0,
+    totaleCents: 0,
+    fascia: "cena",
+  };
+
+  if (!riga?.formula || !riga.formula_attiva) return spenta;
+
+  const fascia = riga.e_cena ? "cena" : "pranzo";
+  const unitario = riga.e_cena ? riga.cena : riga.pranzo;
+
+  // Il prezzo non impostato non si inventa: senza, la formula resta spenta e
+  // il tavolo paga i piatti — meglio un conto alla carta che un conto a zero.
+  if (unitario <= 0) return spenta;
+
+  const coperti = Math.max(riga.guest_count ?? 1, 0);
+  const bambini = Math.min(Math.max(riga.bambini ?? 0, 0), coperti);
+  const adulti = Math.max(coperti - bambini, 0);
+  const prezzoBambino = riga.bambino;
+
+  const totale =
+    adulti * unitario +
+    bambini * (prezzoBambino ?? unitario) +
+    (riga.supplemento_cents ?? 0);
+
+  return {
+    attiva: true,
+    prezzoUnitarioCents: unitario,
+    adulti,
+    bambini,
+    prezzoBambinoCents: prezzoBambino,
+    supplementoCents: riga.supplemento_cents ?? 0,
+    totaleCents: totale,
+    fascia,
+  };
 }
 
 /**
@@ -83,13 +181,25 @@ export async function supplementiCents(sessionId: string): Promise<Supplementi> 
 export async function outstandingBalanceCents(sessionId: string): Promise<number> {
   const sql = db();
 
+  const formula = await formulaCents(sessionId);
+
+  /*
+   * A formula si pagano solo le voci fuori formula.
+   *
+   * Dolci, caffè, amari, bevande e piatti premium restano a pagamento anche
+   * al tavolo che ha preso il prezzo fisso; tutto il resto è già compreso e
+   * sommarlo darebbe un conto che non c'entra niente con quello che il
+   * cliente deve. Alla carta si somma tutto, come sempre.
+   */
   const [ordered] = await sql<{ total: string | null }[]>`
     select sum(oi.quantity * oi.unit_price_cents) as total
     from order_items oi
     join orders o on o.id = oi.order_id
+    join menu_items mi on mi.id = oi.menu_item_id
     where o.table_session_id = ${sessionId}
       and o.status != 'cancelled'
-      and oi.status != 'cancelled'`;
+      and oi.status != 'cancelled'
+      and (${!formula.attiva} or mi.fuori_formula)`;
 
   const [paid] = await sql<{ total: string | null }[]>`
     select sum(amount_cents) as total
@@ -100,12 +210,30 @@ export async function outstandingBalanceCents(sessionId: string): Promise<number
   const paidTotal = Number(paid?.total ?? 0);
   const extra = await supplementiCents(sessionId);
 
-  // Il coperto si aggiunge solo se qualcosa è stato ordinato: un tavolo
-  // aperto per sbaglio non deve risultare a debito di due euro, e non
-  // chiudersi mai per quello.
-  const supplementi = orderedTotal > 0 ? extra.totaleCents : 0;
+  /*
+   * Il coperto si aggiunge solo se qualcosa è stato ordinato: un tavolo
+   * aperto per sbaglio non deve risultare a debito di due euro, e non
+   * chiudersi mai per quello.
+   *
+   * A formula vale la formula stessa: chi si è seduto paga, anche se non ha
+   * ancora ordinato niente — ma solo dopo la prima comanda, o un QR
+   * inquadrato per curiosità aprirebbe un debito di quaranta euro.
+   */
+  const [qualcosa] = await sql<{ n: string }[]>`
+    select count(*)::text as n
+      from order_items oi
+      join orders o on o.id = oi.order_id
+     where o.table_session_id = ${sessionId}
+       and o.status != 'cancelled' and oi.status != 'cancelled'`;
 
-  return Math.max(orderedTotal + supplementi - paidTotal, 0);
+  const haOrdinato = Number(qualcosa?.n ?? 0) > 0;
+  const supplementi = haOrdinato ? extra.totaleCents : 0;
+  const formulaTotale = haOrdinato ? formula.totaleCents : 0;
+
+  return Math.max(
+    orderedTotal + formulaTotale + supplementi - paidTotal,
+    0
+  );
 }
 
 /**

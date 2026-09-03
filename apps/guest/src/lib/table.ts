@@ -93,9 +93,19 @@ export async function resolveTableFromQr(
     sessionId = existingSession.id;
   } else {
     try {
+      /*
+       * Il tavolo nasce a formula se il locale l'ha deciso.
+       *
+       * Il cliente apre la sessione inquadrando il QR, prima che qualcuno
+       * del personale la guardi: se partisse sempre alla carta, in un all
+       * you can eat ogni tavolo andrebbe corretto a mano, e quello
+       * dimenticato pagherebbe i piatti a prezzo di listino.
+       */
       const [newSession] = await sql<{ id: string }[]>`
-        insert into table_sessions (table_id, venue_id, status)
-        values (${table.id}, ${venue.id}, 'open')
+        insert into table_sessions (table_id, venue_id, status, formula)
+        select ${table.id}, ${venue.id}, 'open',
+               (v.formula_attiva and v.formula_predefinita)
+          from venues v where v.id = ${venue.id}
         returning id`;
       if (!newSession) return null;
       sessionId = newSession.id;

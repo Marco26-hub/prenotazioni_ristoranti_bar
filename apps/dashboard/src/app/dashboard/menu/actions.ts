@@ -247,6 +247,8 @@ export async function updateMenuItem(formData: FormData): Promise<{ error?: stri
       ingredients = ${text("ingredients")},
       price_cents = ${Math.round(priceEuro * 100)},
       vat_rate = ${vatRate},
+      -- Resta a pagamento anche al tavolo che ha preso la formula.
+      fuori_formula = ${formData.get("fuoriFormula") === "on"},
       category_id = ${categoryId},
       pairing_item_id = ${pairingId},
       allergens = ${listaAllergeni(formData)},
