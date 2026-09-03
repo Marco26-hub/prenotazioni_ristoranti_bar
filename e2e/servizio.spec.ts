@@ -94,8 +94,17 @@ test("con una carta in corso l'incasso al banco viene rifiutato", async ({
   page,
   context,
 }) => {
+  /*
+   * Locale suo.
+   *
+   * Sul locale condiviso restano aperti i tavoli dei test precedenti, e il
+   * primo bottone "Incassa e chiudi" della sala era di un altro tavolo:
+   * quello si chiudeva senza problemi, il rifiuto non compariva, e il test
+   * falliva accusando il codice di una cosa che non aveva fatto.
+   */
+  const suo = await createTestVenue();
   const guest = await context.newPage();
-  await guest.goto(`${GUEST_URL}/v/${venue.slug}/t/${venue.qrToken}`);
+  await guest.goto(`${GUEST_URL}/v/${suo.slug}/t/${suo.qrToken}`);
   await guest.getByRole("button", { name: /^Aggiungi / }).first().click();
   await guest.getByRole("button", { name: "Ordina" }).click();
   await expect(guest.getByText("Ordine inviato in cucina.")).toBeVisible();
@@ -111,16 +120,23 @@ test("con una carta in corso l'incasso al banco viene rifiutato", async ({
     // sull'autorizzazione. Intanto dice al cameriere "faccio in contanti".
     const [s] = await sql<{ id: string }[]>`
       select ts.id from table_sessions ts
-       where ts.venue_id = ${venue.venueId} and ts.status = 'open'
+       where ts.venue_id = ${suo.venueId} and ts.status = 'open'
        order by ts.opened_at desc limit 1`;
 
     await sql`
       insert into payments (venue_id, table_session_id, amount_cents, method,
                             provider, provider_payment_id, split_type, status)
-      values (${venue.venueId}, ${s.id}, 1000, 'card', 'stripe',
+      values (${suo.venueId}, ${s.id}, 1000, 'card', 'stripe',
               ${"pi_test_" + Date.now()}, 'full', 'pending')`;
 
-    await login(page);
+    await page.goto(`${DASHBOARD_URL}/login`);
+    await page.locator('input[type="email"]').fill(suo.email);
+    await page.locator('input[type="password"]').fill(suo.password);
+    await page.getByRole("button", { name: "Accedi" }).click();
+    await page.getByRole("button", { name: /^Esci$/i }).waitFor({
+      state: "visible",
+      timeout: 20_000,
+    });
     const chiudi = page.getByRole("button", { name: /Incassa e chiudi|Chiudi conto/ });
     await expect(chiudi.first()).toBeVisible({ timeout: 15000 });
     await chiudi.first().click();
@@ -140,8 +156,11 @@ test("con una carta in corso l'incasso al banco viene rifiutato", async ({
       select count(*)::text as n from payments
        where table_session_id = ${s.id} and method = 'cash'`;
     expect(Number(contanti.n)).toBe(0);
+
+    await guest.close();
   } finally {
     await sql.end();
+    await deleteTestVenue(suo);
   }
 });
 
