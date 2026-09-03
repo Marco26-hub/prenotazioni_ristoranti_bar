@@ -20,7 +20,18 @@ async function login(page: import("@playwright/test").Page) {
   await page.locator('input[type="email"]').fill(venue.email);
   await page.locator('input[type="password"]').fill(venue.password);
   await page.getByRole("button", { name: "Accedi" }).click();
-  await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+  /*
+   * Non si aspetta l'URL: l'host di produzione si chiama
+   * ristoranti-dashboard, quindi /dashboard/ combacia già stando fermi sulla
+   * maschera di accesso e login() tornava prima che l'accesso fosse
+   * avvenuto. Il test proseguiva sulla pagina sbagliata e falliva più avanti,
+   * in modo intermittente e lontano dalla causa. Si aspetta invece qualcosa
+   * che esiste solo da dentro.
+   */
+  await page.getByRole("button", { name: /^Esci$/i }).waitFor({
+    state: "visible",
+    timeout: 20_000,
+  });
 }
 
 test("la nota del cliente arriva in cucina", async ({ page, context }) => {

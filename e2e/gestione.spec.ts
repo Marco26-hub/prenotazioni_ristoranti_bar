@@ -21,7 +21,18 @@ async function login(page: import("@playwright/test").Page, password = venue.pas
   await page.locator('input[type="email"]').fill(venue.email);
   await page.locator('input[type="password"]').fill(password);
   await page.getByRole("button", { name: "Accedi" }).click();
-  await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+  /*
+   * Non si aspetta l'URL: l'host di produzione si chiama
+   * ristoranti-dashboard, quindi /dashboard/ combacia già stando fermi sulla
+   * maschera di accesso e login() tornava prima che l'accesso fosse
+   * avvenuto. Il test proseguiva sulla pagina sbagliata e falliva più avanti,
+   * in modo intermittente e lontano dalla causa. Si aspetta invece qualcosa
+   * che esiste solo da dentro.
+   */
+  await page.getByRole("button", { name: /^Esci$/i }).waitFor({
+    state: "visible",
+    timeout: 20_000,
+  });
 }
 
 test("rigenerando il QR il vecchio link smette di funzionare", async ({ page, request }) => {
