@@ -8,6 +8,7 @@ import type { StaffRole } from "@repo/shared";
 
 export interface StaffResult {
   error?: string;
+  ok?: string;
   createdEmail?: string;
   removed?: boolean;
 }
@@ -109,4 +110,46 @@ export async function changeStaffRole(staffId: string, role: StaffRole): Promise
 
   revalidatePath("/dashboard/staff");
   return {};
+}
+
+/**
+ * Assegna a un addetto i tavoli di cui si occupa.
+ *
+ * Arriva l'elenco completo e non le singole differenze: il rango si compone
+ * guardando la sala, si spuntano i tavoli e si conferma. Mandare le
+ * differenze richiederebbe di sapere da cosa si è partiti, e due responsabili
+ * che sistemano il rango insieme si sovrascriverebbero a metà.
+ */
+export async function assegnaTavoli(
+  userId: string,
+  tableIds: string[]
+): Promise<StaffResult> {
+  const { venue } = await requireRole(["owner", "manager"]);
+  const sql = db();
+
+  const [membro] = await sql<{ id: string }[]>`
+    select id from venue_staff
+     where venue_id = ${venue.venueId} and user_id = ${userId}`;
+  if (!membro) return { error: "Questa persona non fa parte del locale" };
+
+  const ids = (tableIds ?? []).filter((t) => typeof t === "string" && t.length === 36);
+
+  await sql.begin(async (tx) => {
+    // Prima si libera tutto il suo rango, poi si riassegna: senza questo, un
+    // tavolo tolto dall'elenco resterebbe suo per sempre.
+    await tx`
+      update tables set assigned_to = null
+       where venue_id = ${venue.venueId} and assigned_to = ${userId}`;
+
+    if (ids.length > 0) {
+      await tx`
+        update tables set assigned_to = ${userId}
+         where venue_id = ${venue.venueId} and id in ${tx(ids)}`;
+    }
+  });
+
+  revalidatePath("/dashboard/staff");
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/orders");
+  return { ok: ids.length === 0 ? "Rango svuotato." : `${ids.length} tavoli assegnati.` };
 }

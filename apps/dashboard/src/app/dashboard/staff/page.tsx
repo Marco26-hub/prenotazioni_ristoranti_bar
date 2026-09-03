@@ -28,13 +28,30 @@ export default async function StaffPage() {
 
   const sql = db();
   const staff = await sql<
-    { id: string; email: string; name: string | null; role: string; is_me: boolean }[]
+    {
+      id: string;
+      user_id: string;
+      email: string;
+      name: string | null;
+      role: string;
+      is_me: boolean;
+    }[]
   >`
-    select vs.id, u.email, u.name, vs.role, (u.id = ${session!.user.id}) as is_me
+    select vs.id, vs.user_id, u.email, u.name, vs.role,
+           (u.id = ${session!.user.id}) as is_me
     from venue_staff vs
     join users u on u.id = vs.user_id
     where vs.venue_id = ${venue.venueId}
     order by vs.created_at`;
+
+  const tavoli = await sql<{ id: string; code: string; assigned_to: string | null }[]>`
+    select id, code, assigned_to from tables
+     where venue_id = ${venue.venueId} and active = true
+     order by code`;
+
+  // Chi tiene un tavolo, per nome: sul badge serve il nome, non l'id.
+  const nomePerUtente: Record<string, string> = {};
+  for (const s of staff) nomePerUtente[s.user_id] = s.name ?? s.email;
 
   return (
     <main className="mx-auto max-w-2xl space-y-5 px-4 py-5">
@@ -48,7 +65,14 @@ export default async function StaffPage() {
           role: s.role,
           roleLabel: ROLE_LABEL[s.role] ?? s.role,
           isMe: s.is_me,
+          userId: s.user_id,
         }))}
+        tavoli={tavoli.map((t) => ({
+          id: t.id,
+          code: t.code,
+          assignedTo: t.assigned_to,
+        }))}
+        nomiPerUtente={nomePerUtente}
       />
 
       <section className="rounded-xl border border-border bg-surface p-4">

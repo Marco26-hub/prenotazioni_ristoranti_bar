@@ -151,7 +151,8 @@ create table tables (
   unique(venue_id, code),
   pos_x smallint,
   pos_y smallint,
-  shape text default 'rettangolo'::text not null
+  shape text default 'rettangolo'::text not null,
+  assigned_to uuid references users(id) on delete set null
 );
 
 -- Sessione tavolo: apre quando primo cliente scansiona, chiude a conto saldato
@@ -282,8 +283,28 @@ create table order_items (
   -- Varianti scelte dal cliente. Restano scritte qui: il menu cambia, la
   -- comanda già passata in cucina no. unit_price_cents comprende già i
   -- supplementi, così i totali storici non vanno ricalcolati.
-  selected_options jsonb not null default '[]'::jsonb
+  selected_options jsonb not null default '[]'::jsonb,
+  held_at timestamptz,
+  held_by uuid references users(id),
+  held_note text
 );
+
+-- Registro dei passaggi di una comanda: chi l'ha mossa e quando.
+-- Con più camerieri sui palmari, "servito" senza un nome accanto non risponde
+-- alla domanda che si fa quando il cliente dice che il piatto non è arrivato.
+create table order_item_events (
+  id uuid primary key default gen_random_uuid(),
+  order_item_id uuid references order_items(id) on delete cascade not null,
+  venue_id uuid references venues(id) on delete cascade not null,
+  user_id uuid references users(id),
+  user_label text not null,              -- congelato: resta se l'addetto se ne va
+  azione text not null check (azione in ('stato', 'trattenuto', 'liberato')),
+  da_stato text,
+  a_stato text,
+  created_at timestamptz not null default now()
+);
+create index idx_order_item_events_item on order_item_events (order_item_id, created_at);
+create index idx_order_item_events_venue on order_item_events (venue_id, created_at desc);
 
 -- ------------------------------------------------------------
 -- PRENOTAZIONI

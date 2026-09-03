@@ -2,10 +2,12 @@
 
 import { useState, useTransition } from "react";
 import { removeStaff, changeStaffRole } from "./actions";
+import { RangoForm, type TavoloRango } from "./rango-form";
 import type { StaffRole } from "@repo/shared";
 
 interface Member {
   id: string;
+  userId: string;
   email: string;
   name: string | null;
   role: string;
@@ -13,7 +15,15 @@ interface Member {
   isMe: boolean;
 }
 
-export function StaffList({ staff }: { staff: Member[] }) {
+export function StaffList({
+  staff,
+  tavoli,
+  nomiPerUtente,
+}: {
+  staff: Member[];
+  tavoli: TavoloRango[];
+  nomiPerUtente: Record<string, string>;
+}) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -67,6 +77,17 @@ export function StaffList({ staff }: { staff: Member[] }) {
                 </>
               )}
             </div>
+
+            {/* Il rango riguarda chi sta in sala: cucina e titolare non
+                servono ai tavoli, e un bottone in più per loro è rumore. */}
+            {(m.role === "waiter" || m.role === "manager") && (
+              <RangoForm
+                userId={m.userId}
+                nome={m.name ?? m.email}
+                tavoli={tavoli}
+                altri={nomiPerUtente}
+              />
+            )}
           </li>
         ))}
       </ul>

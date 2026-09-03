@@ -1,7 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { setOrderItemStatus, advanceTableItems } from "./actions";
+import {
+  setOrderItemStatus,
+  advanceTableItems,
+  trattieniRiga,
+  trattieniTavolo,
+} from "./actions";
 import type { OrderItemStatus } from "@repo/shared";
 import { creaRiconoscimento, interpreta, type Riconoscimento } from "./comando-vocale";
 
@@ -14,6 +19,9 @@ interface LiveItem {
   notes: string | null;
   created_at?: string;
   selected_options?: Array<{ opzione: string }>;
+  held_at?: string | null;
+  mio_tavolo?: boolean;
+  ultimo_da?: string | null;
 }
 
 const PROSSIMO: Partial<Record<OrderItemStatus, OrderItemStatus>> = {
@@ -38,6 +46,7 @@ export function LiveBoard() {
   const [vocale, setVocale] = useState(false);
   const [ultimoComando, setUltimoComando] = useState<string | null>(null);
   const [erroreVocale, setErroreVocale] = useState<string | null>(null);
+  const [soloMiei, setSoloMiei] = useState(true);
   const riconoscimentoRef = useRef<Riconoscimento | null>(null);
   const vocaleDisponibile = useSyncExternalStore(
     () => () => {},
@@ -81,6 +90,34 @@ export function LiveBoard() {
       }
     },
     []
+  );
+
+  const trattieni = useCallback(
+    async (r: LiveItem) => {
+      // Ottimistico: sul palmare, con la sala piena, un secondo di attesa fa
+      // premere due volte.
+      setItems((prec) =>
+        prec.map((x) =>
+          x.id === r.id
+            ? { ...x, held_at: r.held_at ? null : new Date().toISOString() }
+            : x
+        )
+      );
+      try {
+        await trattieniRiga(r.id, !r.held_at);
+      } finally {
+        await carica();
+      }
+    },
+    [carica]
+  );
+
+  const trattieniIlTavolo = useCallback(
+    async (codice: string, valore: boolean) => {
+      await trattieniTavolo(codice, valore);
+      await carica();
+    },
+    [carica]
   );
 
   const avanzaTavolo = useCallback(
@@ -199,9 +236,12 @@ export function LiveBoard() {
   }, []);
 
   // --- Raggruppamento per tavolo ------------------------------------------
+  const haRango = items.some((i) => i.mio_tavolo);
+
   const perTavolo = new Map<string, LiveItem[]>();
   for (const i of items) {
     if (i.status === "served") continue;
+    if (soloMiei && haRango && !i.mio_tavolo) continue;
     const lista = perTavolo.get(i.table_code) ?? [];
     lista.push(i);
     perTavolo.set(i.table_code, lista);
@@ -259,16 +299,53 @@ export function LiveBoard() {
         </p>
       )}
 
+      {haRango && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {/* Con quattro camerieri sullo stesso schermo, la lista intera è
+              rumore: il proprio rango viene prima. Non è un permesso, è una
+              vista — se un tavolo altrui chiama, si passa a tutta la sala. */}
+          <button
+            type="button"
+            onClick={() => setSoloMiei(true)}
+            aria-pressed={soloMiei}
+            className={`min-h-11 rounded-full px-4 text-sm font-medium ${
+              soloMiei ? "bg-accent text-accent-foreground" : "border border-border"
+            }`}
+          >
+            I miei tavoli
+          </button>
+          <button
+            type="button"
+            onClick={() => setSoloMiei(false)}
+            aria-pressed={!soloMiei}
+            className={`min-h-11 rounded-full px-4 text-sm font-medium ${
+              !soloMiei ? "bg-accent text-accent-foreground" : "border border-border"
+            }`}
+          >
+            Tutta la sala
+          </button>
+        </div>
+      )}
+
       {tavoli.length === 0 ? (
         <p className="mt-4 rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted">
-          Nessun ordine in corso.
+          {soloMiei && haRango
+            ? "Nessun ordine sui tuoi tavoli."
+            : "Nessun ordine in corso."}
         </p>
       ) : (
         <ul className="mt-4 grid gap-3 sm:grid-cols-2">
           {tavoli.map(([codice, righe]) => {
-            const daPreparare = righe.filter((r) => r.status === "sent_to_kitchen").length;
-            const inCorso = righe.filter((r) => r.status === "preparing").length;
+            // I trattenuti non entrano nei conteggi: "tutto in preparazione"
+            // deve dire quanto parte davvero.
+            const daPreparare = righe.filter(
+              (r) => r.status === "sent_to_kitchen" && !r.held_at
+            ).length;
+            const inCorso = righe.filter(
+              (r) => r.status === "preparing" && !r.held_at
+            ).length;
             const pronti = righe.filter((r) => r.status === "ready").length;
+            const trattenuti = righe.filter((r) => r.held_at).length;
 
             const piuVecchia = righe.reduce<number | null>((acc, r) => {
               if (!r.created_at) return acc;
@@ -317,14 +394,45 @@ export function LiveBoard() {
                         {r.notes && (
                           <span className="block text-sm italic text-muted">{r.notes}</span>
                         )}
+                        {r.held_at && (
+                          <span className="mt-0.5 block text-sm font-medium text-amber-600">
+                            Trattenuto — non preparare
+                          </span>
+                        )}
+                        {/* Chi ha mosso la riga per ultimo. Con più palmari,
+                            "servito" senza un nome accanto non risponde alla
+                            domanda che si fa quando il piatto non è arrivato. */}
+                        {r.ultimo_da && (
+                          <span className="block text-xs text-muted">{r.ultimo_da}</span>
+                        )}
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => avanza(r)}
-                        className="flex min-h-11 shrink-0 items-center rounded-full border border-border px-3 text-xs"
-                      >
-                        {ETICHETTA[r.status]} →
-                      </button>
+                      <span className="flex shrink-0 items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => trattieni(r)}
+                          aria-label={
+                            r.held_at
+                              ? `Manda ora ${r.item_name}`
+                              : `Ritarda ${r.item_name}`
+                          }
+                          className={`flex min-h-11 items-center rounded-full border px-3 text-xs ${
+                            r.held_at
+                              ? "border-amber-500 bg-amber-500/20 font-medium"
+                              : "border-border"
+                          }`}
+                        >
+                          {r.held_at ? "Manda ora" : "Ritarda"}
+                        </button>
+                        {!r.held_at && (
+                          <button
+                            type="button"
+                            onClick={() => avanza(r)}
+                            className="flex min-h-11 items-center rounded-full border border-border px-3 text-xs"
+                          >
+                            {ETICHETTA[r.status]} →
+                          </button>
+                        )}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -347,6 +455,24 @@ export function LiveBoard() {
                       className="min-h-11 flex-1 rounded-full bg-accent px-4 text-sm font-medium text-accent-foreground"
                     >
                       Tutto pronto ({inCorso})
+                    </button>
+                  )}
+                  {trattenuti > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => trattieniIlTavolo(codice, false)}
+                      className="min-h-11 flex-1 rounded-full border border-amber-500 px-4 text-sm font-medium"
+                    >
+                      Manda i {trattenuti} trattenuti
+                    </button>
+                  )}
+                  {daPreparare + inCorso - trattenuti > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => trattieniIlTavolo(codice, true)}
+                      className="min-h-11 flex-1 rounded-full border border-border px-4 text-sm"
+                    >
+                      Ritarda il tavolo
                     </button>
                   )}
                   {pronti > 0 && (
