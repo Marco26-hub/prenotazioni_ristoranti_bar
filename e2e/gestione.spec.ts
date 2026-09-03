@@ -73,6 +73,12 @@ test("la pagina di stampa comande elenca gli ordini aperti", async ({ page, cont
 
   await expect(page.getByText(venue.menuItemName)).toBeVisible({ timeout: 15000 });
   await expect(page.getByRole("button", { name: "Stampa" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Torna agli ordini in corso" })).toHaveAttribute(
+    "href",
+    "/dashboard/orders"
+  );
+  await expect(page.getByText(/Comanda #[A-F0-9]{8}/)).toBeVisible();
+  await expect(page.getByText("In coda", { exact: true })).toBeVisible();
 });
 
 test("cambio password: rifiuta quella attuale sbagliata, poi funziona", async ({ page }) => {

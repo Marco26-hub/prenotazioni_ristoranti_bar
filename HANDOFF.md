@@ -265,6 +265,9 @@ raggruppato per dove sta il cibo: in cucina, fermo al passe, già in tavola.
 **Cucina.** Board raggruppata per tavolo con tempi di attesa e azioni di
 gruppo. Comando vocale ("tavolo 3 pronto"), spento di default e con avviso
 esplicito che l'audio va al servizio di trascrizione del browser.
+La pagina di stampa ha un ritorno esplicito agli ordini, riepilogo di comande,
+pezzi e reparti e genera un foglio separato per ordine e reparto. Ogni foglio
+riporta tavolo, identificativo, orario, stato, varianti, note e totale pezzi.
 
 **Pagamenti.** Carta, Apple Pay, Google Pay via Stripe Connect; Satispay;
 contanti registrati dallo staff. Conto alla romana per piatto. Mance
