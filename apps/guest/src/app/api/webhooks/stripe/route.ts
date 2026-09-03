@@ -35,10 +35,40 @@ export async function POST(request: Request) {
   if (event.type === "payment_intent.succeeded") {
     const intent = event.data.object as { id: string; metadata: Record<string, string> };
 
+    /*
+     * Solo da 'pending'. Senza questa guardia un intent scaduto da noi ma
+     * confermato tardi su Stripe riportava la riga da 'failed' a 'succeeded',
+     * dopo che un altro commensale aveva gia saldato: doppio incasso, e
+     * invisibile perche il saldo negativo viene azzerato.
+     */
     const [payment] = await sql<{ id: string; table_session_id: string | null }[]>`
       update payments set status = 'succeeded'
-      where provider_payment_id = ${intent.id}
+      where provider_payment_id = ${intent.id} and status = 'pending'
       returning id, table_session_id`;
+
+    if (!payment) {
+      // Puo essere: riga inesistente (grave), oppure una riga gia scaduta o
+      // gia contabilizzata. Sono casi diversi e vanno distinti prima di
+      // decidere se far ritentare Stripe.
+      const [esistente] = await sql<{ id: string; status: string }[]>`
+        select id, status from payments where provider_payment_id = ${intent.id}`;
+
+      if (esistente && esistente.status === "succeeded") {
+        // Consegna ripetuta dello stesso evento: gia fatto, si conferma.
+        return NextResponse.json({ received: true });
+      }
+
+      if (esistente) {
+        // Soldi incassati su una riga che avevamo dato per persa: qualcuno
+        // ha pagato due volte e va rimborsato a mano. Non si riscrive lo
+        // stato in silenzio.
+        console.error(
+          `[stripe-webhook] incasso su pagamento ${esistente.id} in stato ` +
+            `'${esistente.status}': possibile doppio addebito da rimborsare`
+        );
+        return NextResponse.json({ received: true });
+      }
+    }
 
     if (!payment) {
       // Un pagamento riuscito lato Stripe che non trova riga da noi è

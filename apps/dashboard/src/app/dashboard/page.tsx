@@ -4,6 +4,8 @@ import { closeTableInPerson } from "./close-table-actions";
 import { setOrderItemStatus } from "./orders/actions";
 import type { OrderItemStatus } from "@repo/shared";
 import { Sala, type TavoloSala, type RigaOrdine } from "./sala";
+import { moduloAttivo } from "@/lib/authz";
+import { ModuloNonAttivo } from "./modulo-non-attivo";
 
 interface RigaTavolo {
   id: string;
@@ -49,6 +51,12 @@ export default async function DashboardPage() {
         <p>Nessun locale associato a questo utente.</p>
       </main>
     );
+  }
+
+  // Il modulo si verifica qui e non solo nel menu: chi digita
+  // l'indirizzo la pagina la otterrebbe lo stesso.
+  if (!(await moduloAttivo(venue.venueId, "ordini"))) {
+    return <ModuloNonAttivo modulo="ordini" />;
   }
 
   const sql = db();

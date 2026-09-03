@@ -2,6 +2,8 @@ import { auth } from "@/auth";
 import { db } from "@repo/shared/db";
 import { StampaReport } from "./stampa-report";
 import { formatPriceCents } from "@repo/shared";
+import { moduloAttivo } from "@/lib/authz";
+import { ModuloNonAttivo } from "../modulo-non-attivo";
 
 /**
  * Analisi dell'attività.
@@ -90,6 +92,12 @@ export default async function AnalisiPage({
   const sessione = await auth();
   const venue = sessione?.venues[0];
   if (!venue) return <main className="p-4">Nessun locale associato.</main>;
+
+  // Il modulo si verifica qui e non solo nel menu: chi digita
+  // l'indirizzo la pagina la otterrebbe lo stesso.
+  if (!(await moduloAttivo(venue.venueId, "ordini"))) {
+    return <ModuloNonAttivo modulo="ordini" />;
+  }
 
   if (venue.role !== "owner" && venue.role !== "manager") {
     return (

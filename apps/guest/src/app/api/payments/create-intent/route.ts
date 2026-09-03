@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@repo/shared/db";
 import { checkRateLimit, clientKey } from "@repo/shared/rate-limit";
 import { hasModulo } from "@repo/shared";
+import { messaggioErrore } from "@repo/shared/errori";
 import { stripeClient } from "@/lib/stripe";
 import { outstandingBalanceCents } from "@/lib/balance";
 
@@ -84,10 +85,34 @@ export async function POST(request: Request) {
    * minuti sono molto piu del tempo che serve a inserire una carta: oltre,
    * si considera abbandonato e lo slot torna libero.
    */
-  await sql`
+  const scaduti = await sql<{ id: string; provider_payment_id: string | null }[]>`
     update payments set status = 'failed'
      where table_session_id = ${session.id} and status = 'pending'
-       and created_at < now() - interval '10 minutes'`;
+       and created_at < now() - interval '10 minutes'
+    returning id, provider_payment_id`;
+
+  /*
+   * Scadere la riga da noi non basta: l'intent resta confermabile su Stripe.
+   *
+   * Chi era rimasto sul 3DS puo confermarlo dieci minuti dopo, quando lo
+   * slot si e gia liberato e un altro commensale ha pagato lo stesso conto.
+   * Il tavolo paga due volte, e l'eccedenza non si vede da nessuna parte
+   * perche il saldo negativo viene azzerato. Va annullato anche di la.
+   */
+  for (const p of scaduti) {
+    if (!p.provider_payment_id?.startsWith("pi_")) continue;
+    try {
+      await stripe.paymentIntents.cancel(p.provider_payment_id, {
+        stripeAccount: venue.stripe_account_id,
+      });
+    } catch (err) {
+      // Gia annullato, gia riuscito o sconosciuto: in tutti e tre i casi non
+      // c'e altro da fare qui, e il webhook decidera sul suo stato.
+      console.warn(
+        `[create-intent] annullamento intent scaduto non riuscito: ${messaggioErrore(err)}`
+      );
+    }
+  }
 
   const splitItemIds = body.orderItemIds?.filter(Boolean) ?? [];
   const isSplit = splitItemIds.length > 0;

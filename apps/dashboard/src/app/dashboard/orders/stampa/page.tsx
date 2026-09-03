@@ -2,6 +2,8 @@ import { auth } from "@/auth";
 import { db } from "@repo/shared/db";
 import Link from "next/link";
 import { PrintButton } from "./print-button";
+import { moduloAttivo } from "@/lib/authz";
+import { ModuloNonAttivo } from "../../modulo-non-attivo";
 
 /**
  * Comande da stampare su carta. Volutamente non è una stampa ESC/POS su
@@ -24,6 +26,12 @@ export default async function PrintOrdersPage({
   const session = await auth();
   const venue = session?.venues[0];
   if (!venue) return <main className="p-4">Nessun locale associato.</main>;
+
+  // Il modulo si verifica qui e non solo nel menu: chi digita
+  // l'indirizzo la pagina la otterrebbe lo stesso.
+  if (!(await moduloAttivo(venue.venueId, "ordini"))) {
+    return <ModuloNonAttivo modulo="ordini" />;
+  }
 
   interface ComandaRow {
     order_id: string;

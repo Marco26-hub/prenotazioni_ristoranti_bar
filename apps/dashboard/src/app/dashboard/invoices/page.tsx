@@ -2,6 +2,8 @@ import { db } from "@repo/shared/db";
 import { auth } from "@/auth";
 import Link from "next/link";
 import { PrintButton } from "./print-button";
+import { moduloAttivo } from "@/lib/authz";
+import { ModuloNonAttivo } from "../modulo-non-attivo";
 
 const STATUS: Record<string, string> = {
   pending: "In lavorazione",
@@ -14,6 +16,12 @@ export default async function InvoicesPage() {
   const session = await auth();
   const venue = session?.venues[0];
   if (!venue) return <main className="p-4">Nessun locale associato.</main>;
+
+  // Il modulo si verifica qui e non solo nel menu: chi digita
+  // l'indirizzo la pagina la otterrebbe lo stesso.
+  if (!(await moduloAttivo(venue.venueId, "ordini"))) {
+    return <ModuloNonAttivo modulo="ordini" />;
+  }
 
   const sql = db();
   const invoices = await sql<

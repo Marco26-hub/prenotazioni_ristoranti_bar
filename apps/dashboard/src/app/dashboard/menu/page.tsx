@@ -24,6 +24,8 @@ import { descriviBevanda, mancanoSolfiti } from "@repo/shared/bevande";
 import { VariantiForm, type GruppoAdmin } from "./varianti-form";
 import { MODELLI } from "@repo/shared/formati";
 import { ModelloForm } from "./modello-form";
+import { moduloAttivo } from "@/lib/authz";
+import { ModuloNonAttivo } from "../modulo-non-attivo";
 
 const AZIONE = "flex min-h-11 items-center px-1 text-sm underline";
 
@@ -56,6 +58,12 @@ export default async function MenuPage({
   const session = await auth();
   const venue = session?.venues[0];
   if (!venue) return <main className="p-4">Nessun locale associato.</main>;
+
+  // Il modulo si verifica qui e non solo nel menu: chi digita
+  // l'indirizzo la pagina la otterrebbe lo stesso.
+  if (!(await moduloAttivo(venue.venueId, "ordini"))) {
+    return <ModuloNonAttivo modulo="ordini" />;
+  }
 
   const sql = db();
   const [venueRow] = await sql<

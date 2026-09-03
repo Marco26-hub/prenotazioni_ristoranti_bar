@@ -1,10 +1,19 @@
 import Link from "next/link";
 import { auth } from "@/auth";
 import { LiveBoard } from "./live-board";
+import { moduloAttivo } from "@/lib/authz";
+import { ModuloNonAttivo } from "../modulo-non-attivo";
 
 export default async function OrdersPage() {
   const session = await auth();
-  const ruolo = session?.venues[0]?.role ?? "waiter";
+  const venue = session?.venues[0];
+  const ruolo = venue?.role ?? "waiter";
+
+  // Il modulo si verifica qui e non solo nel menu: chi digita l'indirizzo
+  // la pagina la otterrebbe lo stesso.
+  if (venue && !(await moduloAttivo(venue.venueId, "ordini"))) {
+    return <ModuloNonAttivo modulo="ordini" />;
+  }
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-5">

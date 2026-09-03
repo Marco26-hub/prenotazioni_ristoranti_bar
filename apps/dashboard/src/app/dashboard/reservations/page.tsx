@@ -3,6 +3,8 @@ import { db } from "@repo/shared/db";
 import { emailConfigurata } from "@repo/shared/email";
 import { addReservation } from "./actions";
 import { CardPrenotazione, type Prenotazione } from "./card-prenotazione";
+import { moduloAttivo } from "@/lib/authz";
+import { ModuloNonAttivo } from "../modulo-non-attivo";
 
 interface Riga {
   id: string;
@@ -34,6 +36,12 @@ export default async function ReservationsPage({
   const session = await auth();
   const venue = session?.venues[0];
   if (!venue) return <main className="p-4">Nessun locale associato.</main>;
+
+  // Il modulo si verifica qui e non solo nel menu: chi digita
+  // l'indirizzo la pagina la otterrebbe lo stesso.
+  if (!(await moduloAttivo(venue.venueId, "prenotazioni"))) {
+    return <ModuloNonAttivo modulo="prenotazioni" />;
+  }
 
   const params = await searchParams;
   const richiesto = Array.isArray(params.giorno) ? params.giorno[0] : params.giorno;

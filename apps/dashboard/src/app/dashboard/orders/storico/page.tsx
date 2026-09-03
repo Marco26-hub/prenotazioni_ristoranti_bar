@@ -2,6 +2,8 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { db } from "@repo/shared/db";
 import { formatPriceCents } from "@repo/shared";
+import { moduloAttivo } from "@/lib/authz";
+import { ModuloNonAttivo } from "../../modulo-non-attivo";
 
 interface DayRow {
   order_id: string;
@@ -24,6 +26,12 @@ export default async function OrdersHistoryPage({
   const session = await auth();
   const venue = session?.venues[0];
   if (!venue) return <main className="p-4">Nessun locale associato.</main>;
+
+  // Il modulo si verifica qui e non solo nel menu: chi digita
+  // l'indirizzo la pagina la otterrebbe lo stesso.
+  if (!(await moduloAttivo(venue.venueId, "ordini"))) {
+    return <ModuloNonAttivo modulo="ordini" />;
+  }
 
   const params = await searchParams;
   const requested = typeof params.giorno === "string" ? params.giorno : undefined;

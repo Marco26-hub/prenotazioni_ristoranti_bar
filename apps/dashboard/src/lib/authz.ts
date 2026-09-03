@@ -1,6 +1,7 @@
 import "server-only";
 import { auth } from "@/auth";
-import type { StaffRole } from "@repo/shared";
+import { db } from "@repo/shared/db";
+import { hasModulo, type StaffRole, type Modulo } from "@repo/shared";
 import type { VenueMembership } from "./staff";
 
 /**
@@ -30,4 +31,76 @@ export async function requireRole(
     throw new Error("Permessi insufficienti per questa operazione");
   }
   return result;
+}
+
+/**
+ * Oltre all'appartenenza, il modulo pagato.
+ *
+ * Il filtro delle voci di menu nel layout è cosmetica: chi digita
+ * `/dashboard/menu` la pagina la ottiene lo stesso, e ogni Server Action è
+ * comunque un POST pubblico per chi ne conosce l'id. Finché il controllo
+ * stava solo nella navigazione, un locale con abbonamento scaduto — o che
+ * paga solo le prenotazioni — usava per intero il gestionale che non ha
+ * comprato: menu, tavoli, QR, comande, analisi, fatture.
+ *
+ * Lo stato si rilegge dal database a ogni chiamata e non dal token: un
+ * abbonamento scaduto deve valere subito, non alla prossima sessione, e un
+ * token dura dodici ore.
+ */
+export async function requireModulo(
+  modulo: Modulo
+): Promise<{ userId: string; venue: VenueMembership }> {
+  const result = await requireVenue();
+  const sql = db();
+
+  const [row] = await sql<
+    {
+      subscription_status: string;
+      subscription_period_end: Date | null;
+      modules: string[] | null;
+    }[]
+  >`select subscription_status, subscription_period_end, modules
+      from venues where id = ${result.venue.venueId}`;
+
+  if (
+    !hasModulo(
+      modulo,
+      row?.subscription_status,
+      row?.subscription_period_end ?? null,
+      row?.modules ?? null
+    )
+  ) {
+    throw new Error(
+      modulo === "ordini"
+        ? "Il modulo Ordini e pagamenti non è attivo su questo abbonamento."
+        : "Il modulo Prenotazioni non è attivo su questo abbonamento."
+    );
+  }
+
+  return result;
+}
+
+/** Come requireModulo, ma restituisce un booleano invece di lanciare: serve
+ *  alle pagine, che devono poter mostrare una spiegazione al posto di un
+ *  errore. */
+export async function moduloAttivo(
+  venueId: string,
+  modulo: Modulo
+): Promise<boolean> {
+  const sql = db();
+  const [r] = await sql<
+    {
+      subscription_status: string;
+      subscription_period_end: Date | null;
+      modules: string[] | null;
+    }[]
+  >`select subscription_status, subscription_period_end, modules
+      from venues where id = ${venueId}`;
+
+  return hasModulo(
+    modulo,
+    r?.subscription_status,
+    r?.subscription_period_end ?? null,
+    r?.modules ?? null
+  );
 }

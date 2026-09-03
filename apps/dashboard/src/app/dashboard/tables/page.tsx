@@ -3,6 +3,8 @@ import { db } from "@repo/shared/db";
 import { auth } from "@/auth";
 import { ScaricaLocandina } from "./scarica-locandina";
 import { PdfTutti } from "./pdf-tutti";
+import { moduloAttivo } from "@/lib/authz";
+import { ModuloNonAttivo } from "../modulo-non-attivo";
 import {
   addTable,
   toggleTableActive,
@@ -15,6 +17,12 @@ export default async function TablesPage() {
   const session = await auth();
   const venue = session?.venues[0];
   if (!venue) return <main className="p-4">Nessun locale associato.</main>;
+
+  // Il modulo si verifica qui e non solo nel menu: chi digita
+  // l'indirizzo la pagina la otterrebbe lo stesso.
+  if (!(await moduloAttivo(venue.venueId, "ordini"))) {
+    return <ModuloNonAttivo modulo="ordini" />;
+  }
 
   const sql = db();
   const [venueRow] = await sql<
