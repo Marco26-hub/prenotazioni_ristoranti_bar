@@ -349,7 +349,7 @@ export function PiantaSala({
                 height: `${(alto / RIGHE) * 100}%`,
               }}
             >
-              <span className="text-[clamp(0.6rem,1.5vw,0.9rem)] font-semibold">
+              <span className="text-[clamp(0.7rem,1.9vw,1.15rem)] font-black tracking-tight [text-shadow:0_1px_2px_rgba(0,0,0,.45)]">
                 {t.codice}
               </span>
               <span className="text-[clamp(0.5rem,1.1vw,0.7rem)] opacity-70">

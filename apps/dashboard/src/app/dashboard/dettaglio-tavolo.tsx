@@ -70,7 +70,12 @@ export function DettaglioTavolo({
       >
         <div className="sticky top-0 flex items-center justify-between gap-3 border-b border-border bg-surface/95 px-5 py-3 backdrop-blur">
           <div>
-            <p className="text-lg font-semibold">Tavolo {tavolo.codice}</p>
+            <p className="flex items-center gap-2">
+              <span className="text-sm uppercase tracking-wide text-muted">Tavolo</span>
+              <span className="rounded-lg bg-lime-300 px-3 py-0.5 text-3xl font-black leading-tight tracking-tight text-zinc-900">
+                {tavolo.codice}
+              </span>
+            </p>
             {tavolo.apertoDa && (
               <p className="text-xs text-muted">
                 Aperto da {durata(tavolo.apertoDa, adesso)} · {tavolo.coperti}{" "}

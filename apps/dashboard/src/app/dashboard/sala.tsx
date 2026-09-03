@@ -211,8 +211,14 @@ export function Sala({
                 aperto ? "border-accent bg-accent/10" : "border-border bg-surface"
               }`}
             >
-              <div className="flex items-baseline justify-between gap-2">
-                <p className="font-semibold">{t.codice}</p>
+              <div className="flex items-center justify-between gap-2">
+                {/* Lime fluo riservato al numero del tavolo e a nient'altro:
+                    portare un piatto al tavolo sbagliato è l'errore più
+                    facile e più caro della sala, e il numero deve leggersi
+                    da lontano senza confondersi con gli stati. */}
+                <p className="rounded-lg bg-lime-300 px-2.5 py-0.5 text-2xl font-black leading-tight tracking-tight text-zinc-900">
+                  {t.codice}
+                </p>
                 <p className="text-xs text-muted">{t.posti} posti</p>
               </div>
 

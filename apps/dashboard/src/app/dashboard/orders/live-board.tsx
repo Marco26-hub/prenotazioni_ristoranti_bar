@@ -611,7 +611,16 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
                 }`}
               >
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <p className="text-lg font-semibold">Tavolo {codice}</p>
+                  <p className="flex items-center gap-2">
+                    <span className="text-sm uppercase tracking-wide text-muted">
+                      Tavolo
+                    </span>
+                    {/* Grande e fluo: in cucina si legge di sfuggita, di
+                        lato, con le mani occupate. */}
+                    <span className="rounded-lg bg-lime-300 px-3 py-0.5 text-3xl font-black leading-tight tracking-tight text-zinc-900">
+                      {codice}
+                    </span>
+                  </p>
                   {tuttoServito && (
                     <span className="text-sm font-medium text-success">
                       tutto servito
