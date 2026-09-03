@@ -7,11 +7,19 @@ const GUEST_URL = process.env.E2E_GUEST_URL ?? "http://localhost:3010";
 
 let venue: TestVenue;
 
-test.beforeAll(async () => {
+/*
+ * Un locale per test, non uno per file.
+ *
+ * Condividendolo, ogni test lascia al successivo i suoi tavoli aperti e le
+ * sue comande: i bottoni presi con .first() finiscono su un altro tavolo e i
+ * conteggi dipendono dall'ordine di esecuzione. Fallivano in fila e passavano
+ * da soli, cioe accusavano il codice di cose che non aveva fatto.
+ */
+test.beforeEach(async () => {
   venue = await createTestVenue();
 });
 
-test.afterAll(async () => {
+test.afterEach(async () => {
   await deleteTestVenue(venue);
 });
 

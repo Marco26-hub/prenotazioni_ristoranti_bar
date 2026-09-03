@@ -6,11 +6,20 @@ const GUEST_URL = process.env.E2E_GUEST_URL ?? "http://localhost:3010";
 
 let venue: TestVenue;
 
-test.beforeAll(async () => {
+/*
+ * Un locale per test, non uno per file.
+ *
+ * Condividendolo, ogni test lasciava al successivo i suoi tavoli aperti: il
+ * primo bottone "Incassa e chiudi" della sala era di un altro tavolo, e
+ * l'attesa fra le ordinazioni scattava per una comanda che non era di questo
+ * test. Fallivano in fila e passavano da soli, cioè accusavano il codice di
+ * cose che non aveva fatto. Creare un locale costa poche query.
+ */
+test.beforeEach(async () => {
   venue = await createTestVenue();
 });
 
-test.afterAll(async () => {
+test.afterEach(async () => {
   await deleteTestVenue(venue);
 });
 
@@ -94,17 +103,8 @@ test("con una carta in corso l'incasso al banco viene rifiutato", async ({
   page,
   context,
 }) => {
-  /*
-   * Locale suo.
-   *
-   * Sul locale condiviso restano aperti i tavoli dei test precedenti, e il
-   * primo bottone "Incassa e chiudi" della sala era di un altro tavolo:
-   * quello si chiudeva senza problemi, il rifiuto non compariva, e il test
-   * falliva accusando il codice di una cosa che non aveva fatto.
-   */
-  const suo = await createTestVenue();
   const guest = await context.newPage();
-  await guest.goto(`${GUEST_URL}/v/${suo.slug}/t/${suo.qrToken}`);
+  await guest.goto(`${GUEST_URL}/v/${venue.slug}/t/${venue.qrToken}`);
   await guest.getByRole("button", { name: /^Aggiungi / }).first().click();
   await guest.getByRole("button", { name: "Ordina" }).click();
   await expect(guest.getByText("Ordine inviato in cucina.")).toBeVisible();
@@ -120,23 +120,16 @@ test("con una carta in corso l'incasso al banco viene rifiutato", async ({
     // sull'autorizzazione. Intanto dice al cameriere "faccio in contanti".
     const [s] = await sql<{ id: string }[]>`
       select ts.id from table_sessions ts
-       where ts.venue_id = ${suo.venueId} and ts.status = 'open'
+       where ts.venue_id = ${venue.venueId} and ts.status = 'open'
        order by ts.opened_at desc limit 1`;
 
     await sql`
       insert into payments (venue_id, table_session_id, amount_cents, method,
                             provider, provider_payment_id, split_type, status)
-      values (${suo.venueId}, ${s.id}, 1000, 'card', 'stripe',
+      values (${venue.venueId}, ${s.id}, 1000, 'card', 'stripe',
               ${"pi_test_" + Date.now()}, 'full', 'pending')`;
 
-    await page.goto(`${DASHBOARD_URL}/login`);
-    await page.locator('input[type="email"]').fill(suo.email);
-    await page.locator('input[type="password"]').fill(suo.password);
-    await page.getByRole("button", { name: "Accedi" }).click();
-    await page.getByRole("button", { name: /^Esci$/i }).waitFor({
-      state: "visible",
-      timeout: 20_000,
-    });
+    await login(page);
     const chiudi = page.getByRole("button", { name: /Incassa e chiudi|Chiudi conto/ });
     await expect(chiudi.first()).toBeVisible({ timeout: 15000 });
     await chiudi.first().click();
@@ -160,21 +153,10 @@ test("con una carta in corso l'incasso al banco viene rifiutato", async ({
     await guest.close();
   } finally {
     await sql.end();
-    await deleteTestVenue(suo);
   }
 });
 
 test("con l'intervallo attivo il secondo ordine viene respinto", async ({ context }) => {
-  /*
-   * Locale suo, non quello condiviso del file.
-   *
-   * L'attesa si conta dall'ultima comanda della sessione, e i test
-   * precedenti ne hanno gia lasciate su quello stesso tavolo: con il locale
-   * condiviso il primo ordine di questo test veniva respinto prima ancora di
-   * cominciare, e il test falliva raccontando una cosa diversa da quella che
-   * verifica.
-   */
-  const suo = await createTestVenue();
   const sql = (await import("postgres")).default(process.env.DATABASE_URL!, {
     ssl: "require",
     prepare: false,
@@ -183,10 +165,10 @@ test("con l'intervallo attivo il secondo ordine viene respinto", async ({ contex
   try {
     // Formula a prezzo fisso: si ordina a ondate, non tutto in una volta.
     await sql`
-      update venues set ordine_intervallo_min = 5 where id = ${suo.venueId}`;
+      update venues set ordine_intervallo_min = 5 where id = ${venue.venueId}`;
 
     const guest = await context.newPage();
-    await guest.goto(`${GUEST_URL}/v/${suo.slug}/t/${suo.qrToken}`);
+    await guest.goto(`${GUEST_URL}/v/${venue.slug}/t/${venue.qrToken}`);
     await guest.getByRole("button", { name: /^Aggiungi / }).first().click();
     await guest.getByRole("button", { name: "Ordina" }).click();
     await expect(guest.getByText("Ordine inviato in cucina.")).toBeVisible({
@@ -209,11 +191,11 @@ test("con l'intervallo attivo il secondo ordine viene respinto", async ({ contex
     const [sessione] = await sql<{ id: string }[]>`
       select ts.id from table_sessions ts
         join tables t on t.id = ts.table_id
-       where t.qr_token = ${suo.qrToken} and ts.status = 'open'
+       where t.qr_token = ${venue.qrToken} and ts.status = 'open'
        order by ts.opened_at desc limit 1`;
 
     const [piatto] = await sql<{ id: string }[]>`
-      select id from menu_items where venue_id = ${suo.venueId} limit 1`;
+      select id from menu_items where venue_id = ${venue.venueId} limit 1`;
 
     const risposta = await guest.evaluate(
       async ([sessionId, menuItemId]) => {
@@ -242,6 +224,5 @@ test("con l'intervallo attivo il secondo ordine viene respinto", async ({ contex
     await guest.close();
   } finally {
     await sql.end();
-    await deleteTestVenue(suo);
   }
 });

@@ -6,11 +6,19 @@ const GUEST_URL = process.env.E2E_GUEST_URL ?? "http://localhost:3010";
 
 let venue: TestVenue;
 
-test.beforeAll(async () => {
+/*
+ * Un locale per test, non uno per file.
+ *
+ * Condividendolo, ogni test lascia al successivo i suoi tavoli aperti e le
+ * sue comande: i bottoni presi con .first() finiscono su un altro tavolo e i
+ * conteggi dipendono dall'ordine di esecuzione. Fallivano in fila e passavano
+ * da soli, cioe accusavano il codice di cose che non aveva fatto.
+ */
+test.beforeEach(async () => {
   venue = await createTestVenue();
 });
 
-test.afterAll(async () => {
+test.afterEach(async () => {
   await deleteTestVenue(venue);
 });
 
@@ -145,6 +153,15 @@ test("ordine: aggiungi al carrello, invia, il conto si aggiorna", async ({ page 
 
 test("senza metodi di pagamento configurati il conto lo dice esplicitamente", async ({ page }) => {
   await page.goto(`${GUEST_URL}/v/${venue.slug}/t/${venue.qrToken}`);
+
+  // Serve qualcosa da pagare: su un conto a zero non c'è nessun pagamento da
+  // proporre, quindi nemmeno da dichiarare non disponibile. Prima il test
+  // passava per gli ordini lasciati dai test precedenti sullo stesso locale.
+  await page.getByRole("button", { name: /^Aggiungi / }).first().click();
+  await page.getByRole("button", { name: "Ordina" }).click();
+  await expect(page.getByText("Ordine inviato in cucina.")).toBeVisible({
+    timeout: 20_000,
+  });
 
   await expect(
     page.getByText("Il pagamento con carta non è attivo in questo locale")
