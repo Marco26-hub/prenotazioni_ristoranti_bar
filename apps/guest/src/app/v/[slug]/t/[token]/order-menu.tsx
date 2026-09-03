@@ -271,6 +271,18 @@ export function OrderMenu({
         </section>
       )}
 
+      {/* Quantità, note e "Ordina" compaiono solo dopo il primo piatto: una
+          scelta giusta, perché a carrello vuoto sarebbero comandi spenti. Ma
+          a schermo vuoto la pagina sembrava una carta da leggere e basta, e
+          chi non tocca il + non scopre mai che si ordina da qui. */}
+      {lines.length === 0 && items.length > 0 && (
+        <p className="sticky bottom-3 z-20 mx-auto max-w-2xl rounded-full border border-accent bg-surface/95 px-4 py-3 text-center text-sm shadow-lg backdrop-blur">
+          Tocca <strong className="text-accent">+</strong> per ordinare dal
+          tavolo. Poi potrai cambiare le quantità e aggiungere una nota per la
+          cucina.
+        </p>
+      )}
+
       {items.length === 0 && (
         <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted">
           Il menu non è ancora disponibile. Chiedi al personale.
