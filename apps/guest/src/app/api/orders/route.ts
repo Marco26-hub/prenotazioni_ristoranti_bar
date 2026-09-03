@@ -70,7 +70,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const menuItemIds = body.items.map((i) => i.menuItemId);
+  // Lo stesso piatto può comparire in più righe con varianti diverse
+  // (porzione intera e mezza, formati, aggiunte). La query restituisce una
+  // sola voce per id: confrontarla con tutte le righe produceva il falso
+  // errore "Piatto non trovato" mostrato al cliente.
+  const menuItemIds = [...new Set(body.items.map((i) => i.menuItemId))];
   const menuItems = await sql<
     { id: string; price_cents: number; available: boolean; venue_id: string }[]
   >`select id, price_cents, available, venue_id from menu_items where id in ${sql(menuItemIds)}`;

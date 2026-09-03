@@ -287,6 +287,9 @@ sempre "Senza cipolla".
 
 Il carrello è indicizzato per piatto **più** opzioni ordinate: due sushi da
 6 e uno da 12 non collassano in una riga sola col prezzo sbagliato.
+L'endpoint ordini deduplica gli id soltanto per la verifica di esistenza:
+più righe dello stesso piatto con varianti diverse vengono accettate e
+restano separate in comanda.
 
 Il prezzo si calcola **sempre sul server** dagli id delle opzioni. Il
 browser manda cosa ha scelto, mai quanto costa. Gli id che non

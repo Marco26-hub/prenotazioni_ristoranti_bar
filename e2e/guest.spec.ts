@@ -88,6 +88,34 @@ test("un qr_token inesistente non apre nessun tavolo", async ({ page }) => {
   expect(res?.status()).toBe(404);
 });
 
+test("lo stesso piatto con due varianti non viene rifiutato", async ({ page, request }) => {
+  await page.goto(`${GUEST_URL}/v/${venue.slug}/t/${venue.qrToken}`);
+
+  const sql = postgres(process.env.DATABASE_URL!, { ssl: "require", prepare: false });
+  try {
+    const [session] = await sql<{ id: string }[]>`
+      select id from table_sessions
+       where venue_id = ${venue.venueId} and status = 'open'
+       order by opened_at desc limit 1`;
+    const [item] = await sql<{ id: string }[]>`
+      select id from menu_items
+       where venue_id = ${venue.venueId} and name = ${venue.menuItemName}`;
+
+    const response = await request.post(`${GUEST_URL}/api/orders`, {
+      data: {
+        sessionId: session.id,
+        items: [
+          { menuItemId: item.id, quantity: 1, optionIds: [] },
+          { menuItemId: item.id, quantity: 1, optionIds: [] },
+        ],
+      },
+    });
+    expect(response.status()).toBe(201);
+  } finally {
+    await sql.end();
+  }
+});
+
 test("ordine: aggiungi al carrello, invia, il conto si aggiorna", async ({ page }) => {
   await page.goto(`${GUEST_URL}/v/${venue.slug}/t/${venue.qrToken}`);
 
