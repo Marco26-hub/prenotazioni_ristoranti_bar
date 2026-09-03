@@ -16,6 +16,7 @@ const NAV = [
   { href: "/dashboard/reservations", label: "Prenotazioni", modulo: "prenotazioni" },
   { href: "/dashboard/invoices", label: "Fatture", modulo: "ordini" },
   { href: "/dashboard/staff", label: "Personale" },
+  { href: "/dashboard/assistenza", label: "Assistenza" },
   { href: "/dashboard/settings", label: "Impostazioni" },
   { href: "/dashboard/billing", label: "Abbonamento" },
 ] satisfies Array<{ href: string; label: string; modulo?: Modulo }>;

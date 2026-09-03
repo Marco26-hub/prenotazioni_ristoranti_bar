@@ -18,13 +18,11 @@ export async function apriTicket(
 
   const oggetto = String(formData.get("oggetto") ?? "").trim();
   const messaggio = String(formData.get("messaggio") ?? "").trim();
-  const urgenza = String(formData.get("urgenza") ?? "normale");
+  // Una casella non spuntata non manda niente, non manda "normale".
+  const urgenza =
+    formData.get("urgenza") === "blocca_servizio" ? "blocca_servizio" : "normale";
 
   if (!oggetto || !messaggio) return { error: "Scrivi oggetto e messaggio" };
-  if (!["normale", "blocca_servizio"].includes(urgenza)) {
-    return { error: "Urgenza non valida" };
-  }
-
   const sql = db();
   const [u] = await sql<{ etichetta: string }[]>`
     select coalesce(name, email) as etichetta from users where id = ${userId}`;

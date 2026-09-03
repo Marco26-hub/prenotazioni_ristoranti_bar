@@ -25,10 +25,18 @@ export default async function AdminPage() {
       tavoli: number;
       piatti: number;
       giorni_residui: number | null;
+      referente_nome: string | null;
+      referente_telefono: string | null;
+      referente_email: string | null;
+      provenienza: string | null;
+      ricontattare_il: Date | null;
+      motivo_abbandono: string | null;
     }[]
   >`
     select v.id, v.name, v.slug, v.subscription_status, v.subscription_period_end,
            v.subscription_id, v.modules, v.created_at,
+           v.referente_nome, v.referente_telefono, v.referente_email,
+           v.provenienza, v.ricontattare_il, v.motivo_abbandono,
            (select count(*)::int from tables t where t.venue_id = v.id) as tavoli,
            (select count(*)::int from menu_items m where m.venue_id = v.id) as piatti,
            case when v.subscription_period_end is null then null
@@ -60,6 +68,19 @@ export default async function AdminPage() {
      where t.stato <> 'risolto'
      order by (t.urgenza = 'blocca_servizio') desc, t.created_at`;
 
+  const note = await sql<
+    { venue_id: string; autore_label: string; testo: string; created_at: Date }[]
+  >`select venue_id, autore_label, testo, created_at
+      from venue_notes order by created_at desc limit 200`;
+
+  type Nota = (typeof note)[number];
+  const notePerLocale = new Map<string, Nota[]>();
+  for (const n of note) {
+    const l = notePerLocale.get(n.venue_id) ?? [];
+    l.push(n);
+    notePerLocale.set(n.venue_id, l);
+  }
+
   const eventi = await sql<
     { venue_id: string | null; admin_label: string; azione: string; dettaglio: string | null; created_at: Date }[]
   >`select venue_id, admin_label, azione, dettaglio, created_at
@@ -81,6 +102,21 @@ export default async function AdminPage() {
     stato: v.subscription_status,
     scadenza: v.subscription_period_end ? v.subscription_period_end.toISOString() : null,
     giorniResidui: v.giorni_residui,
+    scheda: {
+      referente_nome: v.referente_nome ?? "",
+      referente_telefono: v.referente_telefono ?? "",
+      referente_email: v.referente_email ?? "",
+      provenienza: v.provenienza ?? "",
+      ricontattare_il: v.ricontattare_il
+        ? v.ricontattare_il.toISOString().slice(0, 10)
+        : "",
+      motivo_abbandono: v.motivo_abbandono ?? "",
+    },
+    note: (notePerLocale.get(v.id) ?? []).map((n) => ({
+      chi: n.autore_label,
+      testo: n.testo,
+      quando: n.created_at.toISOString(),
+    })),
     pagaConCarta: Boolean(v.subscription_id),
     moduli: v.modules ?? [],
     tavoli: v.tavoli,

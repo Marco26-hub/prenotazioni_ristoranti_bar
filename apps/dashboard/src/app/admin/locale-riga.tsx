@@ -1,7 +1,13 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { impostaModuli, impostaAbbonamento, creaTitolare } from "./actions";
+import {
+  impostaModuli,
+  impostaAbbonamento,
+  creaTitolare,
+  salvaScheda,
+  aggiungiNota,
+} from "./actions";
 
 export interface LocaleAdmin {
   id: string;
@@ -16,6 +22,15 @@ export interface LocaleAdmin {
   tavoli: number;
   piatti: number;
   interventi: { chi: string; azione: string; dettaglio: string | null; quando: string }[];
+  scheda: {
+    referente_nome: string;
+    referente_telefono: string;
+    referente_email: string;
+    provenienza: string;
+    ricontattare_il: string;
+    motivo_abbandono: string;
+  };
+  note: { chi: string; testo: string; quando: string }[];
 }
 
 const MODULI: Array<[string, string]> = [
@@ -44,7 +59,15 @@ export function LocaleRiga({ locale }: { locale: LocaleAdmin }) {
   const [mailTitolare, setMailTitolare] = useState("");
   // Mostrata una volta sola: non è salvata in chiaro da nessuna parte.
   const [passwordUnaVolta, setPasswordUnaVolta] = useState<string | null>(null);
+  const [scheda, setScheda] = useState(locale.scheda);
+  const [nuovaNota, setNuovaNota] = useState("");
   const [pending, start] = useTransition();
+
+  const campo = (k: keyof typeof scheda) => ({
+    value: scheda[k],
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
+      setScheda((p) => ({ ...p, [k]: e.target.value })),
+  });
 
   const residui = locale.giorniResidui;
   const scaduto = residui !== null && residui < 0;
@@ -195,6 +218,100 @@ export function LocaleRiga({ locale }: { locale: LocaleAdmin }) {
               {avviso}
             </p>
           )}
+
+          <div className="border-t border-border pt-4">
+            <p className="text-sm font-medium">Scheda cliente</p>
+            <p className="mt-0.5 text-xs text-muted">
+              Quello che il database non sa da solo: chi è il referente, come
+              è arrivato, quando risentirlo.
+            </p>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <label className="text-xs font-medium text-muted">
+                Referente
+                <input {...campo("referente_nome")} placeholder="Luca Rossi" className={`${CAMPO} mt-1 block w-full`} />
+              </label>
+              <label className="text-xs font-medium text-muted">
+                Telefono
+                <input {...campo("referente_telefono")} placeholder="+39 …" className={`${CAMPO} mt-1 block w-full`} />
+              </label>
+              <label className="text-xs font-medium text-muted">
+                Email
+                <input {...campo("referente_email")} type="email" className={`${CAMPO} mt-1 block w-full`} />
+              </label>
+              <label className="text-xs font-medium text-muted">
+                Come è arrivato
+                <input {...campo("provenienza")} placeholder="Passaparola, fiera…" className={`${CAMPO} mt-1 block w-full`} />
+              </label>
+              <label className="text-xs font-medium text-muted">
+                Risentirlo il
+                <input {...campo("ricontattare_il")} type="date" className={`${CAMPO} mt-1 block w-full`} />
+              </label>
+              <label className="text-xs font-medium text-muted">
+                Se ha lasciato, perché
+                <input {...campo("motivo_abbandono")} placeholder="Troppo caro, chiuso…" className={`${CAMPO} mt-1 block w-full`} />
+              </label>
+            </div>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() =>
+                start(async () => {
+                  const r = await salvaScheda(locale.id, scheda);
+                  setAvviso(r.error ?? r.ok ?? null);
+                })
+              }
+              className="mt-2 min-h-11 rounded-full border border-border px-5 text-sm font-medium disabled:opacity-60"
+            >
+              Salva scheda
+            </button>
+          </div>
+
+          <div className="border-t border-border pt-4">
+            <p className="text-sm font-medium">Note</p>
+            <p className="mt-0.5 text-xs text-muted">
+              Non si cancellano e non si modificano: una cronologia
+              riscrivibile non serve proprio quando serve.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <input
+                value={nuovaNota}
+                onChange={(e) => setNuovaNota(e.target.value)}
+                placeholder="Chiamato, vuole provare le prenotazioni a settembre"
+                maxLength={2000}
+                aria-label="Nuova nota"
+                className={`${CAMPO} min-w-48 flex-1`}
+              />
+              <button
+                type="button"
+                disabled={pending || !nuovaNota.trim()}
+                onClick={() =>
+                  start(async () => {
+                    const r = await aggiungiNota(locale.id, nuovaNota);
+                    setAvviso(r.error ?? r.ok ?? null);
+                    if (!r.error) setNuovaNota("");
+                  })
+                }
+                className="min-h-11 rounded-full border border-border px-4 text-sm disabled:opacity-60"
+              >
+                Aggiungi
+              </button>
+            </div>
+            {locale.note.length > 0 && (
+              <ul className="mt-2 space-y-1.5 text-sm">
+                {locale.note.map((n, i) => (
+                  <li key={i} className="border-l-2 border-border pl-3">
+                    <span className="text-xs text-muted">
+                      {new Intl.DateTimeFormat("it-IT", { dateStyle: "short" }).format(
+                        new Date(n.quando)
+                      )}{" "}
+                      · {n.chi}
+                    </span>
+                    <span className="block whitespace-pre-line">{n.testo}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
 
           <div className="border-t border-border pt-4">
             <p className="text-sm font-medium">Titolare</p>
