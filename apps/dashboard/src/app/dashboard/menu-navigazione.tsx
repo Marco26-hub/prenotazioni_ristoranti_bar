@@ -95,8 +95,11 @@ export function MenuNavigazione({ voci }: { voci: VoceNav[] }) {
       </div>
 
       {/* --- Tablet e desktop: la barra di sempre ----------------------- */}
-      <nav className="mx-auto hidden max-w-4xl px-4 pb-2 sm:block">
-        <ul className="flex flex-wrap gap-1">
+      {/* Una riga sola: andando a capo la seconda riga resta mezza vuota e
+          la testata sembra rotta. Se le voci non ci stanno la barra scorre,
+          ma su telefono c'è il menu qui sopra e non serve trascinarla. */}
+      <nav className="mx-auto hidden max-w-4xl overflow-x-auto px-4 pb-2 sm:block">
+        <ul className="flex gap-1">
           {voci.map((v) => (
             <li key={v.href}>
               <Link

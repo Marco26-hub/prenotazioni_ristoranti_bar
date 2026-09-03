@@ -30,6 +30,8 @@ const CHIARO = "#f6f1ec";
 export interface Passo {
   src: string;
   didascalia: string;
+  larghezza: number;
+  altezza: number;
 }
 
 const font =
@@ -93,78 +95,106 @@ const Schermata: React.FC<{ passo: Passo; numero: number; totale: number }> = ({
   totale,
 }) => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const { fps, width, height } = useVideoConfig();
   const entra = spring({ frame, fps, config: { damping: 200 } });
 
-  // Una risalita lentissima per tutta la durata: tiene viva l'inquadratura
-  // su un'immagine ferma senza rubare l'attenzione al testo.
-  const deriva = interpolate(frame, [0, DURATA_PASSO], [0, -26]);
-  const uscita = interpolate(
-    frame,
-    [DURATA_PASSO - 12, DURATA_PASSO],
-    [1, 0],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
-  );
+  const verticale = passo.altezza > passo.larghezza;
+
+  /*
+   * Le schermate vanno lette, non ammirate.
+   *
+   * Prima stavano in una cornice larga metà fotogramma con la didascalia
+   * sotto: su un telefono il testo dell'interfaccia diventava illeggibile,
+   * che è l'unica cosa che una guida deve fare.
+   *
+   * Ora l'immagine occupa quasi tutta la larghezza. Una schermata di telefono
+   * così larga è più alta del fotogramma: la parte in eccesso non si butta,
+   * ci si scorre sopra piano per tutta la durata del passo — che è anche il
+   * modo in cui la si guarderebbe davvero.
+   */
+  const larghezzaImg = verticale ? width * 0.93 : width * 0.98;
+  const altezzaImg = (larghezzaImg / passo.larghezza) * passo.altezza;
+  const eccedenza = Math.max(0, altezzaImg - height * 0.86);
+
+  const scorrimento = interpolate(frame, [0, DURATA_PASSO], [0, -eccedenza], {
+    extrapolateRight: "clamp",
+  });
+
+  // Sulle schermate orizzontali non c'è niente da scorrere: si avvicina
+  // appena, per non lasciarle immobili.
+  const zoom = verticale
+    ? 1
+    : interpolate(frame, [0, DURATA_PASSO], [1, 1.06], { extrapolateRight: "clamp" });
+
+  const uscita = interpolate(frame, [DURATA_PASSO - 12, DURATA_PASSO], [1, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
 
   return (
     <AbsoluteFill
-      style={{
-        backgroundColor: SFONDO,
-        fontFamily: font,
-        opacity: uscita,
-      }}
+      style={{ backgroundColor: SFONDO, fontFamily: font, opacity: uscita }}
     >
-      <div
+      <AbsoluteFill
         style={{
-          flex: 1,
-          display: "flex",
           alignItems: "center",
-          justifyContent: "center",
-          paddingTop: 90,
+          justifyContent: verticale ? "flex-start" : "center",
+          overflow: "hidden",
         }}
       >
         <div
           style={{
-            transform: `translateY(${(1 - entra) * 60 + deriva}px)`,
+            transform: `translateY(${(1 - entra) * 50 + (verticale ? scorrimento : 0)}px) scale(${zoom})`,
             opacity: entra,
-            borderRadius: 44,
+            borderRadius: verticale ? 40 : 24,
             overflow: "hidden",
             // Cornice sottile: senza, una schermata chiara si fonde con lo
             // sfondo e non si capisce dove finisce lo schermo.
-            border: "3px solid rgba(255,255,255,.14)",
+            border: "3px solid rgba(255,255,255,.16)",
             boxShadow: "0 40px 90px rgba(0,0,0,.55)",
-            maxHeight: 1180,
+            width: larghezzaImg,
+            marginTop: verticale ? 40 : 0,
           }}
         >
-          <Img src={passo.src} style={{ width: 560, display: "block" }} />
+          <Img src={passo.src} style={{ width: "100%", display: "block" }} />
         </div>
-      </div>
+      </AbsoluteFill>
 
-      <div style={{ padding: "0 90px 130px" }}>
-        <p
+      {/* La didascalia sta sopra l'immagine, su una sfumatura: sotto rubava
+          l'altezza che serve a rendere leggibile la schermata. */}
+      <AbsoluteFill style={{ justifyContent: "flex-end" }}>
+        <div
           style={{
-            color: ACCENTO,
-            fontSize: 38,
-            fontWeight: 700,
-            letterSpacing: 4,
-            margin: 0,
+            padding: "180px 80px 110px",
+            background:
+              "linear-gradient(to top, rgba(20,17,16,.98) 42%, rgba(20,17,16,.85) 68%, rgba(20,17,16,0))",
           }}
         >
-          {numero} / {totale}
-        </p>
-        <p
-          style={{
-            color: CHIARO,
-            fontSize: 56,
-            lineHeight: 1.28,
-            margin: "18px 0 0",
-            fontWeight: 600,
-            textWrap: "balance",
-          }}
-        >
-          {passo.didascalia}
-        </p>
-      </div>
+          <p
+            style={{
+              color: ACCENTO,
+              fontSize: 36,
+              fontWeight: 700,
+              letterSpacing: 4,
+              margin: 0,
+            }}
+          >
+            {numero} / {totale}
+          </p>
+          <p
+            style={{
+              color: CHIARO,
+              fontSize: 58,
+              lineHeight: 1.26,
+              margin: "16px 0 0",
+              fontWeight: 600,
+              textWrap: "balance",
+            }}
+          >
+            {passo.didascalia}
+          </p>
+        </div>
+      </AbsoluteFill>
     </AbsoluteFill>
   );
 };

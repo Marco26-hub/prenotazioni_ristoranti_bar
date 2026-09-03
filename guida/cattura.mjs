@@ -72,7 +72,7 @@ async function scatta(nome, didascalia) {
   const file = `${USCITA}/${String(n).padStart(2, "0")}-${nome}.png`;
   await page.screenshot({ path: file });
   console.log(`  ${file}  — ${didascalia}`);
-  return { file, didascalia };
+  return { file, didascalia, larghezza: 1170, altezza: 2532 };
 }
 
 const passi = [];
@@ -147,7 +147,7 @@ async function scattaAdmin(nome, didascalia) {
   const file = `${USCITA}/${String(n).padStart(2, "0")}-${nome}.png`;
   await admin.screenshot({ path: file });
   console.log(`  ${file}  — ${didascalia}`);
-  passi.push({ file, didascalia });
+  passi.push({ file, didascalia, larghezza: 2560, altezza: 1800 });
 }
 
 await scattaAdmin("sala", "In sala ogni tavolo ha un colore: chi aspetta, chi deve pagare, chi può alzarsi");
@@ -175,6 +175,8 @@ writeFileSync(
     passi.map((p) => ({
       immagine: p.file.replace("guida/public/", ""),
       didascalia: p.didascalia,
+      larghezza: p.larghezza,
+      altezza: p.altezza,
     })),
     null,
     2

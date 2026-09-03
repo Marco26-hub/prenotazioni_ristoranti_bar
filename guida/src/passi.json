@@ -1,42 +1,62 @@
 [
   {
     "immagine": "passi/01-menu.png",
-    "didascalia": "Inquadra il QR sul tavolo: si apre il menu, senza scaricare niente"
+    "didascalia": "Inquadra il QR sul tavolo: si apre il menu, senza scaricare niente",
+    "larghezza": 1170,
+    "altezza": 2532
   },
   {
     "immagine": "passi/02-scheda.png",
-    "didascalia": "Ogni piatto apre ingredienti, allergeni e conservazione"
+    "didascalia": "Ogni piatto apre ingredienti, allergeni e conservazione",
+    "larghezza": 1170,
+    "altezza": 2532
   },
   {
     "immagine": "passi/03-carrello.png",
-    "didascalia": "Tocca + per aggiungere: il totale si aggiorna mentre scegli"
+    "didascalia": "Tocca + per aggiungere: il totale si aggiorna mentre scegli",
+    "larghezza": 1170,
+    "altezza": 2532
   },
   {
     "immagine": "passi/04-inviato.png",
-    "didascalia": "Ordina: la comanda parte in cucina, nessuno deve venire a prenderla"
+    "didascalia": "Ordina: la comanda parte in cucina, nessuno deve venire a prenderla",
+    "larghezza": 1170,
+    "altezza": 2532
   },
   {
     "immagine": "passi/05-conto.png",
-    "didascalia": "Il conto è sempre aggiornato: si paga quando si vuole"
+    "didascalia": "Il conto è sempre aggiornato: si paga quando si vuole",
+    "larghezza": 1170,
+    "altezza": 2532
   },
   {
     "immagine": "passi/06-contanti.png",
-    "didascalia": "Chi paga in contanti sceglie scontrino o fattura"
+    "didascalia": "Chi paga in contanti sceglie scontrino o fattura",
+    "larghezza": 1170,
+    "altezza": 2532
   },
   {
     "immagine": "passi/07-chiamato.png",
-    "didascalia": "Il tavolo compare in sala: il cameriere sa già cosa portare"
+    "didascalia": "Il tavolo compare in sala: il cameriere sa già cosa portare",
+    "larghezza": 1170,
+    "altezza": 2532
   },
   {
     "immagine": "passi/08-sala.png",
-    "didascalia": "In sala ogni tavolo ha un colore: chi aspetta, chi deve pagare, chi può alzarsi"
+    "didascalia": "In sala ogni tavolo ha un colore: chi aspetta, chi deve pagare, chi può alzarsi",
+    "larghezza": 2560,
+    "altezza": 1800
   },
   {
     "immagine": "passi/09-cucina.png",
-    "didascalia": "In cucina la comanda arriva già scritta: niente fogli, niente voce"
+    "didascalia": "In cucina la comanda arriva già scritta: niente fogli, niente voce",
+    "larghezza": 2560,
+    "altezza": 1800
   },
   {
     "immagine": "passi/10-analisi.png",
-    "didascalia": "A fine servizio i conti tornano da soli: coperti, scontrino medio, rotazione"
+    "didascalia": "A fine servizio i conti tornano da soli: coperti, scontrino medio, rotazione",
+    "larghezza": 2560,
+    "altezza": 1800
   }
 ]
