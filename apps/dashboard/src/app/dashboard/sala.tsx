@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import { formatPriceCents } from "@repo/shared";
 import { impostaCoperti } from "./sala-actions";
 import { DettaglioTavolo } from "./dettaglio-tavolo";
-import { PiantaSala } from "./pianta-sala";
+import { PiantaSala, type StatoTavolo } from "./pianta-sala";
 
 export interface RigaOrdine {
   nome: string;
   quantita: number;
+  prezzoCents: number;
   stato: string;
   note: string | null;
 }
@@ -44,10 +45,13 @@ const STATO_ETICHETTA: Record<string, string> = {
  * che peggiora da sola. Poi il tavolo già saldato, che è un coperto
  * recuperabile subito se qualcuno lo sparecchia.
  */
-function statoTavolo(t: TavoloSala): "libero" | "incorso" | "pronto" | "saldato" {
+function statoTavolo(t: TavoloSala): StatoTavolo {
   if (!t.sessionId) return "libero";
+  // Il cibo pronto batte tutto: si raffredda mentre si discute del conto.
   if (t.righe.some((r) => r.stato === "ready")) return "pronto";
   if (t.ordinatoCents > 0 && t.pagatoCents >= t.ordinatoCents) return "saldato";
+  // Alla romana: qualcuno ha già pagato, manca il resto.
+  if (t.pagatoCents > 0) return "parziale";
   return "incorso";
 }
 
@@ -129,6 +133,7 @@ export function Sala({
           x: t.x,
           y: t.y,
           stato: statoTavolo(t),
+          residuoCents: t.sessionId ? t.ordinatoCents - t.pagatoCents : null,
         }))}
         piantina={piantina}
         piantinaOpacita={piantinaOpacita}
@@ -204,8 +209,16 @@ export function Sala({
                               </span>
                             )}
                           </span>
-                          <span className="shrink-0 text-xs text-muted">
-                            {STATO_ETICHETTA[r.stato] ?? r.stato}
+                          <span className="flex shrink-0 items-baseline gap-2">
+                            <span className="text-xs text-muted">
+                              {STATO_ETICHETTA[r.stato] ?? r.stato}
+                            </span>
+                            {/* Senza il prezzo di riga il totale in fondo è un
+                                numero da prendere per buono: con dieci righe
+                                a schermo nessuno lo ricontrolla a mente. */}
+                            <span className="w-16 text-right tabular-nums">
+                              {formatPriceCents(r.prezzoCents)}
+                            </span>
                           </span>
                         </li>
                       ))}

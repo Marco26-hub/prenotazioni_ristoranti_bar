@@ -118,8 +118,13 @@ export function DettaglioTavolo({
                           <span className="block text-xs italic text-muted">{r.note}</span>
                         )}
                       </span>
-                      <span className="shrink-0 text-xs text-muted">
-                        {STATO_ETICHETTA[r.stato] ?? r.stato}
+                      <span className="flex shrink-0 items-baseline gap-2">
+                        <span className="text-xs text-muted">
+                          {STATO_ETICHETTA[r.stato] ?? r.stato}
+                        </span>
+                        <span className="w-16 text-right tabular-nums">
+                          {formatPriceCents(r.prezzoCents)}
+                        </span>
                       </span>
                     </li>
                   ))}

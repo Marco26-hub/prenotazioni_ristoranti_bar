@@ -25,6 +25,7 @@ interface RigaComanda {
   table_session_id: string;
   nome: string;
   quantita: number;
+  prezzo_cents: number;
   stato: string;
   note: string | null;
   scelte: Array<{ opzione: string }>;
@@ -75,6 +76,9 @@ export default async function DashboardPage() {
 
   const comande = await sql<RigaComanda[]>`
     select o.table_session_id, mi.name as nome, oi.quantity as quantita,
+           -- Il prezzo bloccato alla comanda, non quello del menu di oggi:
+           -- è quello che il cliente si vedrà sul conto.
+           oi.quantity * oi.unit_price_cents as prezzo_cents,
            oi.status as stato, oi.notes as note, oi.selected_options as scelte
       from order_items oi
       join orders o on o.id = oi.order_id
@@ -92,6 +96,7 @@ export default async function DashboardPage() {
     lista.push({
       nome: etichetta ? `${c.nome} — ${etichetta}` : c.nome,
       quantita: c.quantita,
+      prezzoCents: Number(c.prezzo_cents),
       stato: c.stato,
       note: c.note,
     });

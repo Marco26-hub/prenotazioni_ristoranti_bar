@@ -17,6 +17,8 @@ export interface TavoloPianta {
   x: number | null;
   y: number | null;
   stato: StatoTavolo;
+  /** Quanto resta da incassare, per i tavoli pagati in parte. */
+  residuoCents: number | null;
 }
 
 /**
@@ -26,11 +28,19 @@ export interface TavoloPianta {
  * due piatti fermi al passe da dieci minuti hanno bisogni opposti, e finché
  * erano dello stesso colore la pianta non diceva dove correre.
  */
-export type StatoTavolo = "libero" | "incorso" | "pronto" | "saldato";
+export type StatoTavolo =
+  | "libero"
+  | "incorso"
+  | "parziale"
+  | "pronto"
+  | "saldato";
 
 const COLORE: Record<StatoTavolo, string> = {
   libero: "border-border bg-background text-foreground",
   incorso: "border-accent bg-accent text-accent-foreground",
+  // Alla romana con qualche quota già incassata: il tavolo sta chiudendo ma
+  // non è chiuso, e chi passa deve sapere che manca ancora qualcuno.
+  parziale: "border-amber-500 bg-amber-500/25 text-foreground",
   // Rosso: è l'unica cosa in sala che peggiora da sola mentre la guardi.
   pronto: "border-danger bg-danger text-white animate-pulse",
   saldato: "border-success bg-success/25 text-foreground",
@@ -39,6 +49,7 @@ const COLORE: Record<StatoTavolo, string> = {
 const VOCE: Record<StatoTavolo, string> = {
   libero: "libero",
   incorso: "in corso",
+  parziale: "pagato in parte",
   pronto: "piatti pronti da portare",
   saldato: "saldato, da liberare",
 };
@@ -332,7 +343,11 @@ export function PiantaSala({
                 {t.codice}
               </span>
               <span className="text-[clamp(0.5rem,1.1vw,0.7rem)] opacity-70">
-                {t.posti}p
+                {/* Su un tavolo che sta pagando alla romana il numero utile
+                    non è quanti posti ha, è quanto manca. */}
+                {t.stato === "parziale" && t.residuoCents !== null
+                  ? `−${(t.residuoCents / 100).toFixed(0)} €`
+                  : `${t.posti}p`}
               </span>
             </button>
           );
@@ -356,7 +371,7 @@ export function PiantaSala({
 
       {!disponi && tavoli.some((t) => t.stato !== "libero") && (
         <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
-          {(["incorso", "pronto", "saldato"] as StatoTavolo[])
+          {(["incorso", "parziale", "pronto", "saldato"] as StatoTavolo[])
             .filter((k) => tavoli.some((t) => t.stato === k))
             .map((k) => (
               <li key={k} className="flex items-center gap-1.5">
