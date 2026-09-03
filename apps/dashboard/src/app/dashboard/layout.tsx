@@ -7,20 +7,43 @@ import { Notifiche } from "./notifiche";
 import { MenuNavigazione } from "./menu-navigazione";
 import { hasModulo, type Modulo } from "@repo/shared";
 
+/*
+ * Due file, e non è una questione di spazio.
+ *
+ * Sopra sta il servizio: quello che si tocca mentre la sala è piena, decine
+ * di volte a sera. Sotto la gestione: quello che si apre il lunedì mattina,
+ * o una volta sola. Tenerle in un'unica striscia le metteva alla pari, e
+ * Impostazioni finiva accanto a Ordini con lo stesso peso — mentre una si
+ * apre una volta e l'altra ogni due minuti.
+ *
+ * Divise così le voci ci stanno anche su un portatile, senza trascinare
+ * niente e senza nascondere metà gestionale dietro un gesto.
+ */
 const NAV = [
-  { href: "/dashboard", label: "Tavoli", modulo: "ordini" },
-  { href: "/dashboard/orders", label: "Ordini", modulo: "ordini" },
-  { href: "/dashboard/analisi", label: "Analisi", modulo: "ordini" },
-  { href: "/dashboard/menu", label: "Menu", modulo: "ordini" },
-  { href: "/dashboard/tables", label: "QR e tavoli", modulo: "ordini" },
-  { href: "/dashboard/reservations", label: "Prenotazioni", modulo: "prenotazioni" },
-  { href: "/dashboard/invoices", label: "Fatture", modulo: "ordini" },
-  { href: "/dashboard/staff", label: "Personale" },
-  { href: "/dashboard/assistenza", label: "Assistenza" },
-  { href: "/dashboard/recensioni", label: "Recensioni" },
-  { href: "/dashboard/settings", label: "Impostazioni" },
-  { href: "/dashboard/billing", label: "Abbonamento" },
-] satisfies Array<{ href: string; label: string; modulo?: Modulo }>;
+  { href: "/dashboard", label: "Tavoli", modulo: "ordini", fila: "servizio" },
+  { href: "/dashboard/orders", label: "Ordini", modulo: "ordini", fila: "servizio" },
+  {
+    href: "/dashboard/reservations",
+    label: "Prenotazioni",
+    modulo: "prenotazioni",
+    fila: "servizio",
+  },
+  { href: "/dashboard/menu", label: "Menu", modulo: "ordini", fila: "servizio" },
+  { href: "/dashboard/tables", label: "QR e tavoli", modulo: "ordini", fila: "servizio" },
+
+  { href: "/dashboard/analisi", label: "Analisi", modulo: "ordini", fila: "gestione" },
+  { href: "/dashboard/invoices", label: "Fatture", modulo: "ordini", fila: "gestione" },
+  { href: "/dashboard/recensioni", label: "Recensioni", fila: "gestione" },
+  { href: "/dashboard/staff", label: "Personale", fila: "gestione" },
+  { href: "/dashboard/settings", label: "Impostazioni", fila: "gestione" },
+  { href: "/dashboard/billing", label: "Abbonamento", fila: "gestione" },
+  { href: "/dashboard/assistenza", label: "Assistenza", fila: "gestione" },
+] satisfies Array<{
+  href: string;
+  label: string;
+  modulo?: Modulo;
+  fila: "servizio" | "gestione";
+}>;
 
 export default async function DashboardLayout({ children }: LayoutProps<"/dashboard">) {
   const session = await auth();
@@ -111,7 +134,7 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
 
         <MenuNavigazione
           voci={NAV.filter((item) => !item.modulo || moduliAttivi.has(item.modulo)).map(
-            (item) => ({ href: item.href, label: item.label })
+            (item) => ({ href: item.href, label: item.label, fila: item.fila })
           )}
         />
       </header>

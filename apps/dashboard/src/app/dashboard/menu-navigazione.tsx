@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 export interface VoceNav {
   href: string;
   label: string;
+  /** "servizio" si tocca durante il servizio, "gestione" fuori. */
+  fila: "servizio" | "gestione";
 }
 
 /**
@@ -17,15 +19,14 @@ export interface VoceNav {
  * Impostazioni. Un elenco che si apre mostra tutto in una volta, e segna
  * dove ci si trova — cosa che una barra che scorre non faceva.
  *
- * La barra torna da schermo largo, dove le voci ci stanno davvero. Sotto,
- * l'elenco a scomparsa: con dodici voci una barra che scorre nasconde metà
- * gestionale dietro un gesto che nessuno sa di poter fare — e chi non lo sa
- * non trova Impostazioni.
+ * Da schermo largo, due file. Sopra il servizio — quello che si tocca con
+ * la sala piena, decine di volte a sera — sotto la gestione, che si apre il
+ * lunedì mattina o una volta sola. In una striscia unica le due cose stavano
+ * alla pari, e con dodici voci scorreva: metà gestionale finiva dietro un
+ * gesto che nessuno sa di poter fare, e chi non lo sa non trova Impostazioni.
  *
- * Quando anche da larga la barra non basta, si vede che continua: le voci
- * ai bordi sfumano invece di essere tagliate di netto, e quella su cui ci
- * si trova viene portata in vista da sola. Una barra che scorre senza
- * dirlo è la ragione per cui questa nasconde le voci in fondo.
+ * Sotto, l'elenco a scomparsa: su un telefono due file di dodici voci
+ * mangerebbero mezzo schermo prima di aver mostrato qualcosa.
  */
 export function MenuNavigazione({ voci }: { voci: VoceNav[] }) {
   const percorso = usePathname();
@@ -53,19 +54,6 @@ export function MenuNavigazione({ voci }: { voci: VoceNav[] }) {
 
   const attiva = (href: string) =>
     href === "/dashboard" ? percorso === href : percorso.startsWith(href);
-
-  /*
-   * La voce corrente si porta in vista da sola.
-   *
-   * Con la barra più larga dello schermo, arrivare su una pagina in fondo
-   * all'elenco la lasciava fuori campo: si vedeva una barra che non
-   * evidenziava niente, e sembrava che nessuna voce fosse attiva.
-   */
-  const barra = useRef<HTMLElement>(null);
-  useEffect(() => {
-    const corrente = barra.current?.querySelector('[aria-current="page"]');
-    corrente?.scrollIntoView({ block: "nearest", inline: "center" });
-  }, [percorso]);
 
   const corrente = voci.find((v) => attiva(v.href))?.label ?? "Menu";
 
@@ -114,32 +102,55 @@ export function MenuNavigazione({ voci }: { voci: VoceNav[] }) {
         )}
       </div>
 
-      {/* --- Schermo largo: la barra di sempre --------------------------- */}
-      {/* Una riga sola: andando a capo la seconda riga resta mezza vuota e
-          la testata sembra rotta. Le sfumature ai lati dicono che continua,
-          e il contenuto sotto resta a max-w-4xl: è la barra che ha bisogno
-          di più spazio, non il testo che si legge. */}
+      {/* --- Schermo largo: due file --------------------------------- */}
+      {/* Sopra il servizio, sotto la gestione. Le due file si distinguono
+          per peso e non per colore: la prima porta le voci che si toccano
+          con la sala piena, la seconda quelle che si aprono il lunedì. */}
       <nav
-        ref={barra}
         aria-label="Sezioni del gestionale"
-        className="mx-auto hidden max-w-7xl overflow-x-auto px-4 pb-2 [mask-image:linear-gradient(to_right,transparent,black_1.5rem,black_calc(100%-1.5rem),transparent)] lg:block"
+        className="mx-auto hidden max-w-7xl px-4 pb-2 lg:block"
       >
-        <ul className="flex gap-0.5">
-          {voci.map((v) => (
-            <li key={v.href}>
-              <Link
-                href={v.href}
-                aria-current={attiva(v.href) ? "page" : undefined}
-                className={`flex min-h-11 items-center whitespace-nowrap rounded-full px-2.5 text-sm hover:bg-background hover:text-foreground ${
-                  attiva(v.href) ? "bg-background font-medium text-foreground" : "text-muted"
-                }`}
-              >
-                {v.label}
-              </Link>
-            </li>
-          ))}
+        <ul className="flex flex-wrap items-center gap-0.5">
+          {voci
+            .filter((v) => v.fila === "servizio")
+            .map((v) => (
+              <li key={v.href}>
+                <Link
+                  href={v.href}
+                  aria-current={attiva(v.href) ? "page" : undefined}
+                  className={`flex min-h-11 items-center whitespace-nowrap rounded-full px-4 text-sm hover:bg-background hover:text-foreground ${
+                    attiva(v.href)
+                      ? "bg-background font-semibold text-foreground shadow-sm"
+                      : "font-medium text-foreground/80"
+                  }`}
+                >
+                  {v.label}
+                </Link>
+              </li>
+            ))}
+        </ul>
+
+        <ul className="mt-0.5 flex flex-wrap items-center gap-0.5 border-t border-border/60 pt-1">
+          {voci
+            .filter((v) => v.fila === "gestione")
+            .map((v) => (
+              <li key={v.href}>
+                <Link
+                  href={v.href}
+                  aria-current={attiva(v.href) ? "page" : undefined}
+                  className={`flex min-h-9 items-center whitespace-nowrap rounded-full px-3 text-xs hover:bg-background hover:text-foreground ${
+                    attiva(v.href)
+                      ? "bg-background font-semibold text-foreground"
+                      : "text-muted"
+                  }`}
+                >
+                  {v.label}
+                </Link>
+              </li>
+            ))}
         </ul>
       </nav>
+
     </>
   );
 }
