@@ -233,23 +233,6 @@ export function PiantaSala({
         <PiantinaForm presente={Boolean(piantina)} opacita={piantinaOpacita} />
       )}
 
-      {nuovoAperto && (
-        <FormNuovoTavolo
-          onFatto={(msg) => {
-            setAvviso(msg);
-            setNuovoAperto(false);
-          }}
-        />
-      )}
-
-      {disponi && selezione && (
-        <FormTavolo
-          key={selezione.id}
-          tavolo={selezione}
-          onFatto={(msg) => setAvviso(msg)}
-        />
-      )}
-
       <div
         ref={areaRef}
         onPointerMove={onPointerMove}
@@ -335,6 +318,25 @@ export function PiantaSala({
           </p>
         )}
       </div>
+
+      {nuovoAperto && (
+        <FormNuovoTavolo
+          onFatto={(msg) => {
+            setAvviso(msg);
+            setNuovoAperto(false);
+          }}
+        />
+      )}
+
+      {/* Sotto la pianta e non sopra: comparendo sopra spingeva giù l'area
+          proprio mentre si trascinava, e il tavolo scappava da sotto il dito. */}
+      {disponi && selezione && (
+        <FormTavolo
+          key={selezione.id}
+          tavolo={selezione}
+          onFatto={(msg) => setAvviso(msg)}
+        />
+      )}
     </section>
   );
 }
@@ -353,7 +355,7 @@ function FormNuovoTavolo({ onFatto }: { onFatto: (msg: string) => void }) {
         onFatto(r.error ?? r.ok ?? "");
         setPending(false);
       }}
-      className="mb-3 grid gap-2 rounded-xl border border-accent bg-surface p-3 sm:grid-cols-[1fr_7rem_10rem_auto]"
+      className="mt-3 grid gap-2 rounded-xl border border-accent bg-surface p-3 sm:grid-cols-[1fr_7rem_10rem_auto]"
     >
       <label className="text-xs font-medium text-muted">
         Nome
@@ -407,7 +409,7 @@ function FormTavolo({
         onFatto(r.error ?? r.ok ?? "");
         setPending(false);
       }}
-      className="mb-3 grid gap-2 rounded-xl border border-border bg-surface p-3 sm:grid-cols-[auto_7rem_10rem_auto] sm:items-end"
+      className="mt-3 grid gap-2 rounded-xl border border-border bg-surface p-3 sm:grid-cols-[auto_7rem_10rem_auto] sm:items-end"
     >
       <input type="hidden" name="id" value={tavolo.id} />
       <p className="self-end pb-2 font-semibold">{tavolo.codice}</p>
