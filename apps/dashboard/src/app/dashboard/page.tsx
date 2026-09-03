@@ -1,6 +1,8 @@
 import { auth } from "@/auth";
 import { db } from "@repo/shared/db";
 import { closeTableInPerson } from "./close-table-actions";
+import { setOrderItemStatus } from "./orders/actions";
+import type { OrderItemStatus } from "@repo/shared";
 import { Sala, type TavoloSala, type RigaOrdine } from "./sala";
 
 interface RigaTavolo {
@@ -24,6 +26,7 @@ interface RigaSessione {
 interface RigaComanda {
   table_session_id: string;
   nome: string;
+  item_id: string;
   quantita: number;
   prezzo_cents: number;
   stato: string;
@@ -79,7 +82,8 @@ export default async function DashboardPage() {
      where ts.venue_id = ${venue.venueId} and ts.status = 'open'`;
 
   const comande = await sql<RigaComanda[]>`
-    select o.table_session_id, mi.name as nome, oi.quantity as quantita,
+    select o.table_session_id, oi.id as item_id, mi.name as nome,
+           oi.quantity as quantita,
            -- Il prezzo bloccato alla comanda, non quello del menu di oggi:
            -- è quello che il cliente si vedrà sul conto.
            oi.quantity * oi.unit_price_cents as prezzo_cents,
@@ -104,6 +108,7 @@ export default async function DashboardPage() {
       nome: etichetta ? `${c.nome} — ${etichetta}` : c.nome,
       quantita: c.quantita,
       prezzoCents: Number(c.prezzo_cents),
+      id: c.item_id,
       trattenuto: c.trattenuto,
       ordinatoIl: c.ordinato_il.toISOString(),
       stato: c.stato,
@@ -139,11 +144,20 @@ export default async function DashboardPage() {
     await closeTableInPerson(sessionId);
   }
 
+  // La sala è dove il titolare guarda: doverci andare, vedere un piatto
+  // pronto e poi cambiare pagina per segnarlo servito è un passaggio in più
+  // che nessuno fa, e lo stato resta indietro.
+  async function avanzaRiga(itemId: string, a: string, da: string) {
+    "use server";
+    return setOrderItemStatus(itemId, a as OrderItemStatus, da as OrderItemStatus);
+  }
+
   return (
     <main className="mx-auto max-w-4xl px-4 py-5">
       <Sala
         tavoli={tavoli}
         chiudiConto={chiudiConto}
+        avanzaRiga={avanzaRiga}
         piantina={locale?.floor_plan_url ?? null}
         piantinaOpacita={locale?.floor_plan_opacity ?? 35}
         aiAttiva={Boolean(locale?.openrouter_api_key)}

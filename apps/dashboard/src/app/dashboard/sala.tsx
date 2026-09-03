@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { formatPriceCents } from "@repo/shared";
 import { impostaCoperti } from "./sala-actions";
@@ -8,6 +8,7 @@ import { DettaglioTavolo } from "./dettaglio-tavolo";
 import { PiantaSala, type StatoTavolo } from "./pianta-sala";
 
 export interface RigaOrdine {
+  id: string;
   nome: string;
   quantita: number;
   prezzoCents: number;
@@ -31,6 +32,21 @@ export interface TavoloSala {
   pagatoCents: number;
   righe: RigaOrdine[];
 }
+
+/** Dove porta il tocco, e come si chiama il gesto. */
+const AVANTI: Record<string, { a: string; testo: string }> = {
+  sent_to_kitchen: { a: "preparing", testo: "In cottura" },
+  preparing: { a: "ready", testo: "Pronto" },
+  ready: { a: "served", testo: "Portato" },
+};
+
+const COLORE_STATO: Record<string, string> = {
+  pending: "text-zinc-400",
+  sent_to_kitchen: "text-violet-400",
+  preparing: "text-amber-500",
+  ready: "text-sky-400",
+  served: "text-emerald-500",
+};
 
 const STATO_ETICHETTA: Record<string, string> = {
   pending: "da inviare",
@@ -103,6 +119,7 @@ function orario(daISO: string): string {
 export function Sala({
   tavoli,
   chiudiConto,
+  avanzaRiga,
   piantina,
   piantinaOpacita,
   aiAttiva,
@@ -110,6 +127,11 @@ export function Sala({
 }: {
   tavoli: TavoloSala[];
   chiudiConto: (sessionId: string) => Promise<void>;
+  avanzaRiga: (
+    itemId: string,
+    a: string,
+    da: string
+  ) => Promise<{ error?: string }>;
   piantina: string | null;
   piantinaOpacita: number;
   aiAttiva: boolean;
@@ -118,6 +140,8 @@ export function Sala({
   const router = useRouter();
   const [adesso, setAdesso] = useState(() => Date.now());
   const [apertoId, setApertoId] = useState<string | null>(null);
+  const [avvisoRiga, setAvvisoRiga] = useState<string | null>(null);
+  const [inCorso, start] = useTransition();
 
   // Due ritmi diversi di proposito: l'orologio scatta ogni minuto perché è
   // l'unità in cui si legge una permanenza, i dati si ricaricano ogni quindici
@@ -168,6 +192,12 @@ export function Sala({
           if (t?.sessionId) setApertoId(id);
         }}
       />
+
+      {avvisoRiga && (
+        <p role="alert" className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          {avvisoRiga}
+        </p>
+      )}
 
       <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {tavoli.map((t) => {
@@ -238,13 +268,36 @@ export function Sala({
                             )}
                           </span>
                           <span className="flex shrink-0 items-baseline gap-2 self-end sm:self-auto">
-                            <span
-                              className={`text-xs ${r.trattenuto ? "font-medium text-amber-600" : "text-muted"}`}
-                            >
-                              {r.trattenuto
-                                ? "trattenuto"
-                                : (STATO_ETICHETTA[r.stato] ?? r.stato)}
-                            </span>
+                            {r.trattenuto ? (
+                              <span className="text-xs font-medium text-amber-600">
+                                trattenuto
+                              </span>
+                            ) : AVANTI[r.stato] ? (
+                              <button
+                                type="button"
+                                disabled={inCorso}
+                                onClick={() =>
+                                  start(async () => {
+                                    const res = await avanzaRiga(
+                                      r.id,
+                                      AVANTI[r.stato].a,
+                                      r.stato
+                                    );
+                                    setAvvisoRiga(res?.error ?? null);
+                                    router.refresh();
+                                  })
+                                }
+                                className={`min-h-9 rounded-full border px-3 text-xs font-medium disabled:opacity-50 ${COLORE_STATO[r.stato] ?? ""} border-current`}
+                              >
+                                {AVANTI[r.stato].testo} →
+                              </button>
+                            ) : (
+                              <span
+                                className={`text-xs font-medium ${COLORE_STATO[r.stato] ?? "text-muted"}`}
+                              >
+                                {STATO_ETICHETTA[r.stato] ?? r.stato}
+                              </span>
+                            )}
                             {/* Senza il prezzo di riga il totale in fondo è un
                                 numero da prendere per buono: con dieci righe
                                 a schermo nessuno lo ricontrolla a mente. */}

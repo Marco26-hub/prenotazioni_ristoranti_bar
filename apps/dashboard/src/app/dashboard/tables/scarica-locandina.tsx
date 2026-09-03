@@ -9,6 +9,10 @@ import { useState } from "react";
 const LARGHEZZA = 1240;
 const ALTEZZA = 1748;
 
+/** A6 in millimetri, e l'abbondanza che ogni tipografia si aspetta. */
+const A6_MM = { w: 105, h: 148 };
+const ABBONDANZA_MM = 3;
+
 export interface DatiLocandina {
   codice: string;
   qrDataUrl: string;
@@ -63,10 +67,7 @@ export function ScaricaLocandina({ dati }: { dati: DatiLocandina }) {
   const [errore, setErrore] = useState<string | null>(null);
   const [inCorso, setInCorso] = useState(false);
 
-  async function genera() {
-    setErrore(null);
-    setInCorso(true);
-    try {
+  async function disegna(): Promise<HTMLCanvasElement> {
       const canvas = document.createElement("canvas");
       canvas.width = LARGHEZZA;
       canvas.height = ALTEZZA;
@@ -149,6 +150,14 @@ export function ScaricaLocandina({ dati }: { dati: DatiLocandina }) {
       ctx.fillStyle = accento;
       ctx.fillRect(0, ALTEZZA - 24, LARGHEZZA, 24);
 
+      return canvas;
+  }
+
+  async function genera() {
+    setErrore(null);
+    setInCorso(true);
+    try {
+      const canvas = await disegna();
       const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/png"));
       if (!blob) throw new Error("Immagine non generata");
 
@@ -167,18 +176,82 @@ export function ScaricaLocandina({ dati }: { dati: DatiLocandina }) {
     }
   }
 
+  /**
+   * PDF per la tipografia.
+   *
+   * Un PNG lo stampa chiunque, ma un tipografo chiede altro: formato di
+   * pagina dichiarato, abbondanza attorno al taglio e crocini per sapere
+   * dove tagliare. Senza abbondanza, un millimetro di scarto della
+   * taglierina lascia un filo bianco sul bordo.
+   */
+  async function generaPdf() {
+    setErrore(null);
+    setInCorso(true);
+    try {
+      const canvas = await disegna();
+      const { jsPDF } = await import("jspdf");
+
+      // A6 più 3 mm di abbondanza per lato: è lo standard che ogni stampatore
+      // si aspetta senza doverlo chiedere.
+      const pagina = { w: A6_MM.w + ABBONDANZA_MM * 2, h: A6_MM.h + ABBONDANZA_MM * 2 };
+      const pdf = new jsPDF({ unit: "mm", format: [pagina.w, pagina.h] });
+
+      // L'immagine copre anche l'abbondanza: il fondo bianco si estende
+      // oltre il taglio, che è esattamente lo scopo.
+      pdf.addImage(
+        canvas.toDataURL("image/jpeg", 0.95),
+        "JPEG",
+        0,
+        0,
+        pagina.w,
+        pagina.h
+      );
+
+      // Crocini fuori dall'area di taglio, come si usa.
+      pdf.setLineWidth(0.1);
+      pdf.setDrawColor(0);
+      const b = ABBONDANZA_MM;
+      const l = 2;
+      for (const [x, y, dx, dy] of [
+        [b, 0, 0, l], [0, b, l, 0],
+        [pagina.w - b, 0, 0, l], [pagina.w, b, -l, 0],
+        [b, pagina.h, 0, -l], [0, pagina.h - b, l, 0],
+        [pagina.w - b, pagina.h, 0, -l], [pagina.w, pagina.h - b, -l, 0],
+      ]) {
+        pdf.line(x, y, x + dx, y + dy);
+      }
+
+      pdf.save(`tavolo-${dati.codice}-stampa.pdf`);
+    } catch (e) {
+      setErrore(e instanceof Error ? e.message : "Non è stato possibile creare il PDF");
+    } finally {
+      setInCorso(false);
+    }
+  }
+
   return (
     <div className="mt-2">
-      <button
-        type="button"
-        onClick={genera}
-        disabled={inCorso}
-        className="inline-flex min-h-11 items-center rounded-full border border-border px-4 text-sm disabled:opacity-50"
-      >
-        {inCorso ? "Preparo…" : "Scarica da stampare"}
-      </button>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={genera}
+          disabled={inCorso}
+          className="inline-flex min-h-11 items-center rounded-full border border-border px-4 text-sm disabled:opacity-50"
+        >
+          {inCorso ? "Preparo…" : "Scarica PNG"}
+        </button>
+        <button
+          type="button"
+          onClick={generaPdf}
+          disabled={inCorso}
+          className="inline-flex min-h-11 items-center rounded-full border border-accent px-4 text-sm font-medium disabled:opacity-50"
+        >
+          PDF per la tipografia
+        </button>
+      </div>
       <p className="mt-1 text-xs text-muted">
-        PNG in formato A6 a 300 dpi, pronto per la tipografia.
+        A6 a 300 dpi. Il PDF ha {ABBONDANZA_MM} mm di abbondanza per lato e i
+        crocini di taglio: è il file da mandare allo stampatore.
       </p>
       {errore && <p className="mt-1 text-xs text-danger">{errore}</p>}
     </div>

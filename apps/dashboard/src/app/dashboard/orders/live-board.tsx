@@ -195,7 +195,7 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
       if (!next) return;
       setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, status: next } : i)));
       try {
-        const r = await setOrderItemStatus(item.id, next);
+        const r = await setOrderItemStatus(item.id, next, item.status);
         if (r?.error) setNegato(r.error);
       } catch {
         // Azione fallita (sessione scaduta, permessi): non lasciare a schermo

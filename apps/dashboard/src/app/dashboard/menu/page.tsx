@@ -22,6 +22,7 @@ import { LINGUE, type Traduzioni } from "@repo/shared/lingue";
 import { gruppiPerPiatti } from "@repo/shared/varianti";
 import { descriviBevanda, mancanoSolfiti } from "@repo/shared/bevande";
 import { VariantiForm, type GruppoAdmin } from "./varianti-form";
+import { MODELLI } from "@repo/shared/formati";
 import { ModelloForm } from "./modello-form";
 
 const AZIONE = "flex min-h-11 items-center px-1 text-sm underline";
@@ -101,6 +102,10 @@ export default async function MenuPage({
 
   // Un menu senza allergeni non è a norma (Reg. UE 1169/2011) e senza foto
   // vende meno: il ristoratore deve vederlo, non scoprirlo dal cliente.
+  const nomeModello =
+    MODELLI.find((m) => m.tipo === (venueRow?.venue_type ?? "ristorante"))?.nome ??
+    "Ristorante";
+
   const senzaAllergeni = items.filter((i) => !i.allergens?.length).length;
   const senzaFoto = items.filter((i) => !i.image_url).length;
   const nascosti = items.filter((i) => !i.available).length;
@@ -324,7 +329,20 @@ export default async function MenuPage({
     <main className="mx-auto max-w-3xl space-y-8 px-4 py-5">
       <header className="space-y-3">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h1 className="text-lg font-semibold">Menu</h1>
+          <div>
+            <h1 className="text-lg font-semibold">Menu</h1>
+            {/* Quale modello è in uso stava solo in fondo alla pagina, dentro
+                il selettore, dove si confondeva con quello che si sta
+                scegliendo. È la prima cosa da sapere aprendo il menu. */}
+            <p className="mt-0.5 text-sm text-muted">
+              Formato in uso:{" "}
+              <strong className="text-foreground">{nomeModello}</strong>
+              {" · "}
+              <a href="#formato" className="underline underline-offset-2">
+                cambia
+              </a>
+            </p>
+          </div>
           <p className="text-sm text-muted">
             {items.length} piatti in {categories.length} categorie
           </p>
@@ -461,7 +479,7 @@ export default async function MenuPage({
       </section>
 
       <section className="space-y-3 border-t border-border pt-6">
-        <h2 className="font-semibold">Che locale sei</h2>
+        <h2 id="formato" className="scroll-mt-20 font-semibold">Che locale sei</h2>
         <p className="text-sm text-muted">
           Imposta categorie e scelte tipiche del tuo formato, e ti ricorda
           quello che in quel formato si dimentica.

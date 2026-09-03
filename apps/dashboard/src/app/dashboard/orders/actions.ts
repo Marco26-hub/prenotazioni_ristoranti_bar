@@ -52,7 +52,17 @@ function puo(role: StaffRole, status: OrderItemStatus): string | null {
 
 export async function setOrderItemStatus(
   orderItemId: string,
-  status: OrderItemStatus
+  status: OrderItemStatus,
+  /**
+   * Da quale stato si crede di partire.
+   *
+   * Con due palmari sullo stesso tavolo, chi ha lo schermo vecchio di quattro
+   * secondi può far saltare uno stato: crede di portare "in preparazione" a
+   * "pronto" mentre un altro l'ha già portato a "pronto", e il piatto
+   * finirebbe "servito" senza essere mai uscito. Chi arriva secondo viene
+   * fermato e vede il valore aggiornato al giro dopo.
+   */
+  atteso?: OrderItemStatus
 ): Promise<{ error?: string }> {
   const { venue, userId } = await requireVenue();
 
@@ -70,7 +80,12 @@ export async function setOrderItemStatus(
     update order_items set status = ${status}
     where id = ${orderItemId}
       and order_id in (select id from orders where venue_id = ${venue.venueId})
+      ${atteso ? sql`and status = ${atteso}` : sql``}
     returning id, (select status from order_items where id = ${orderItemId}) as precedente`;
+
+  if (!riga && atteso) {
+    return { error: "Qualcuno l'ha già spostato: guarda lo stato aggiornato." };
+  }
 
   if (riga) {
     await sql`
