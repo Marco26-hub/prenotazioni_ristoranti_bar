@@ -13,6 +13,7 @@ export interface RigaOrdine {
   prezzoCents: number;
   stato: string;
   note: string | null;
+  trattenuto: boolean;
 }
 
 export interface TavoloSala {
@@ -48,7 +49,10 @@ const STATO_ETICHETTA: Record<string, string> = {
 function statoTavolo(t: TavoloSala): StatoTavolo {
   if (!t.sessionId) return "libero";
   // Il cibo pronto batte tutto: si raffredda mentre si discute del conto.
-  if (t.righe.some((r) => r.stato === "ready")) return "pronto";
+  // Un piatto trattenuto è fermo per decisione della sala, non perché
+  // nessuno lo porta: farlo lampeggiare rosso in cassa manderebbe qualcuno a
+  // correre per un piatto che deve restare dov'è.
+  if (t.righe.some((r) => r.stato === "ready" && !r.trattenuto)) return "pronto";
   if (t.ordinatoCents > 0 && t.pagatoCents >= t.ordinatoCents) return "saldato";
   // Alla romana: qualcuno ha già pagato, manca il resto.
   if (t.pagatoCents > 0) return "parziale";
@@ -210,8 +214,12 @@ export function Sala({
                             )}
                           </span>
                           <span className="flex shrink-0 items-baseline gap-2">
-                            <span className="text-xs text-muted">
-                              {STATO_ETICHETTA[r.stato] ?? r.stato}
+                            <span
+                              className={`text-xs ${r.trattenuto ? "font-medium text-amber-600" : "text-muted"}`}
+                            >
+                              {r.trattenuto
+                                ? "trattenuto"
+                                : (STATO_ETICHETTA[r.stato] ?? r.stato)}
                             </span>
                             {/* Senza il prezzo di riga il totale in fondo è un
                                 numero da prendere per buono: con dieci righe

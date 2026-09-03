@@ -28,6 +28,7 @@ interface RigaComanda {
   prezzo_cents: number;
   stato: string;
   note: string | null;
+  trattenuto: boolean;
   scelte: Array<{ opzione: string }>;
 }
 
@@ -79,7 +80,9 @@ export default async function DashboardPage() {
            -- Il prezzo bloccato alla comanda, non quello del menu di oggi:
            -- è quello che il cliente si vedrà sul conto.
            oi.quantity * oi.unit_price_cents as prezzo_cents,
-           oi.status as stato, oi.notes as note, oi.selected_options as scelte
+           oi.status as stato, oi.notes as note,
+           (oi.held_at is not null) as trattenuto,
+           oi.selected_options as scelte
       from order_items oi
       join orders o on o.id = oi.order_id
       join menu_items mi on mi.id = oi.menu_item_id
@@ -97,6 +100,7 @@ export default async function DashboardPage() {
       nome: etichetta ? `${c.nome} — ${etichetta}` : c.nome,
       quantita: c.quantita,
       prezzoCents: Number(c.prezzo_cents),
+      trattenuto: c.trattenuto,
       stato: c.stato,
       note: c.note,
     });

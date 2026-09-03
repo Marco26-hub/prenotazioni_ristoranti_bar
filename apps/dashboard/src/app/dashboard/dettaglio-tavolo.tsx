@@ -119,8 +119,12 @@ export function DettaglioTavolo({
                         )}
                       </span>
                       <span className="flex shrink-0 items-baseline gap-2">
-                        <span className="text-xs text-muted">
-                          {STATO_ETICHETTA[r.stato] ?? r.stato}
+                        <span
+                          className={`text-xs ${r.trattenuto ? "font-medium text-amber-600" : "text-muted"}`}
+                        >
+                          {r.trattenuto
+                            ? "trattenuto"
+                            : (STATO_ETICHETTA[r.stato] ?? r.stato)}
                         </span>
                         <span className="w-16 text-right tabular-nums">
                           {formatPriceCents(r.prezzoCents)}
