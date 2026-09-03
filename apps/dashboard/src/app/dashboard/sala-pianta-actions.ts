@@ -59,6 +59,7 @@ export async function aggiungiTavoloInSala(
   const code = String(formData.get("code") ?? "").trim();
   const seats = Number.parseInt(String(formData.get("seats") ?? "2"), 10);
   const shape = String(formData.get("shape") ?? "rettangolo");
+  const zona = String(formData.get("zona") ?? "").trim().slice(0, 40) || null;
 
   if (!code) return { error: "Serve un nome, es. T11 o Dehors 3" };
   if (code.length > 20) return { error: "Nome troppo lungo" };
@@ -79,9 +80,9 @@ export async function aggiungiTavoloInSala(
   if (esiste) return { error: `Esiste già un tavolo ${code}` };
 
   await sql`
-    insert into tables (venue_id, code, seats, shape, pos_x, pos_y)
+    insert into tables (venue_id, code, seats, shape, zone, pos_x, pos_y)
     values (
-      ${venue.venueId}, ${code}, ${seats}, ${shape},
+      ${venue.venueId}, ${code}, ${seats}, ${shape}, ${zona},
       ${Number.isFinite(x) ? Math.min(COLONNE - 1, Math.max(0, x)) : null},
       ${Number.isFinite(y) ? Math.min(RIGHE - 1, Math.max(0, y)) : null}
     )`;
@@ -100,6 +101,9 @@ export async function aggiornaTavoloInSala(
   const id = String(formData.get("id") ?? "");
   const seats = Number.parseInt(String(formData.get("seats") ?? ""), 10);
   const shape = String(formData.get("shape") ?? "rettangolo");
+  // Sala 1, Dehors, Veranda: il nome lo dà il locale, non noi. Un elenco
+  // chiuso non reggerebbe il primo locale con la "sala del camino".
+  const zona = String(formData.get("zona") ?? "").trim().slice(0, 40) || null;
 
   if (!Number.isFinite(seats) || seats < 1 || seats > 40) {
     return { error: "Posti fra 1 e 40" };
@@ -110,7 +114,7 @@ export async function aggiornaTavoloInSala(
 
   const sql = db();
   const [row] = await sql<{ id: string }[]>`
-    update tables set seats = ${seats}, shape = ${shape}
+    update tables set seats = ${seats}, shape = ${shape}, zone = ${zona}
      where id = ${id} and venue_id = ${venue.venueId}
     returning id`;
 

@@ -15,7 +15,7 @@ import { requireVenue } from "@/lib/authz";
  * sparirebbero dai totali.
  */
 export async function closeTableInPerson(sessionId: string) {
-  const { venue } = await requireVenue();
+  const { venue, userId } = await requireVenue();
   const sql = db();
 
   await sql.begin(async (tx) => {
@@ -75,6 +75,13 @@ export async function closeTableInPerson(sessionId: string) {
     await tx`
       update table_sessions set status = 'closed', closed_at = now()
       where id = ${session.id}`;
+
+    // Chiudendo il conto la chiamata è per definizione soddisfatta: qualcuno
+    // è andato al tavolo, ha incassato e ha portato il documento. Lasciarla
+    // aperta la farebbe suonare su un tavolo ormai vuoto.
+    await tx`
+      update table_calls set handled_at = now(), handled_by = ${userId}
+       where table_session_id = ${session.id} and handled_at is null`;
   });
 
   revalidatePath("/dashboard");

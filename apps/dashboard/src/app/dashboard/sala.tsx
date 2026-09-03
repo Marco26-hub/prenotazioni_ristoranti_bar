@@ -23,6 +23,7 @@ export interface TavoloSala {
   codice: string;
   posti: number;
   forma: string;
+  zona: string | null;
   x: number | null;
   y: number | null;
   sessionId: string | null;
@@ -200,6 +201,7 @@ export function Sala({
           codice: t.codice,
           posti: t.posti,
           forma: t.forma,
+          zona: t.zona,
           x: t.x,
           y: t.y,
           stato: statoTavolo(t, sogliaMin, adesso, sogliaLiberazioneMin),

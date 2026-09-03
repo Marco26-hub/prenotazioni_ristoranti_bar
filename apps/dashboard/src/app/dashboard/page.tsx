@@ -10,6 +10,7 @@ interface RigaTavolo {
   code: string;
   seats: number;
   shape: string;
+  zone: string | null;
   pos_x: number | null;
   pos_y: number | null;
 }
@@ -53,7 +54,7 @@ export default async function DashboardPage() {
   const sql = db();
 
   const tables = await sql<RigaTavolo[]>`
-    select id, code, seats, shape, pos_x, pos_y from tables
+    select id, code, seats, shape, zone, pos_x, pos_y from tables
      where venue_id = ${venue.venueId} and active = true
      order by code`;
 
@@ -133,6 +134,7 @@ export default async function DashboardPage() {
       codice: t.code,
       posti: t.seats,
       forma: t.shape,
+      zona: t.zone,
       x: t.pos_x,
       y: t.pos_y,
       sessionId: s?.session_id ?? null,

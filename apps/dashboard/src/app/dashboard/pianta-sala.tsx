@@ -19,6 +19,7 @@ export interface TavoloPianta {
   stato: StatoTavolo;
   /** Quanto resta da incassare, per i tavoli pagati in parte. */
   residuoCents: number | null;
+  zona: string | null;
 }
 
 /**
@@ -135,6 +136,7 @@ export function PiantaSala({
   const [sporco, setSporco] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [nuovoAperto, setNuovoAperto] = useState(false);
+  const [zonaScelta, setZonaScelta] = useState("tutte");
 
   const areaRef = useRef<HTMLDivElement>(null);
   const trascinato = useRef<string | null>(null);
@@ -221,8 +223,37 @@ export function PiantaSala({
 
   const selezione = tavoli.find((t) => t.id === selezionato) ?? null;
 
+  // I nomi che il locale ha già usato: si scrivono una volta e poi si
+  // scelgono, senza che "Dehors" e "dehors" diventino due sale.
+  const zone = [...new Set(tavoli.map((t) => t.zona).filter(Boolean))] as string[];
+
   return (
     <section className="mb-5">
+      <datalist id="zone-locale">
+        {zone.map((z) => (
+          <option key={z} value={z} />
+        ))}
+      </datalist>
+
+      {zone.length > 1 && !disponi && (
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <span className="text-sm text-muted">Sala:</span>
+          {["tutte", ...zone].map((z) => (
+            <button
+              key={z}
+              type="button"
+              onClick={() => setZonaScelta(z)}
+              aria-pressed={zonaScelta === z}
+              className={`min-h-11 rounded-full px-4 text-sm font-medium ${
+                zonaScelta === z ? "bg-accent text-accent-foreground" : "border border-border"
+              }`}
+            >
+              {z === "tutte" ? "Tutte" : z}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <button
@@ -322,6 +353,9 @@ export function PiantaSala({
         )}
 
         {tavoli.map((t) => {
+          // Filtrare per sala nasconde i tavoli, non li sposta: la
+          // disposizione salvata resta quella.
+          if (!disponi && zonaScelta !== "tutte" && t.zona !== zonaScelta) return null;
           const p = pos.get(t.id) ?? { x: 0, y: 0 };
           // I tavoli grandi occupano più spazio: una pianta in cui un due
           // posti e un dieci posti sono uguali non rappresenta la sala.
@@ -447,6 +481,15 @@ function FormNuovoTavolo({ onFatto }: { onFatto: (msg: string) => void }) {
         />
       </label>
       <label className="text-xs font-medium text-muted">
+        Sala
+        <input
+          name="zona"
+          list="zone-locale"
+          placeholder="Sala 1, Dehors…"
+          className={`${CAMPO} mt-1`}
+        />
+      </label>
+      <label className="text-xs font-medium text-muted">
         Forma
         <select name="shape" defaultValue="rettangolo" className={`${CAMPO} mt-1`}>
           <option value="rettangolo">Rettangolare</option>
@@ -494,6 +537,16 @@ function FormTavolo({
           min="1"
           max="40"
           defaultValue={tavolo.posti}
+          className={`${CAMPO} mt-1`}
+        />
+      </label>
+      <label className="text-xs font-medium text-muted">
+        Sala
+        <input
+          name="zona"
+          list="zone-locale"
+          defaultValue={tavolo.zona ?? ""}
+          placeholder="Sala 1, Dehors…"
           className={`${CAMPO} mt-1`}
         />
       </label>

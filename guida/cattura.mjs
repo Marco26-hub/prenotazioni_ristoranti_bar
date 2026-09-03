@@ -134,8 +134,9 @@ const sala = await browser.newContext({
 const admin = await sala.newPage();
 
 await admin.goto(`${ADMIN}/`, { waitUntil: "networkidle" });
-await admin.getByLabel(/Email/i).fill(process.env.GUIDA_EMAIL ?? "");
-await admin.getByLabel(/Password/i).fill(process.env.GUIDA_PASSWORD ?? "");
+// Per tipo e non per etichetta: la label non è associata all'input.
+await admin.locator('input[type="email"]').fill(process.env.GUIDA_EMAIL ?? "");
+await admin.locator('input[type="password"]').fill(process.env.GUIDA_PASSWORD ?? "");
 await admin.getByRole("button", { name: /Accedi/i }).click();
 await admin.waitForURL(/dashboard/, { timeout: 30_000 });
 await admin.waitForTimeout(2500);

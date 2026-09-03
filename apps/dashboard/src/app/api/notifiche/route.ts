@@ -34,7 +34,12 @@ export async function GET() {
       from table_calls c
       join table_sessions ts on ts.id = c.table_session_id
       join tables t on t.id = ts.table_id
-     where c.venue_id = ${venue.venueId} and c.handled_at is null
+     -- Solo tavoli ancora aperti: una chiamata rimasta su una sessione
+     -- chiusa è un tavolo che ha già pagato ed è andato via, e continuava
+     -- a suonare in sala per sempre.
+     where c.venue_id = ${venue.venueId}
+       and c.handled_at is null
+       and ts.status = 'open'
      order by c.created_at`;
 
   return NextResponse.json({
