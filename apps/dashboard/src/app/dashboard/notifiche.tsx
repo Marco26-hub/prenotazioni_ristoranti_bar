@@ -3,10 +3,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
+interface Chiamata {
+  tavolo: string;
+  motivo: string;
+  documento: string | null;
+  quando: string;
+}
+
 interface Stato {
   prenotazioniDaConfermare: number;
   ultimaPrenotazione: string | null;
   piattiAlPasse: number;
+  chiamate?: Chiamata[];
 }
 
 /** Ogni mezzo minuto: una prenotazione non è un ordine, può attendere. */
@@ -78,9 +86,39 @@ export function Notifiche() {
   }, [controlla]);
 
   const daConfermare = stato?.prenotazioniDaConfermare ?? 0;
-  if (daConfermare === 0) return null;
+  const chiamate = stato?.chiamate ?? [];
+  if (daConfermare === 0 && chiamate.length === 0) return null;
 
   return (
+    <>
+      {/* Sopra le prenotazioni: al tavolo c'è qualcuno seduto che aspetta, la
+          prenotazione è per stasera. */}
+      {chiamate.map((c) => (
+        <div
+          key={`${c.tavolo}-${c.motivo}`}
+          role="alert"
+          className="border-b border-danger bg-danger px-4 py-2 text-sm font-medium text-white"
+        >
+          <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-2">
+            <span>
+              Tavolo {c.tavolo}:{" "}
+              {c.motivo === "contanti"
+                ? `paga in contanti — porta ${c.documento === "fattura" ? "la fattura" : "lo scontrino"}`
+                : c.motivo === "conto"
+                  ? "chiede il conto"
+                  : "chiama il cameriere"}
+            </span>
+            <Link
+              href="/dashboard"
+              className="flex min-h-11 items-center rounded-full border border-current px-4 text-sm"
+            >
+              Vai in sala
+            </Link>
+          </div>
+        </div>
+      ))}
+
+      {daConfermare > 0 && (
     <div
       role="status"
       className={`border-b px-4 py-2 text-sm ${
@@ -104,5 +142,7 @@ export function Notifiche() {
         </Link>
       </div>
     </div>
+      )}
+    </>
   );
 }

@@ -42,11 +42,13 @@ const COLORE: Record<StatoTavolo, string> = {
   // Alla romana con qualche quota già incassata: il tavolo sta chiudendo ma
   // non è chiuso, e chi passa deve sapere che manca ancora qualcuno.
   parziale: "border-amber-500 bg-amber-500/25 text-foreground",
-  // Il ritardo grida più forte del pronto: bordo spesso e lampeggio, perché
-  // qui c'è un tavolo con niente davanti che sta aspettando.
+  // Rosso e lampeggiante solo per il ritardo: è l'unico stato in cui il
+  // cliente non ha niente davanti. Un rosso che vale per due cose diverse
+  // non dice a nessuno dove andare.
   ritardo: "border-4 border-danger bg-danger text-white animate-pulse font-bold",
-  // Rosso: è l'unica cosa in sala che peggiora da sola mentre la guardi.
-  pronto: "border-danger bg-danger text-white animate-pulse",
+  // Blu fisso: c'è un piatto da portare, non un problema. Colore diverso e
+  // niente lampeggio, così si distingue dal ritardo anche di sfuggita.
+  pronto: "border-2 border-sky-400 bg-sky-500 text-white",
   saldato: "border-success bg-success/25 text-foreground",
 };
 

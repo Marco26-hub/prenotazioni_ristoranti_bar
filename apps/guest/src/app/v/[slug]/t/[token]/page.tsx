@@ -169,7 +169,11 @@ export default async function TablePage({
         )}
 
         <div id="conto" aria-label="Conto e pagamento">
-          <Bill sessionId={resolved.sessionId} privacyHref={`/privacy/${slug}`} />
+          <Bill
+            sessionId={resolved.sessionId}
+            privacyHref={`/privacy/${slug}`}
+            token={token}
+          />
         </div>
       </main>
 

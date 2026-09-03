@@ -40,7 +40,12 @@ export async function GET() {
     join tables t on t.id = ts.table_id
     join menu_items mi on mi.id = oi.menu_item_id
     left join menu_categories mc on mc.id = mi.category_id
-    where o.venue_id = ${venue.venueId} and oi.status not in ('served', 'cancelled')
+    -- I serviti restano: sparendo, chi è al tavolo perde il quadro di cosa
+    -- ha già ricevuto. Il limite è la sessione aperta, così la lista non
+    -- cresce all'infinito.
+    where o.venue_id = ${venue.venueId}
+      and ts.status = 'open'
+      and oi.status <> 'cancelled'
     order by o.created_at asc`;
 
   const [locale] = await sql<{ soglia_attesa_min: number }[]>`

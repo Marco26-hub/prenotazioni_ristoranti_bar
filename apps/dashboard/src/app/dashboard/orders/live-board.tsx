@@ -38,6 +38,20 @@ const PROSSIMO: Partial<Record<OrderItemStatus, OrderItemStatus>> = {
  * leggeva come "portalo a: da preparare". Con le mani occupate e dieci righe
  * a schermo, un bottone deve dire cosa succede se lo premi.
  */
+/**
+ * Un colore per stato, sulla riga.
+ *
+ * Il grigio non è "spento": è una comanda che la cucina non ha ancora preso
+ * in mano, ed è la cosa più vicina a un problema dopo il ritardo.
+ */
+const COLORE_RIGA: Record<string, string> = {
+  pending: "border-l-4 border-l-border",
+  sent_to_kitchen: "border-l-4 border-l-muted",
+  preparing: "border-l-4 border-l-amber-500 bg-amber-500/5",
+  ready: "border-l-4 border-l-sky-400 bg-sky-500/5",
+  served: "border-l-4 border-l-success bg-success/5 opacity-70",
+};
+
 const REPARTI: Record<string, string> = {
   cucina: "Cucina",
   bar: "Bar",
@@ -346,7 +360,6 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
 
   const perTavolo = new Map<string, LiveItem[]>();
   for (const i of items) {
-    if (i.status === "served") continue;
     if (soloMiei && haRango && !i.mio_tavolo) continue;
     if (reparto !== "tutti" && (i.reparto ?? "cucina") !== reparto) continue;
     const lista = perTavolo.get(i.table_code) ?? [];
@@ -531,8 +544,12 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
               (r) => r.status === "ready" && !r.held_at
             ).length;
             const trattenuti = righe.filter((r) => r.held_at).length;
+            // Tutto arrivato: al tavolo non manca niente, e si vede da lontano.
+            const tuttoServito = righe.every((r) => r.status === "served");
 
             const piuVecchia = righe.reduce<number | null>((acc, r) => {
+              // Un piatto già portato non è più un'attesa.
+              if (r.status === "served" || r.held_at) return acc;
               if (!r.created_at) return acc;
               const t = new Date(r.created_at).getTime();
               return acc === null || t < acc ? t : acc;
@@ -547,16 +564,23 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
               <li
                 key={codice}
                 className={`rounded-xl border bg-surface p-4 ${
-                  inRitardo
-                    ? "animate-pulse border-2 border-danger bg-danger/10"
-                    : pronti > 0 && pronti === righe.length
-                      ? "border-success"
-                      : "border-border"
+                  tuttoServito
+                    ? "border-2 border-success bg-success/10"
+                    : inRitardo
+                      ? "animate-pulse border-2 border-danger bg-danger/10"
+                      : pronti > 0
+                        ? "border-2 border-sky-400 bg-sky-500/10"
+                        : "border-border"
                 }`}
               >
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <p className="text-lg font-semibold">Tavolo {codice}</p>
-                  {attesaMin !== null && (
+                  {tuttoServito && (
+                    <span className="text-sm font-medium text-success">
+                      tutto servito
+                    </span>
+                  )}
+                  {!tuttoServito && attesaMin !== null && (
                     <span
                       className={`text-sm tabular-nums ${inRitardo ? "font-bold text-danger" : "text-muted"}`}
                     >
@@ -567,7 +591,12 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
 
                 <ul className="mt-2 space-y-2">
                   {righe.map((r) => (
-                    <li key={r.id} className="flex items-start justify-between gap-3">
+                    <li
+                      key={r.id}
+                      className={`flex items-start justify-between gap-3 rounded-r pl-2 ${
+                        COLORE_RIGA[r.status] ?? ""
+                      }`}
+                    >
                       <span className="min-w-0">
                         <span className="tabular-nums font-medium">{r.quantity}×</span>{" "}
                         {r.item_name}
@@ -610,7 +639,12 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
                         >
                           {r.held_at ? "Manda ora" : "Ritarda"}
                         </button>
-                        {!r.held_at &&
+                        {r.status === "served" ? (
+                          <span className="px-2 text-xs font-medium text-success">
+                            portato
+                          </span>
+                        ) : (
+                          !r.held_at &&
                           (puoPortare(r.status) ? (
                             <button
                               type="button"
@@ -625,7 +659,8 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
                             <span className="px-2 text-xs text-muted">
                               {ETICHETTA[r.status]}
                             </span>
-                          ))}
+                          ))
+                        )}
                       </span>
                     </li>
                   ))}

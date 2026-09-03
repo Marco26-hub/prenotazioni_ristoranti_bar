@@ -368,6 +368,27 @@ create table payments (
   created_at timestamptz default now()
 );
 
+-- Chiamate dal tavolo: quello che il software non può concludere da solo.
+-- Il caso che conta è il contante — non passa da nessun circuito, qualcuno
+-- deve andare al tavolo, incassare e portare scontrino o fattura.
+create table table_calls (
+  id uuid primary key default gen_random_uuid(),
+  venue_id uuid references venues(id) on delete cascade not null,
+  table_session_id uuid references table_sessions(id) on delete cascade not null,
+  motivo text not null check (motivo in ('contanti', 'cameriere', 'conto')),
+  documento text check (documento in ('scontrino', 'fattura')),
+  nota text,
+  created_at timestamptz not null default now(),
+  handled_at timestamptz,
+  handled_by uuid references users(id)
+);
+create index idx_table_calls_aperte
+  on table_calls (venue_id, created_at desc) where handled_at is null;
+-- Chi preme tre volte perché non vede arrivare nessuno non deve generare tre
+-- righe da smaltire in sala.
+create unique index uq_table_call_aperta
+  on table_calls (table_session_id, motivo) where handled_at is null;
+
 -- Un solo pagamento a saldo pieno pending per sessione: previene due
 -- PaymentIntent paralleli da doppio tap sul bottone Paga. Limitato a
 -- split_type='full' perché con lo split più commensali pagano davvero in

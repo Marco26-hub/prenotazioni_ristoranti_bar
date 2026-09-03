@@ -39,7 +39,15 @@ function getStripe(accountId: string): Promise<Stripe | null> {
   return stripeCache.get(accountId)!;
 }
 
-export function Bill({ sessionId, privacyHref }: { sessionId: string; privacyHref: string }) {
+export function Bill({
+  sessionId,
+  privacyHref,
+  token,
+}: {
+  sessionId: string;
+  privacyHref: string;
+  token: string;
+}) {
   const [bill, setBill] = useState<BillState | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [tipCents, setTipCents] = useState(0);
@@ -47,6 +55,29 @@ export function Bill({ sessionId, privacyHref }: { sessionId: string; privacyHre
   const [error, setError] = useState<string | null>(null);
   const [splitMode, setSplitMode] = useState(false);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [contanti, setContanti] = useState(false);
+  const [documento, setDocumento] = useState<"scontrino" | "fattura">("scontrino");
+  const [chiamato, setChiamato] = useState<string | null>(null);
+  const [chiamando, setChiamando] = useState(false);
+
+  const chiamaPerContanti = async () => {
+    setChiamando(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/chiamate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, motivo: "contanti", documento }),
+      });
+      const data = await res.json();
+      if (!res.ok) setError(data.error ?? "Non riesco a chiamare il personale");
+      else setChiamato(data.messaggio);
+    } catch {
+      setError("Nessuna connessione: chiama il personale a voce");
+    } finally {
+      setChiamando(false);
+    }
+  };
 
   const refreshBill = useCallback(async () => {
     const res = await fetch(`/api/bill?sessionId=${sessionId}`);
@@ -297,6 +328,69 @@ export function Bill({ sessionId, privacyHref }: { sessionId: string; privacyHre
             >
               Paga con Satispay — {formatPriceCents(bill.balanceCents + tipCents, bill.currency)}
             </button>
+          )}
+
+          {/* Il contante non passa da nessun circuito: qui il software non
+              può concludere, può solo far arrivare qualcuno al tavolo con il
+              documento giusto. */}
+          {!contanti ? (
+            <button
+              type="button"
+              onClick={() => setContanti(true)}
+              className="min-h-12 w-full rounded-full border border-border font-medium active:scale-95"
+            >
+              Pago in contanti
+            </button>
+          ) : chiamato ? (
+            <p
+              role="status"
+              className="rounded-xl border border-success bg-success/10 p-4 text-center font-medium"
+            >
+              {chiamato}
+            </p>
+          ) : (
+            <div className="space-y-3 rounded-xl border border-border p-4">
+              <p className="font-medium">Paghi al tavolo in contanti</p>
+              <fieldset>
+                <legend className="mb-2 text-sm text-muted">
+                  Cosa ti serve
+                </legend>
+                <div className="flex gap-2">
+                  {(["scontrino", "fattura"] as const).map((d) => (
+                    <label
+                      key={d}
+                      className={`flex min-h-12 flex-1 cursor-pointer items-center justify-center rounded-full border text-sm font-medium ${
+                        documento === d ? "border-accent bg-accent/10" : "border-border"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="documento"
+                        checked={documento === d}
+                        onChange={() => setDocumento(d)}
+                        className="sr-only"
+                      />
+                      {d === "scontrino" ? "Scontrino" : "Fattura"}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              <button
+                type="button"
+                onClick={chiamaPerContanti}
+                disabled={chiamando}
+                className="min-h-12 w-full rounded-full bg-accent font-medium text-accent-foreground active:scale-95 disabled:opacity-60"
+              >
+                {chiamando ? "Chiamo…" : "Chiama il cameriere"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setContanti(false)}
+                className="min-h-11 w-full text-sm underline underline-offset-4"
+              >
+                Torna ai pagamenti
+              </button>
+            </div>
           )}
 
           {error && <p className="text-sm text-danger">{error}</p>}

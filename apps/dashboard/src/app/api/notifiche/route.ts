@@ -27,9 +27,25 @@ export async function GET() {
       join orders o on o.id = oi.order_id
      where o.venue_id = ${venue.venueId} and oi.status = 'ready'`;
 
+  const chiamate = await sql<
+    { tavolo: string; motivo: string; documento: string | null; quando: Date }[]
+  >`
+    select t.code as tavolo, c.motivo, c.documento, c.created_at as quando
+      from table_calls c
+      join table_sessions ts on ts.id = c.table_session_id
+      join tables t on t.id = ts.table_id
+     where c.venue_id = ${venue.venueId} and c.handled_at is null
+     order by c.created_at`;
+
   return NextResponse.json({
     prenotazioniDaConfermare: prenotazioni?.n ?? 0,
     ultimaPrenotazione: prenotazioni?.ultima ?? null,
     piattiAlPasse: passe?.n ?? 0,
+    chiamate: chiamate.map((c) => ({
+      tavolo: c.tavolo,
+      motivo: c.motivo,
+      documento: c.documento,
+      quando: c.quando.toISOString(),
+    })),
   });
 }
