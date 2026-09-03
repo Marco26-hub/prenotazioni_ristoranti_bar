@@ -51,6 +51,7 @@ export function OrderMenu({
   const [noteFor, setNoteFor] = useState<string | null>(null);
   const [openDish, setOpenDish] = useState<MenuItem | null>(null);
   const [riepilogoAperto, setRiepilogoAperto] = useState(false);
+  const [notePerRiga, setNotePerRiga] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -317,17 +318,35 @@ export function OrderMenu({
         su telefono si apre dalla barra in fondo, perché lo spazio è del
         menu.
       */}
+      {/*
+        Il riepilogo dell'ordine, come sul tavolo di un sushi.
+
+        Prima non esisteva: le righe con varianti finivano nel carrello e nel
+        totale senza comparire da nessuna parte, quindi non si potevano
+        vedere, ridurre, togliere né annotare — e chi sbagliava porzione
+        doveva ricaricare la pagina perdendo tutto.
+
+        Ogni riga sta su una riga sola: quantità, nome, prezzo. Con venti
+        piatti un blocco alto per ciascuno diventa un lenzuolo da scorrere, e
+        su un telefono il riepilogo serve proprio a NON scorrere. La nota si
+        apre solo su richiesta, e resta aperta se c'è già scritto qualcosa.
+      */}
       {lines.length > 0 && (
         <aside
-          className={`fixed z-30 border-border bg-surface lg:right-4 lg:top-24 lg:block lg:max-h-[70vh] lg:w-80 lg:overflow-y-auto lg:rounded-2xl lg:border lg:shadow-xl ${
+          className={`fixed z-30 flex flex-col border-border bg-surface lg:right-4 lg:top-24 lg:max-h-[calc(100vh-8rem)] lg:w-80 lg:rounded-2xl lg:border lg:shadow-xl ${
             riepilogoAperto
-              ? "inset-x-0 bottom-0 max-h-[72vh] overflow-y-auto rounded-t-2xl border-t shadow-2xl"
-              : "hidden"
+              ? "inset-x-0 bottom-0 max-h-[80dvh] rounded-t-2xl border-t shadow-2xl"
+              : "hidden lg:flex"
           }`}
           aria-label="Il tuo ordine"
         >
-          <div className="sticky top-0 flex items-baseline justify-between gap-3 border-b border-border bg-surface px-4 py-3">
-            <p className="font-semibold">Il tuo ordine</p>
+          <div className="flex shrink-0 items-baseline justify-between gap-3 border-b border-border px-4 py-3">
+            <p className="font-semibold">
+              Il tuo ordine{" "}
+              <span className="text-muted tabular-nums">
+                ({lines.reduce((n, l) => n + l.quantity, 0)})
+              </span>
+            </p>
             <button
               type="button"
               onClick={() => setRiepilogoAperto(false)}
@@ -337,71 +356,95 @@ export function OrderMenu({
             </button>
           </div>
 
-          <ul className="divide-y divide-border">
-            {lines.map((l) => (
-              <li key={l.chiave} className="px-4 py-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-medium text-pretty">{l.name}</p>
-                    {l.optionsLabel && (
-                      <p className="mt-0.5 text-sm font-medium text-accent">
-                        {l.optionsLabel}
-                      </p>
-                    )}
-                    <p className="mt-0.5 text-sm text-muted tabular-nums">
-                      {formatPriceCents(l.unitPriceCents, currency)} ciascuno
-                    </p>
+          {/* Scorre solo l'elenco: intestazione e totale restano fermi, così
+              il totale è sempre sotto gli occhi anche con venti piatti. */}
+          <ul className="min-h-0 flex-1 divide-y divide-border overflow-y-auto">
+            {lines.map((l) => {
+              const notaAperta = notePerRiga === l.chiave || Boolean(l.notes);
+              return (
+                <li key={l.chiave} className="px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => removeItem(l.chiave)}
+                      aria-label={`Togli ${l.name}${l.optionsLabel ? " " + l.optionsLabel : ""}`}
+                      className="h-9 w-9 shrink-0 rounded-full border border-border text-lg leading-none active:scale-95"
+                    >
+                      −
+                    </button>
+                    <span className="w-4 shrink-0 text-center font-semibold tabular-nums">
+                      {l.quantity}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        addItem(
+                          { id: l.menuItemId, name: l.name, price_cents: l.unitPriceCents },
+                          l.optionIds,
+                          l.unitPriceCents,
+                          l.optionsLabel
+                        )
+                      }
+                      aria-label={`Aggiungi ${l.name}${l.optionsLabel ? " " + l.optionsLabel : ""}`}
+                      className="h-9 w-9 shrink-0 rounded-full bg-accent text-lg leading-none text-accent-foreground active:scale-95"
+                    >
+                      +
+                    </button>
+
+                    <span className="min-w-0 flex-1 text-sm leading-tight">
+                      <span className="block truncate">{l.name}</span>
+                      {l.optionsLabel && (
+                        <span className="block truncate text-xs text-accent">
+                          {l.optionsLabel}
+                        </span>
+                      )}
+                    </span>
+
+                    <span className="shrink-0 text-sm font-semibold tabular-nums">
+                      {formatPriceCents(l.unitPriceCents * l.quantity, currency)}
+                    </span>
                   </div>
-                  <span className="shrink-0 font-semibold tabular-nums">
-                    {formatPriceCents(l.unitPriceCents * l.quantity, currency)}
-                  </span>
-                </div>
 
-                <div className="mt-2 flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => removeItem(l.chiave)}
-                    aria-label={`Togli ${l.name}${l.optionsLabel ? " " + l.optionsLabel : ""}`}
-                    className="h-11 w-11 rounded-full border border-border text-xl leading-none active:scale-95"
-                  >
-                    −
-                  </button>
-                  <span className="w-6 text-center font-semibold tabular-nums">
-                    {l.quantity}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      addItem(
-                        { id: l.menuItemId, name: l.name, price_cents: l.unitPriceCents },
-                        l.optionIds,
-                        l.unitPriceCents,
-                        l.optionsLabel
-                      )
-                    }
-                    aria-label={`Aggiungi ${l.name}${l.optionsLabel ? " " + l.optionsLabel : ""}`}
-                    className="h-11 w-11 rounded-full bg-accent text-xl leading-none text-accent-foreground active:scale-95"
-                  >
-                    +
-                  </button>
-                </div>
-
-                <input
-                  value={l.notes ?? ""}
-                  onChange={(e) => setNote(l.chiave, e.target.value)}
-                  placeholder="Nota per la cucina"
-                  maxLength={140}
-                  aria-label={`Nota per ${l.name}`}
-                  className="mt-2 min-h-11 w-full rounded-lg border border-border bg-background px-3 text-sm"
-                />
-              </li>
-            ))}
+                  {notaAperta ? (
+                    <input
+                      value={l.notes ?? ""}
+                      onChange={(e) => setNote(l.chiave, e.target.value)}
+                      placeholder="Nota per la cucina"
+                      maxLength={140}
+                      autoFocus={notePerRiga === l.chiave && !l.notes}
+                      aria-label={`Nota per ${l.name}`}
+                      className="mt-1.5 min-h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setNotePerRiga(l.chiave)}
+                      className="mt-0.5 pl-[5.75rem] text-xs text-muted underline underline-offset-2"
+                    >
+                      nota
+                    </button>
+                  )}
+                </li>
+              );
+            })}
           </ul>
 
-          <p className="flex items-baseline justify-between gap-3 border-t border-border px-4 py-3 font-semibold">
-            <span>Totale</span>
-            <span className="tabular-nums">{formatPriceCents(totalCents, currency)}</span>
-          </p>
+          <div className="shrink-0 border-t border-border px-4 py-3">
+            <p className="flex items-baseline justify-between gap-3 font-semibold">
+              <span>Totale</span>
+              <span className="tabular-nums">{formatPriceCents(totalCents, currency)}</span>
+            </p>
+            {/* Su telefono il riepilogo copre la barra in fondo: senza questo
+                si dovrebbe chiudere il pannello per trovare "Ordina". */}
+            <button
+              type="button"
+              onClick={submitOrder}
+              disabled={submitting}
+              className="mt-2 min-h-12 w-full rounded-full bg-accent font-medium text-accent-foreground active:scale-95 disabled:opacity-50 lg:hidden"
+            >
+              {submitting ? "Invio…" : "Ordina"}
+            </button>
+          </div>
         </aside>
       )}
 

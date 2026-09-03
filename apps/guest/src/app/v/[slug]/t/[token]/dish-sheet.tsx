@@ -97,6 +97,19 @@ export function DishSheet({
 
   const idScelti = Object.values(scelte).flat();
   const giaNelCarrello = quantitaPerOpzioni(idScelti);
+
+  /*
+   * Cosa manca ancora, se manca qualcosa.
+   *
+   * Il bottone restava verde, a prezzo pieno, come se fosse pronto: premendolo
+   * compariva un rigo rosso sopra — facile da non vedere — e per il cliente
+   * "non lo prende". Adesso il bottone dice lui stesso cosa scegliere, e non
+   * finge di poter fare una cosa che rifiutera.
+   */
+  const gruppoMancante = gruppi.find((g) => {
+    const n = (scelte[g.id] ?? []).length;
+    return (g.required && n === 0) || n < g.min_choices;
+  });
   const supplementi = gruppi
     .flatMap((g) => g.opzioni)
     .filter((o) => idScelti.includes(o.id))
@@ -337,16 +350,25 @@ export function DishSheet({
           <button
             type="button"
             onClick={aggiungi}
-            className="flex min-h-12 w-full items-center justify-between rounded-full bg-accent px-5 font-medium text-accent-foreground active:scale-95"
+            disabled={Boolean(gruppoMancante)}
+            className={`flex min-h-12 w-full items-center justify-between rounded-full px-5 font-medium active:scale-95 ${
+              gruppoMancante
+                ? "cursor-not-allowed border border-border bg-background text-muted"
+                : "bg-accent text-accent-foreground"
+            }`}
           >
             <span>
-              {giaNelCarrello > 0
-                ? `Aggiungi ancora (${giaNelCarrello} nel carrello)`
-                : "Aggiungi al carrello"}
+              {gruppoMancante
+                ? `Scegli ${gruppoMancante.name.toLowerCase()} per continuare`
+                : giaNelCarrello > 0
+                  ? `Aggiungi ancora (${giaNelCarrello} nel carrello)`
+                  : "Aggiungi al carrello"}
             </span>
-            <span className="tabular-nums">
-              {formatPriceCents(prezzoUnitario, currency)}
-            </span>
+            {!gruppoMancante && (
+              <span className="tabular-nums">
+                {formatPriceCents(prezzoUnitario, currency)}
+              </span>
+            )}
           </button>
         </div>
       </div>
