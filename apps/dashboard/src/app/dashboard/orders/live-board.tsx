@@ -373,11 +373,7 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
         </button>
 
         {vocale && (
-          <p className="text-sm text-muted">
-            Di&apos; &laquo;tavolo 3 pronto&raquo;, &laquo;tavolo 3
-            servito&raquo;, &laquo;ritarda il 3&raquo; o &laquo;manda il
-            3&raquo;.
-          </p>
+          <p className="text-sm text-muted">Parla al tavolo, non allo schermo.</p>
         )}
         {!vocaleDisponibile && (
           <p className="text-sm text-muted">
@@ -393,6 +389,55 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
           si parla di tutto: accendilo quando serve e spegnilo dopo.
         </p>
       )}
+
+      {/* La didascalia sta sempre sotto, anche a microfono spento: chi non sa
+          cosa può dire non accende l'ascolto. Mostra solo i comandi che il
+          ruolo può davvero eseguire, altrimenti insegna frasi che verranno
+          rifiutate. */}
+      <details className="mt-3 rounded-lg border border-border bg-surface">
+        <summary className="flex min-h-11 cursor-pointer items-center px-3 text-sm">
+          Comandi vocali che puoi usare
+        </summary>
+        <div className="space-y-2 px-3 pb-3 text-sm">
+          <ul className="space-y-1">
+            {consentiti.includes("preparing") && (
+              <li>
+                <strong>&laquo;tavolo 3 in preparazione&raquo;</strong> — la cucina
+                lo prende in mano
+              </li>
+            )}
+            {consentiti.includes("ready") && (
+              <li>
+                <strong>&laquo;tavolo 3 pronto&raquo;</strong> — è al passe, da
+                portare
+              </li>
+            )}
+            {consentiti.includes("served") && (
+              <li>
+                <strong>&laquo;tavolo 3 servito&raquo;</strong> — è arrivato al
+                tavolo
+              </li>
+            )}
+            <li>
+              <strong>&laquo;ritarda il 3&raquo;</strong> — trattiene: la cucina
+              non lo prepara
+            </li>
+            <li>
+              <strong>&laquo;manda il 3&raquo;</strong> — libera quello che era
+              trattenuto
+            </li>
+          </ul>
+          <p className="text-muted">
+            Vanno bene anche &laquo;pronto il tre&raquo;, &laquo;t7
+            servito&raquo;, &laquo;aspetta il quattro&raquo;: il numero può
+            essere detto a parole e l&apos;ordine non conta.
+            {ruolo === "kitchen" &&
+              " Segnare servito spetta alla sala: quel comando non ti risponde."}
+            {ruolo === "waiter" &&
+              " Segnare pronto spetta alla cucina: quel comando non ti risponde."}
+          </p>
+        </div>
+      </details>
 
       {negato && (
         <p role="alert" className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
