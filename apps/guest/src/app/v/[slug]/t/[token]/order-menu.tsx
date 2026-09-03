@@ -173,7 +173,19 @@ export function OrderMenu({
           className="min-w-0 flex-1 text-left"
           aria-label={`Dettagli di ${item.name}`}
         >
-          <p className="font-medium leading-snug">{item.name}</p>
+          <p className="font-medium leading-snug">
+            {item.name}
+            {/* L'asterisco di legge anche qui, non solo nella scheda: un
+                piatto senza varianti si aggiunge col "+" senza mai aprirla,
+                e senza questo la nota in fondo alla pagina — "* prodotto
+                surgelato…" — non si riferisce a niente. È l'omissione che il
+                D.Lgs. 109/1992 sanziona. */}
+            {item.conservation && item.conservation !== "fresco" && (
+              <span aria-hidden className="ml-0.5 align-super text-xs text-muted">
+                *
+              </span>
+            )}
+          </p>
           {item.description && (
             <p className="mt-0.5 line-clamp-2 text-sm leading-snug text-muted">
               {item.description}

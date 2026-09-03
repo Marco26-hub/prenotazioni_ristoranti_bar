@@ -127,7 +127,9 @@ create table venues (
   -- Minuti dopo cui la comanda è in ritardo; 0 spegne l'allarme.
   soglia_attesa_min smallint default 20 not null,
   -- Minuti dal saldo dopo cui il tavolo va recuperato; 0 spegne l'avviso.
-  soglia_liberazione_min smallint default 15 not null
+  soglia_liberazione_min smallint default 15 not null,
+  -- Ore dopo cui una sessione tavolo lasciata aperta scade; 0 = mai.
+  sessione_max_ore smallint default 6 not null
 );
 
 create table venue_staff (

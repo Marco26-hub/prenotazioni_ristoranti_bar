@@ -76,8 +76,56 @@ export async function POST(request: Request) {
   }
 
   const stripe = stripeClient();
+
+  /*
+   * Un tentativo abbandonato non deve bloccare il tavolo per sempre.
+   *
+   * Chi apre il pagamento e chiude l'app lascia una riga 'pending'. Dieci
+   * minuti sono molto piu del tempo che serve a inserire una carta: oltre,
+   * si considera abbandonato e lo slot torna libero.
+   */
+  await sql`
+    update payments set status = 'failed'
+     where table_session_id = ${session.id} and status = 'pending'
+       and created_at < now() - interval '10 minutes'`;
+
   const splitItemIds = body.orderItemIds?.filter(Boolean) ?? [];
   const isSplit = splitItemIds.length > 0;
+
+  /*
+   * Non due pagamenti in volo sullo stesso tavolo.
+   *
+   * Il saldo sottrae solo i pagamenti riusciti: mentre A stava pagando i
+   * propri piatti alla romana, B vedeva ancora il totale pieno e poteva
+   * pagare tutto. Riuscivano entrambi e il tavolo versava due volte gli
+   * stessi piatti, senza alcun rimborso automatico.
+   *
+   * Meglio far aspettare qualche secondo che restituire soldi: chi arriva
+   * secondo legge cosa sta succedendo invece di trovarsi un addebito doppio.
+   */
+  const [altroInCorso] = await sql<{ split_type: string | null }[]>`
+    select split_type from payments
+     where table_session_id = ${session.id} and status = 'pending'
+     limit 1`;
+
+  if (altroInCorso && !isSplit) {
+    return NextResponse.json(
+      {
+        error:
+          altroInCorso.split_type === "per_item"
+            ? "Qualcuno al tavolo sta pagando i suoi piatti. Aspetta che finisca, poi riprova."
+            : "Un pagamento su questo tavolo è già in corso. Aspetta che finisca, poi riprova.",
+      },
+      { status: 409 }
+    );
+  }
+
+  if (altroInCorso && isSplit && altroInCorso.split_type !== "per_item") {
+    return NextResponse.json(
+      { error: "Qualcuno sta pagando l'intero conto. Aspetta che finisca, poi riprova." },
+      { status: 409 }
+    );
+  }
 
   if (isSplit) {
     return createSplitPayment({
@@ -92,30 +140,53 @@ export async function POST(request: Request) {
 
   // Doppio tap sul bottone Paga (o refresh pagina) non deve creare un
   // secondo PaymentIntent: riusa quello pending esistente se ancora valido.
+  // Solo i pending di Stripe: senza il filtro sul provider, un tentativo
+  // Satispay abbandonato veniva raccolto qui e il suo identificativo passato
+  // a stripe.paymentIntents.retrieve(). Stripe rispondeva resource_missing,
+  // l'eccezione non era catturata e il cliente leggeva "Connessione assente",
+  // senza che nessun pagamento con carta potesse più riuscire finché quella
+  // riga restava lì.
   const [existingPending] = await sql<{ id: string; provider_payment_id: string }[]>`
     select id, provider_payment_id from payments
-    where table_session_id = ${session.id} and status = 'pending' and split_type = 'full'`;
+    where table_session_id = ${session.id} and status = 'pending'
+      and split_type = 'full' and provider = 'stripe'
+      and provider_payment_id is not null`;
 
   if (existingPending) {
-    const existingIntent = await stripe.paymentIntents.retrieve(
-      existingPending.provider_payment_id,
-      { stripeAccount: venue.stripe_account_id }
-    );
-
-    if (["requires_payment_method", "requires_confirmation", "requires_action"].includes(existingIntent.status)) {
-      return NextResponse.json({
-        clientSecret: existingIntent.client_secret,
-        amountCents: existingIntent.amount,
-      });
+    // Un intent che Stripe non conosce più non deve bloccare il tavolo: si
+    // archivia il pending e si riparte da capo.
+    let existingIntent;
+    try {
+      existingIntent = await stripe.paymentIntents.retrieve(
+        existingPending.provider_payment_id,
+        { stripeAccount: venue.stripe_account_id }
+      );
+    } catch {
+      await sql`update payments set status = 'failed' where id = ${existingPending.id}`;
+      existingIntent = null;
     }
 
-    if (existingIntent.status === "succeeded") {
-      return NextResponse.json({ error: "Conto già pagato" }, { status: 409 });
-    }
+    if (existingIntent) {
+      if (
+        ["requires_payment_method", "requires_confirmation", "requires_action"].includes(
+          existingIntent.status
+        )
+      ) {
+        return NextResponse.json({
+          clientSecret: existingIntent.client_secret,
+          amountCents: existingIntent.amount,
+        });
+      }
 
-    // canceled/failed lato Stripe ma la riga da noi è rimasta 'pending'
-    // (webhook non ancora arrivato) — libera lo slot e permette un nuovo tentativo.
-    await sql`update payments set status = 'failed' where id = ${existingPending.id}`;
+      if (existingIntent.status === "succeeded") {
+        return NextResponse.json({ error: "Conto già pagato" }, { status: 409 });
+      }
+
+      // canceled/failed lato Stripe ma la riga da noi è rimasta 'pending'
+      // (webhook non ancora arrivato) — libera lo slot e permette un nuovo
+      // tentativo.
+      await sql`update payments set status = 'failed' where id = ${existingPending.id}`;
+    }
   }
 
   const balanceCents = await outstandingBalanceCents(session.id);

@@ -19,6 +19,8 @@ export interface ResolvedVenue {
   subscription_status: string;
   subscription_period_end: Date | null;
   modules: string[] | null;
+  /** Ore dopo cui una sessione lasciata aperta scade. 0 = mai. */
+  sessione_max_ore: number;
 }
 
 export interface ResolvedTable {
@@ -42,7 +44,8 @@ export async function resolveTableFromQr(
     select id, name, slug, currency, logo_url, brand_color,
            public_phone, public_email, vat_number,
            address, address_zip, address_city, address_province,
-           subscription_status, subscription_period_end, modules
+           subscription_status, subscription_period_end, modules,
+           sessione_max_ore
     from venues where slug = ${slug}`;
   if (
     !venue ||
@@ -54,6 +57,28 @@ export async function resolveTableFromQr(
   >`select id, code, seats, active from tables
     where venue_id = ${venue.id} and qr_token = ${qrToken}`;
   if (!table || !table.active) return null;
+
+  /*
+   * Una sessione dimenticata aperta non vale per sempre.
+   *
+   * L'unica chiusura automatica è il webhook a saldo zero: un conto pagato in
+   * contanti, o un tavolo andato via senza pagare, restava aperto. Il giorno
+   * dopo un altro cliente inquadrava lo stesso QR e si trovava davanti il
+   * conto di sconosciuti — e pagandolo lo pagava davvero.
+   *
+   * Oltre la soglia la sessione viene chiusa e ne nasce una nuova. Non si
+   * cancella niente: il conto vecchio resta a storico e in sala, così il
+   * locale può ancora incassarlo se qualcuno era davvero uscito senza pagare.
+   */
+  const maxOre = venue.sessione_max_ore ?? 6;
+
+  if (maxOre > 0) {
+    await sql`
+      update table_sessions
+         set status = 'closed', closed_at = now()
+       where table_id = ${table.id} and status = 'open'
+         and opened_at < now() - make_interval(hours => ${maxOre})`;
+  }
 
   const [existingSession] = await sql<{ id: string }[]>`
     select id from table_sessions
