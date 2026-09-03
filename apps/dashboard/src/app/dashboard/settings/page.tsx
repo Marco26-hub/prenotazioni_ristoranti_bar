@@ -44,6 +44,7 @@ export default async function SettingsPage() {
       service_percent: string;
       cover_charge_label: string | null;
       soglia_attesa_min: number;
+      soglia_liberazione_min: number;
       public_texts: Record<string, string> | null;
       openrouter_api_key: string | null;
       openrouter_model: string | null;
@@ -75,7 +76,7 @@ export default async function SettingsPage() {
            reservation_email, reservation_capacity, reservation_auto_confirm,
            resend_api_key, resend_from,
            cover_charge_cents, service_percent, cover_charge_label, public_texts,
-           soglia_attesa_min,
+           soglia_attesa_min, soglia_liberazione_min,
            openrouter_api_key, openrouter_model,
            opening_hours, practical_info, assistant_enabled, brand_color, public_phone, public_email,
            tilby_shop_name, tips_enabled, tip_percents, google_review_url,
@@ -199,11 +200,15 @@ export default async function SettingsPage() {
       </section>
 
       <section className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="mb-1 font-semibold">Allarme ritardi</h2>
+        <h2 className="mb-1 font-semibold">Tempi e allarmi</h2>
         <p className="mb-3 text-sm text-muted">
-          Quanto può aspettare un tavolo prima che tu voglia accorgertene.
+          Quanto può aspettare un tavolo, e quanto può restare seduto dopo
+          aver pagato, prima che tu voglia accorgertene.
         </p>
-        <SogliaForm minuti={venueRow?.soglia_attesa_min ?? 20} />
+        <SogliaForm
+          minuti={venueRow?.soglia_attesa_min ?? 20}
+          liberazione={venueRow?.soglia_liberazione_min ?? 15}
+        />
       </section>
 
       <section className="rounded-xl border border-border bg-surface p-4">

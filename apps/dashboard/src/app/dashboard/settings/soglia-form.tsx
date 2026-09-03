@@ -10,7 +10,13 @@ import { salvaSoglia } from "./soglia-actions";
  * una piadineria e niente per una brace. Una soglia che dice il falso viene
  * ignorata, ed è il modo peggiore di far fallire un allarme.
  */
-export function SogliaForm({ minuti }: { minuti: number }) {
+export function SogliaForm({
+  minuti,
+  liberazione,
+}: {
+  minuti: number;
+  liberazione: number;
+}) {
   const [state, formAction, pending] = useActionState<
     { ok?: string; error?: string } | null,
     FormData
@@ -36,6 +42,27 @@ export function SogliaForm({ minuti }: { minuti: number }) {
           tavolo lampeggia in rosso in sala e sul monitor comande, finché il
           piatto non è pronto. Metti <strong>0</strong> per spegnere
           l&apos;allarme.
+        </p>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-sm" htmlFor="liberazione">
+          Minuti dopo il saldo oltre i quali il tavolo va recuperato
+        </label>
+        <input
+          id="liberazione"
+          name="liberazione"
+          type="number"
+          min="0"
+          max="240"
+          defaultValue={liberazione}
+          className="min-h-11 w-40 rounded-lg border border-border bg-background px-3 text-sm"
+        />
+        <p className="mt-1.5 text-xs text-muted">
+          Un tavolo che ha pagato e resta seduto per un po&apos; è normale — il
+          caffè, i cappotti. Passata questa soglia diventa un coperto già
+          incassato che tiene occupato un posto, e in sala lo vedi
+          evidenziato. <strong>0</strong> per non essere avvisato.
         </p>
       </div>
 

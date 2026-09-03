@@ -53,6 +53,16 @@ export function DettaglioTavolo({
   }, [onClose]);
 
   const daPagare = tavolo.ordinatoCents - tavolo.pagatoCents;
+
+  // Quante quote uguali restano da incassare. Solo se il residuo è un
+  // multiplo pulito della quota: se hanno pagato per piatto il numero non
+  // significherebbe niente e sarebbe peggio mostrarlo.
+  const quota =
+    tavolo.coperti > 0 ? Math.round(tavolo.ordinatoCents / tavolo.coperti) : 0;
+  const quoteResidue =
+    quota > 0 && daPagare > 0 && Math.abs(daPagare % quota) <= tavolo.coperti
+      ? Math.round(daPagare / quota)
+      : null;
   const totaliPiatti = tavolo.righe.reduce((s, r) => s + r.quantita, 0);
 
   return (
@@ -169,6 +179,42 @@ export function DettaglioTavolo({
                 <span>
                   {formatPriceCents(Math.round(tavolo.ordinatoCents / tavolo.coperti))}
                 </span>
+              </p>
+            )}
+
+            {/* Chi manca all'appello. Il numero di pagamenti è un fatto; le
+                quote residue sono una divisione, e vanno dette come tali —
+                uno può aver pagato per due. */}
+            {daPagare > 0 && tavolo.nPagamenti > 0 && (
+              <p className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-2 text-sm text-amber-900">
+                <strong>
+                  {tavolo.nPagamenti} di {tavolo.coperti}{" "}
+                  {tavolo.nPagamenti === 1 ? "ha" : "hanno"} già pagato
+                </strong>
+                {tavolo.coperti > tavolo.nPagamenti && (
+                  <>
+                    {" — mancano "}
+                    <strong>
+                      {tavolo.coperti - tavolo.nPagamenti}{" "}
+                      {tavolo.coperti - tavolo.nPagamenti === 1 ? "persona" : "persone"}
+                    </strong>
+                  </>
+                )}
+                {quoteResidue !== null && (
+                  <span className="mt-0.5 block text-xs">
+                    Restano {formatPriceCents(daPagare)}: sono {quoteResidue}{" "}
+                    {quoteResidue === 1 ? "quota" : "quote"} da{" "}
+                    {formatPriceCents(Math.round(tavolo.ordinatoCents / tavolo.coperti))},
+                    se dividono in parti uguali.
+                  </span>
+                )}
+              </p>
+            )}
+
+            {daPagare > 0 && tavolo.nPagamenti === 0 && tavolo.coperti > 0 && (
+              <p className="mt-2 text-xs text-muted">
+                Nessuno ha ancora pagato: {tavolo.coperti}{" "}
+                {tavolo.coperti === 1 ? "persona" : "persone"} da incassare.
               </p>
             )}
           </section>

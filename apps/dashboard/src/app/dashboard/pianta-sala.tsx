@@ -34,7 +34,8 @@ export type StatoTavolo =
   | "parziale"
   | "ritardo"
   | "pronto"
-  | "saldato";
+  | "saldato"
+  | "daliberare";
 
 const COLORE: Record<StatoTavolo, string> = {
   libero: "border-border bg-background text-muted",
@@ -53,6 +54,10 @@ const COLORE: Record<StatoTavolo, string> = {
   // niente lampeggio, così si distingue dal ritardo anche di sfuggita.
   pronto: "border-2 border-sky-400 bg-sky-500 text-white",
   saldato: "border-2 border-emerald-400 bg-emerald-600 text-white",
+  // Fucsia e non rosso: il rosso è già il ritardo in cucina, e due allarmi
+  // dello stesso colore non dicono a nessuno dove andare. Qui non c'è un
+  // guaio, c'è un coperto da recuperare.
+  daliberare: "border-4 border-fuchsia-300 bg-fuchsia-600 text-white animate-pulse font-bold",
 };
 
 const VOCE: Record<StatoTavolo, string> = {
@@ -60,6 +65,7 @@ const VOCE: Record<StatoTavolo, string> = {
   incorso: "in corso",
   parziale: "pagato in parte",
   ritardo: "IN RITARDO — sta aspettando",
+  daliberare: "ha pagato — tavolo da recuperare",
   pronto: "piatti pronti da portare",
   saldato: "saldato, da liberare",
 };
@@ -381,7 +387,7 @@ export function PiantaSala({
 
       {!disponi && tavoli.some((t) => t.stato !== "libero") && (
         <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
-          {(["incorso", "parziale", "ritardo", "pronto", "saldato"] as StatoTavolo[])
+          {(["incorso", "parziale", "ritardo", "pronto", "saldato", "daliberare"] as StatoTavolo[])
             .filter((k) => tavoli.some((t) => t.stato === k))
             .map((k) => (
               <li key={k} className="flex items-center gap-1.5">

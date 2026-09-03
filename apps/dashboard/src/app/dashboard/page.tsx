@@ -21,6 +21,8 @@ interface RigaSessione {
   guest_count: number;
   ordinato: string | null;
   pagato: string | null;
+  n_pagamenti: number;
+  ultimo_pagamento: Date | null;
 }
 
 interface RigaComanda {
@@ -61,9 +63,10 @@ export default async function DashboardPage() {
       floor_plan_opacity: number;
       openrouter_api_key: string | null;
       soglia_attesa_min: number;
+      soglia_liberazione_min: number;
     }[]
   >`select floor_plan_url, floor_plan_opacity, openrouter_api_key,
-           soglia_attesa_min
+           soglia_attesa_min, soglia_liberazione_min
       from venues where id = ${venue.venueId}`;
 
   // Ordinato e pagato in due sottoquery invece che con due join: incrociarli
@@ -77,7 +80,11 @@ export default async function DashboardPage() {
              where o.table_session_id = ts.id
                and o.status != 'cancelled' and oi.status != 'cancelled') as ordinato,
            (select sum(p.amount_cents) from payments p
-             where p.table_session_id = ts.id and p.status = 'succeeded') as pagato
+             where p.table_session_id = ts.id and p.status = 'succeeded') as pagato,
+           (select count(*)::int from payments p
+             where p.table_session_id = ts.id and p.status = 'succeeded') as n_pagamenti,
+           (select max(p.created_at) from payments p
+             where p.table_session_id = ts.id and p.status = 'succeeded') as ultimo_pagamento
       from table_sessions ts
      where ts.venue_id = ${venue.venueId} and ts.status = 'open'`;
 
@@ -135,6 +142,8 @@ export default async function DashboardPage() {
       coperti: s?.guest_count ?? 1,
       ordinatoCents: Number(s?.ordinato ?? 0),
       pagatoCents: Number(s?.pagato ?? 0),
+      nPagamenti: s?.n_pagamenti ?? 0,
+      ultimoPagamento: s?.ultimo_pagamento ? s.ultimo_pagamento.toISOString() : null,
       righe: s ? (righePerSessione.get(s.session_id) ?? []) : [],
     };
   });
@@ -162,6 +171,7 @@ export default async function DashboardPage() {
         piantinaOpacita={locale?.floor_plan_opacity ?? 35}
         aiAttiva={Boolean(locale?.openrouter_api_key)}
         sogliaMin={locale?.soglia_attesa_min ?? 20}
+        sogliaLiberazioneMin={locale?.soglia_liberazione_min ?? 15}
       />
 
 

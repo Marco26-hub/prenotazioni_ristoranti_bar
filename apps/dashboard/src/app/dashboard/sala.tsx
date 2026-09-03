@@ -30,6 +30,8 @@ export interface TavoloSala {
   coperti: number;
   ordinatoCents: number;
   pagatoCents: number;
+  nPagamenti: number;
+  ultimoPagamento: string | null;
   righe: RigaOrdine[];
 }
 
@@ -63,7 +65,12 @@ const STATO_ETICHETTA: Record<string, string> = {
  * che peggiora da sola. Poi il tavolo già saldato, che è un coperto
  * recuperabile subito se qualcuno lo sparecchia.
  */
-function statoTavolo(t: TavoloSala, sogliaMin: number, adesso: number): StatoTavolo {
+function statoTavolo(
+  t: TavoloSala,
+  sogliaMin: number,
+  adesso: number,
+  sogliaLiberazioneMin = 15
+): StatoTavolo {
   if (!t.sessionId) return "libero";
 
   // Il ritardo viene prima del pronto: chi aspetta da mezz'ora senza niente
@@ -88,7 +95,19 @@ function statoTavolo(t: TavoloSala, sogliaMin: number, adesso: number): StatoTav
   // nessuno lo porta: farlo lampeggiare rosso in cassa manderebbe qualcuno a
   // correre per un piatto che deve restare dov'è.
   if (t.righe.some((r) => r.stato === "ready" && !r.trattenuto)) return "pronto";
-  if (t.ordinatoCents > 0 && t.pagatoCents >= t.ordinatoCents) return "saldato";
+  if (t.ordinatoCents > 0 && t.pagatoCents >= t.ordinatoCents) {
+    // Pagato e ancora seduti: per un po' è normale — il caffè, i cappotti,
+    // il conto appena arrivato. Passata la soglia è un coperto già incassato
+    // che tiene occupato un tavolo mentre fuori c'è gente.
+    if (
+      sogliaLiberazioneMin > 0 &&
+      t.ultimoPagamento &&
+      adesso - new Date(t.ultimoPagamento).getTime() >= sogliaLiberazioneMin * 60_000
+    ) {
+      return "daliberare";
+    }
+    return "saldato";
+  }
   // Alla romana: qualcuno ha già pagato, manca il resto.
   if (t.pagatoCents > 0) return "parziale";
   return "incorso";
@@ -124,6 +143,7 @@ export function Sala({
   piantinaOpacita,
   aiAttiva,
   sogliaMin,
+  sogliaLiberazioneMin,
 }: {
   tavoli: TavoloSala[];
   chiudiConto: (sessionId: string) => Promise<void>;
@@ -136,6 +156,7 @@ export function Sala({
   piantinaOpacita: number;
   aiAttiva: boolean;
   sogliaMin: number;
+  sogliaLiberazioneMin: number;
 }) {
   const router = useRouter();
   const [adesso, setAdesso] = useState(() => Date.now());
@@ -181,7 +202,7 @@ export function Sala({
           forma: t.forma,
           x: t.x,
           y: t.y,
-          stato: statoTavolo(t, sogliaMin, adesso),
+          stato: statoTavolo(t, sogliaMin, adesso, sogliaLiberazioneMin),
           residuoCents: t.sessionId ? t.ordinatoCents - t.pagatoCents : null,
         }))}
         piantina={piantina}
