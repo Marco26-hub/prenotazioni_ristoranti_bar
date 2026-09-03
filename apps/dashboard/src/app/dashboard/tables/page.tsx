@@ -2,6 +2,7 @@ import QRCode from "qrcode";
 import { db } from "@repo/shared/db";
 import { auth } from "@/auth";
 import { ScaricaLocandina } from "./scarica-locandina";
+import { PdfTutti } from "./pdf-tutti";
 import {
   addTable,
   toggleTableActive,
@@ -42,6 +43,17 @@ export default async function TablesPage() {
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-4 py-5">
       <h1 className="text-lg font-semibold">Gestione tavoli</h1>
+
+      <PdfTutti
+        nomeLocale={venueRow.name}
+        tavoli={tablesWithQr.map((t) => ({
+          codice: t.code,
+          qrDataUrl: t.qrStampa,
+          nomeLocale: venueRow.name,
+          logoUrl: venueRow.logo_url,
+          coloreMarchio: venueRow.brand_color,
+        }))}
+      />
 
       <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {tablesWithQr.map((t) => (
