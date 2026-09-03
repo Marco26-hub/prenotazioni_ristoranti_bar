@@ -109,16 +109,16 @@ export function DettaglioTavolo({
                   {righe.map((r, i) => (
                     <li
                       key={`${fase.chiave}-${i}`}
-                      className="flex items-start justify-between gap-3 text-sm"
+                      className="flex flex-col gap-1 text-sm sm:flex-row sm:items-start sm:justify-between sm:gap-3"
                     >
-                      <span className="min-w-0">
+                      <span className="min-w-0 text-pretty">
                         <span className="tabular-nums font-medium">{r.quantita}×</span>{" "}
                         {r.nome}
                         {r.note && (
                           <span className="block text-xs italic text-muted">{r.note}</span>
                         )}
                       </span>
-                      <span className="flex shrink-0 items-baseline gap-2">
+                      <span className="flex shrink-0 items-baseline gap-2 self-end sm:self-auto">
                         <span
                           className={`text-xs ${r.trattenuto ? "font-medium text-amber-600" : "text-muted"}`}
                         >

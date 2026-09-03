@@ -224,8 +224,11 @@ export function Sala({
                   {t.righe.length > 0 ? (
                     <ul className="mt-3 space-y-1 border-t border-border/60 pt-2 text-sm">
                       {t.righe.map((r, i) => (
-                        <li key={i} className="flex items-baseline justify-between gap-2">
-                          <span className="min-w-0">
+                        <li
+                          key={i}
+                          className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-2"
+                        >
+                          <span className="min-w-0 text-pretty">
                             <span className="tabular-nums text-muted">{r.quantita}×</span>{" "}
                             {r.nome}
                             {r.note && (
@@ -234,7 +237,7 @@ export function Sala({
                               </span>
                             )}
                           </span>
-                          <span className="flex shrink-0 items-baseline gap-2">
+                          <span className="flex shrink-0 items-baseline gap-2 self-end sm:self-auto">
                             <span
                               className={`text-xs ${r.trattenuto ? "font-medium text-amber-600" : "text-muted"}`}
                             >

@@ -593,11 +593,11 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
                   {righe.map((r) => (
                     <li
                       key={r.id}
-                      className={`flex items-start justify-between gap-3 rounded-r pl-2 ${
+                      className={`flex flex-col gap-2 rounded-r py-1 pl-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3 ${
                         COLORE_RIGA[r.status] ?? ""
                       }`}
                     >
-                      <span className="min-w-0">
+                      <span className="min-w-0 text-pretty">
                         <span className="tabular-nums font-medium">{r.quantity}×</span>{" "}
                         {r.item_name}
                         {/* Senza le scelte la cucina prepara la variante
@@ -622,7 +622,7 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
                           <span className="block text-xs text-muted">{r.ultimo_da}</span>
                         )}
                       </span>
-                      <span className="flex shrink-0 items-center gap-1.5">
+                      <span className="flex shrink-0 flex-wrap items-center gap-1.5">
                         <button
                           type="button"
                           onClick={() => trattieni(r)}
