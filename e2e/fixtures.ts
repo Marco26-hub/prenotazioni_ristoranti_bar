@@ -105,6 +105,8 @@ export async function deleteTestVenue(venue: TestVenue): Promise<void> {
     await sql`delete from menu_items where venue_id = ${venue.venueId}`;
     await sql`delete from menu_categories where venue_id = ${venue.venueId}`;
     await sql`delete from tables where venue_id = ${venue.venueId}`;
+    await sql`delete from support_tickets where venue_id = ${venue.venueId}`;
+    await sql`delete from venue_notes where venue_id = ${venue.venueId}`;
     await sql`delete from venue_staff where venue_id = ${venue.venueId}`;
     await sql`delete from venues where id = ${venue.venueId}`;
     await sql`delete from users where id = ${venue.userId}`;

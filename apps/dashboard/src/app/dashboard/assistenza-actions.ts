@@ -27,12 +27,20 @@ export async function apriTicket(
   const [u] = await sql<{ etichetta: string }[]>`
     select coalesce(name, email) as etichetta from users where id = ${userId}`;
 
-  // Una richiesta identica ancora aperta non se ne apre una seconda: chi non
-  // vede risposta riscrive, ed è comprensibile, ma raddoppiare la coda non
-  // aiuta nessuno.
+  /*
+   * Antiduplicato, ma solo finché non abbiamo risposto.
+   *
+   * Chi non vede risposta riscrive, ed è comprensibile: quella seconda
+   * richiesta non va messa in coda due volte. Ma se una risposta l'ha già
+   * ricevuta e riscrive con lo stesso oggetto, sta dicendo che la risposta
+   * non ha risolto — ed è esattamente il messaggio che non deve essere
+   * scartato. Bloccarlo lo lasciava senza modo di ribattere: la risposta è
+   * un campo solo, quindi la conversazione continua in una richiesta nuova.
+   */
   const [gia] = await sql<{ id: string }[]>`
     select id from support_tickets
      where venue_id = ${venue.venueId} and stato <> 'risolto'
+       and risposta is null
        and oggetto = ${oggetto.slice(0, 120)}`;
 
   if (gia) {
