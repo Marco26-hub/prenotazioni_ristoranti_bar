@@ -96,7 +96,12 @@ test("il menu modifica il prezzo e duplica una voce completa", async ({ page }) 
   await expect(price).toHaveValue("17.50");
 
   await page.getByRole("button", { name: `Duplica ${venue.menuItemName}` }).click();
-  await expect(page.getByText(`Copia di ${venue.menuItemName}`, { exact: true })).toBeVisible();
+  // Più dei 5 secondi di default: la copia passa da una Server Action e da
+  // un revalidate dell'intera pagina menu, che dopo una suite lunga non ci
+  // sta — e il test finiva per accusare il codice della propria fretta.
+  await expect(
+    page.getByText(`Copia di ${venue.menuItemName}`, { exact: true })
+  ).toBeVisible({ timeout: 20_000 });
   await expect(
     page.getByRole("spinbutton", {
       name: `Prezzo di Copia di ${venue.menuItemName}`,
