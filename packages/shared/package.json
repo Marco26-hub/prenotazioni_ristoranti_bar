@@ -23,7 +23,8 @@
     "./allergeni": "./allergeni.ts",
     "./testi": "./testi.ts",
     "./piantina": "./piantina.ts",
-    "./json-ld": "./json-ld.ts"
+    "./json-ld": "./json-ld.ts",
+    "./errori": "./errori.ts"
   },
   "dependencies": {
     "postgres": "^3.4.5",

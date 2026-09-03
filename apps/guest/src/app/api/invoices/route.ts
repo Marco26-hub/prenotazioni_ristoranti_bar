@@ -5,6 +5,7 @@ import { decryptSecret } from "@repo/shared/crypto";
 import { buildFatturaPaJson, type CustomerData } from "@/lib/invoice/fatturapa";
 import { invoicetronicClient } from "@/lib/invoice/invoicetronic-client";
 import { inviaEmail } from "@repo/shared/email";
+import { messaggioErrore } from "@repo/shared/errori";
 
 interface InvoiceRequestBody {
   sessionId: string;
@@ -232,7 +233,9 @@ export async function POST(request: Request) {
         ? payload
         : Buffer.from(payload, "utf8").toString("base64");
     } catch (documentError) {
-      console.warn(`[invoices] XML non ancora disponibile per ${String(data.id)}:`, documentError);
+      console.warn(
+        `[invoices] XML non ancora disponibile per ${String(data.id)}: ${messaggioErrore(documentError)}`
+      );
     }
 
     const emailResult = await inviaEmail({
@@ -257,7 +260,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ status: "sent", invoiceId: data.id, emailSent: emailResult.inviata });
   } catch (err) {
-    console.error(`[invoices] invio fallito per payment ${payment.id}:`, err);
+    console.error(
+      `[invoices] invio fallito per payment ${payment.id}: ${messaggioErrore(err)}`
+    );
 
     await sql`update invoices set status = 'rejected' where id = ${invoiceRowId}`;
 

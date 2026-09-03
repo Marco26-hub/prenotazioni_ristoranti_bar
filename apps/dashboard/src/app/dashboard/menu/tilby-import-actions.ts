@@ -5,6 +5,7 @@ import { db } from "@repo/shared/db";
 import { decryptSecret } from "@repo/shared/crypto";
 import { getTilbyCategories, getTilbyItems } from "@repo/shared/tilby";
 import { requireRole } from "@/lib/authz";
+import { messaggioErrore } from "@repo/shared/errori";
 
 export interface TilbyImportResult {
   error?: string;
@@ -43,7 +44,7 @@ export async function importMenuFromTilby(): Promise<TilbyImportResult> {
       getTilbyItems(token),
     ]);
   } catch (err) {
-    console.error("[tilby-import] lettura fallita:", err);
+    console.error(`[tilby-import] lettura fallita: ${messaggioErrore(err)}`);
     return { error: err instanceof Error ? err.message : "Errore lettura da Tilby" };
   }
 

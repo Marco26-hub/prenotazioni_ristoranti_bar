@@ -16,6 +16,7 @@ import { OpenRouterForm } from "./openrouter-form";
 import { AssistenteForm } from "./assistente-form";
 import { emailConfigurata } from "@repo/shared/email";
 import { AnnuncioForm } from "./annuncio-form";
+import { messaggioErrore } from "@repo/shared/errori";
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -95,7 +96,9 @@ export default async function SettingsPage() {
       const account = await stripeClient().accounts.retrieve(venueRow.stripe_account_id);
       chargesEnabled = account.charges_enabled;
     } catch (err) {
-      console.error("[settings] stato account Stripe non recuperabile:", err);
+      console.error(
+        `[settings] stato account Stripe non recuperabile: ${messaggioErrore(err)}`
+      );
       stripeStatusUnavailable = true;
     }
   }

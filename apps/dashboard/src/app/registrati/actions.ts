@@ -5,6 +5,7 @@ import { db } from "@repo/shared/db";
 import { checkRateLimit, pseudonymise } from "@repo/shared/rate-limit";
 import { DPA_VERSION } from "@/lib/dpa";
 import { headers } from "next/headers";
+import { messaggioErrore } from "@repo/shared/errori";
 
 export interface SignupResult {
   error?: string;
@@ -98,7 +99,7 @@ export async function signup(formData: FormData): Promise<SignupResult> {
       }
     });
   } catch (err) {
-    console.error("[signup] creazione locale fallita:", err);
+    console.error(`[signup] creazione locale fallita: ${messaggioErrore(err)}`);
     return { error: "Registrazione non riuscita, riprova" };
   }
 

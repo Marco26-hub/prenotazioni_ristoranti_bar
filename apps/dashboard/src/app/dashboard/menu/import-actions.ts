@@ -4,6 +4,7 @@ import ExcelJS from "exceljs";
 import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { requireRole } from "@/lib/authz";
+import { messaggioErrore } from "@repo/shared/errori";
 
 export interface ImportResult {
   error?: string;
@@ -126,7 +127,7 @@ export async function importMenuCsv(formData: FormData): Promise<ImportResult> {
   try {
     rows = isExcel ? await readXlsx(file) : parseCsv(await file.text());
   } catch (err) {
-    console.error("[import-menu] lettura file fallita:", err);
+    console.error(`[import-menu] lettura file fallita: ${messaggioErrore(err)}`);
     return { error: "File non leggibile: controlla che sia un CSV, TSV o Excel valido" };
   }
   if (rows.length === 0) return { error: "Il file è vuoto" };

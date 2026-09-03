@@ -5,6 +5,7 @@ import { db } from "@repo/shared/db";
 import { encryptSecret } from "@repo/shared/crypto";
 import { getTilbyShop } from "@repo/shared/tilby";
 import { requireRole } from "@/lib/authz";
+import { messaggioErrore } from "@repo/shared/errori";
 
 export interface TilbyResult {
   error?: string;
@@ -25,7 +26,7 @@ export async function connectTilby(formData: FormData): Promise<TilbyResult> {
     const shop = await getTilbyShop(token);
     shopName = shop.name;
   } catch (err) {
-    console.error("[tilby] verifica token fallita:", err);
+    console.error(`[tilby] verifica token fallita: ${messaggioErrore(err)}`);
     return {
       error: err instanceof Error ? err.message : "Impossibile contattare Tilby",
     };

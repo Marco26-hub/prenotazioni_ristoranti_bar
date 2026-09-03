@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { db } from "@repo/shared/db";
 import { decryptSecret } from "@repo/shared/crypto";
 import { invoicetronicClient } from "@/lib/invoice/invoicetronic-client";
+import { messaggioErrore } from "@repo/shared/errori";
 
 const STATUS: Record<string, string> = {
   Inviato: "sent",
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
       const state = invoice.data.latest_state ? STATUS[invoice.data.latest_state] : null;
       await sql`update invoices set status = coalesce(${state}, status), sdi_identifier = coalesce(${invoice.data.identifier ?? null}, sdi_identifier) where id = ${row.id}`;
     } catch (error) {
-      console.error("[invoicetronic-webhook] sync failed", error);
+      console.error(`[invoicetronic-webhook] sync failed: ${messaggioErrore(error)}`);
       return NextResponse.json({ error: "Sincronizzazione non riuscita" }, { status: 500 });
     }
   }

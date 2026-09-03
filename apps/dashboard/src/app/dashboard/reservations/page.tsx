@@ -46,8 +46,14 @@ export default async function ReservationsPage({
   const dataSelezionata = new Date(anno, mese - 1, giorno);
 
   const sql = db();
-  const [locale] = await sql<{ reservation_email: string | null; public_email: string | null }[]>`
-    select reservation_email, public_email from venues where id = ${venue.venueId}`;
+  const [locale] = await sql<
+    {
+      reservation_email: string | null;
+      public_email: string | null;
+      reservation_capacity: number | null;
+    }[]
+  >`select reservation_email, public_email, reservation_capacity
+      from venues where id = ${venue.venueId}`;
 
   // Il mese mostrato segue il giorno selezionato, così spostandosi avanti o
   // indietro il calendario resta coerente con la lista sotto.
@@ -131,6 +137,19 @@ export default async function ReservationsPage({
           {!emailConfigurata()
             ? "L'invio email non è ancora configurato: le richieste arrivano solo qui dentro e il cliente non riceve conferme. Vanno gestite a telefono."
             : "Non hai indicato un indirizzo per le richieste di prenotazione. Impostalo in Impostazioni, altrimenti non ti arriva nessuna notifica."}
+        </p>
+      )}
+
+      {/* Senza capienza dichiarata il sistema non puo dire di no con
+          cognizione e accetta tutto: e la scelta giusta — meglio far
+          decidere una persona che rifiutare a caso — ma va detto, altrimenti
+          il ristoratore crede di avere una protezione che non ha. */}
+      {locale?.reservation_capacity === null && (
+        <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          Non hai indicato quanti coperti puoi accogliere per fascia oraria:
+          le richieste vengono accettate tutte e la disponibilita la valuti
+          tu. Impostala in <strong>Impostazioni → Prenotazioni</strong> per
+          far rifiutare da sole quelle che non entrano.
         </p>
       )}
 
