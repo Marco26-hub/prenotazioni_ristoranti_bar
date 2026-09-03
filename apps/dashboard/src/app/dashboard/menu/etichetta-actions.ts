@@ -107,6 +107,22 @@ export async function salvaChiaveOpenRouter(formData: FormData): Promise<EsitoCh
   const chiave = String(formData.get("apiKey") ?? "").trim();
   const modello = String(formData.get("model") ?? "").trim() || MODELLO_PREDEFINITO;
 
+  // Il campo chiave non viene mai ripopolato — è un segreto, e ristamparlo
+  // in pagina sarebbe peggio. Ma se resta vuoto e una chiave c'è già, chi
+  // voleva solo cambiare modello si sentiva rispondere che la chiave è
+  // sbagliata, e non aveva modo di cambiarlo se non reinserendola.
+  if (!chiave) {
+    const [attuale] = await sql<{ openrouter_api_key: string | null }[]>`
+      select openrouter_api_key from venues where id = ${venue.venueId}`;
+    if (!attuale?.openrouter_api_key) {
+      return { error: "Incolla la chiave OpenRouter" };
+    }
+    await sql`
+      update venues set openrouter_model = ${modello} where id = ${venue.venueId}`;
+    revalidatePath("/dashboard/settings");
+    return { success: `Modello aggiornato: ${modello}. Chiave invariata.` };
+  }
+
   if (!chiave.startsWith("sk-or-")) {
     return { error: "La chiave OpenRouter inizia per sk-or-" };
   }
