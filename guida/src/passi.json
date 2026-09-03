@@ -18,5 +18,13 @@
   {
     "immagine": "passi/05-conto.png",
     "didascalia": "Il conto è sempre aggiornato: si paga quando si vuole"
+  },
+  {
+    "immagine": "passi/06-contanti.png",
+    "didascalia": "Chi paga in contanti sceglie scontrino o fattura"
+  },
+  {
+    "immagine": "passi/07-chiamato.png",
+    "didascalia": "Il tavolo compare in sala: il cameriere sa già cosa portare"
   }
 ]

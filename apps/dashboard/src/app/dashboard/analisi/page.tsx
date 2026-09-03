@@ -183,9 +183,6 @@ export default async function AnalisiPage({
     ? Math.round(Number(riepilogo.durata_media_min))
     : 0;
 
-  const piccoGiorno = perGiorno.length
-    ? Math.max(...perGiorno.map((g) => Number(g.incasso)))
-    : 0;
   const piccoOra = perOra.length ? Math.max(...perOra.map((o) => o.sessioni)) : 0;
 
   // Dalle 11 alle 24: è l'arco in cui un locale serve. Mostrare solo le ore
@@ -205,6 +202,14 @@ export default async function AnalisiPage({
     acc.n += g.sessioni;
     giorniAggregati.set(k, acc);
   }
+
+  // Il picco va preso DOPO l'aggregazione. Prendendolo dalle righe singole,
+  // un giorno con più righe sommava oltre il massimo, la larghezza superava
+  // il 100% e la barra usciva dal riquadro fin sopra la navigazione.
+  const piccoGiorno = Math.max(
+    0,
+    ...[...giorniAggregati.values()].map((d) => d.incasso)
+  );
 
   return (
     <main className="mx-auto max-w-4xl space-y-6 px-4 py-5">
@@ -311,12 +316,21 @@ export default async function AnalisiPage({
                       </span>
                     </span>
                   </div>
-                  <div
-                    className="mt-1 h-1.5 rounded-full bg-accent"
-                    style={{
-                      width: `${piccoGiorno > 0 ? Math.max(2, (d.incasso / piccoGiorno) * 100) : 2}%`,
-                    }}
-                  />
+                  {/* Il contenitore taglia comunque: se un domani il calcolo
+                      sbaglia di nuovo, la barra si ferma qui invece di
+                      dipingere sopra il resto della pagina. */}
+                  <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-border">
+                    <div
+                      className="h-full rounded-full bg-accent"
+                      style={{
+                        width: `${
+                          piccoGiorno > 0
+                            ? Math.min(100, Math.max(2, (d.incasso / piccoGiorno) * 100))
+                            : 2
+                        }%`,
+                      }}
+                    />
+                  </div>
                 </li>
               ))}
             </ul>

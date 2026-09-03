@@ -16,6 +16,7 @@ import { mkdirSync, readFileSync } from "node:fs";
 import postgres from "postgres";
 
 const GUEST = "https://ristoranti-guest.vercel.app";
+const ADMIN = "https://ristoranti-dashboard.vercel.app";
 const SLUG = "trattoria-da-luca";
 const TAVOLO = process.env.TAVOLO ?? "T3";
 const USCITA = "guida/public/passi";
@@ -120,6 +121,42 @@ if (await contanti.count()) {
   await page.waitForTimeout(2000);
   passi.push(await scatta("chiamato", "Il tavolo compare in sala: il cameriere sa già cosa portare"));
 }
+
+/* --- Lato sala: cosa vede il locale mentre il cliente ordina ---------- */
+
+// Schermo largo: la sala si guarda dalla cassa o da un tablet, non dal
+// telefono, e la pianta ha senso solo con lo spazio per starci dentro.
+const sala = await browser.newContext({
+  viewport: { width: 1280, height: 900 },
+  deviceScaleFactor: 2,
+  locale: "it-IT",
+});
+const admin = await sala.newPage();
+
+await admin.goto(`${ADMIN}/`, { waitUntil: "networkidle" });
+await admin.getByLabel(/Email/i).fill(process.env.GUIDA_EMAIL ?? "");
+await admin.getByLabel(/Password/i).fill(process.env.GUIDA_PASSWORD ?? "");
+await admin.getByRole("button", { name: /Accedi/i }).click();
+await admin.waitForURL(/dashboard/, { timeout: 30_000 });
+await admin.waitForTimeout(2500);
+
+async function scattaAdmin(nome, didascalia) {
+  n += 1;
+  const file = `${USCITA}/${String(n).padStart(2, "0")}-${nome}.png`;
+  await admin.screenshot({ path: file });
+  console.log(`  ${file}  — ${didascalia}`);
+  passi.push({ file, didascalia });
+}
+
+await scattaAdmin("sala", "In sala ogni tavolo ha un colore: chi aspetta, chi deve pagare, chi può alzarsi");
+
+await admin.goto(`${ADMIN}/dashboard/orders`, { waitUntil: "networkidle" });
+await admin.waitForTimeout(2000);
+await scattaAdmin("cucina", "In cucina la comanda arriva già scritta: niente fogli, niente voce");
+
+await admin.goto(`${ADMIN}/dashboard/analisi`, { waitUntil: "networkidle" });
+await admin.waitForTimeout(2500);
+await scattaAdmin("analisi", "A fine servizio i conti tornano da soli: coperti, scontrino medio, rotazione");
 
 await browser.close();
 
