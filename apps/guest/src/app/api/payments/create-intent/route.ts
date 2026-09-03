@@ -13,6 +13,22 @@ interface CreateIntentBody {
   orderItemIds?: string[];
 }
 
+
+/**
+ * Stripe sta dicendo che questo intent non esiste più, o non ha risposto?
+ *
+ * È la differenza fra archiviare la riga e restituire un errore
+ * temporaneo, e senza distinguerla un blip di rete diventa un doppio
+ * addebito.
+ */
+function intentSconosciuto(err: unknown): boolean {
+  const e = err as { type?: string; code?: string; statusCode?: number };
+  return (
+    e?.code === "resource_missing" ||
+    (e?.type === "StripeInvalidRequestError" && e?.statusCode === 404)
+  );
+}
+
 export async function POST(request: Request) {
   const { allowed } = await checkRateLimit(clientKey(request, "create-intent"), 10, 60);
   if (!allowed) {
@@ -85,33 +101,42 @@ export async function POST(request: Request) {
    * minuti sono molto piu del tempo che serve a inserire una carta: oltre,
    * si considera abbandonato e lo slot torna libero.
    */
-  const scaduti = await sql<{ id: string; provider_payment_id: string | null }[]>`
-    update payments set status = 'failed'
-     where table_session_id = ${session.id} and status = 'pending'
-       and created_at < now() - interval '10 minutes'
-    returning id, provider_payment_id`;
-
   /*
-   * Scadere la riga da noi non basta: l'intent resta confermabile su Stripe.
+   * L'ordine conta: prima si annulla su Stripe, poi si archivia la riga.
    *
-   * Chi era rimasto sul 3DS puo confermarlo dieci minuti dopo, quando lo
-   * slot si e gia liberato e un altro commensale ha pagato lo stesso conto.
-   * Il tavolo paga due volte, e l'eccedenza non si vede da nessuna parte
-   * perche il saldo negativo viene azzerato. Va annullato anche di la.
+   * Al contrario — archiviare e poi annullare — un annullamento fallito per
+   * un errore di passaggio lasciava la riga 'failed' con l'intent ancora
+   * confermabile: il saldo tornava pieno, il tavolo poteva pagare di nuovo, e
+   * il webhook non recuperava perché promuove solo le righe 'pending'. Se
+   * l'annullamento non riesce la riga resta com'è e ci si riprova al giro
+   * dopo: uno slot occupato qualche minuto in più è un fastidio, un doppio
+   * addebito invisibile no.
    */
-  for (const p of scaduti) {
-    if (!p.provider_payment_id?.startsWith("pi_")) continue;
-    try {
-      await stripe.paymentIntents.cancel(p.provider_payment_id, {
-        stripeAccount: venue.stripe_account_id,
-      });
-    } catch (err) {
-      // Gia annullato, gia riuscito o sconosciuto: in tutti e tre i casi non
-      // c'e altro da fare qui, e il webhook decidera sul suo stato.
-      console.warn(
-        `[create-intent] annullamento intent scaduto non riuscito: ${messaggioErrore(err)}`
-      );
+  const daScadere = await sql<{ id: string; provider_payment_id: string | null }[]>`
+    select id, provider_payment_id from payments
+     where table_session_id = ${session.id} and status = 'pending'
+       and created_at < now() - interval '10 minutes'`;
+
+  for (const p of daScadere) {
+    if (p.provider_payment_id?.startsWith("pi_")) {
+      try {
+        await stripe.paymentIntents.cancel(p.provider_payment_id, {
+          stripeAccount: venue.stripe_account_id,
+        });
+      } catch (err) {
+        // Se l'intent non esiste più non c'è nulla da annullare e archiviare
+        // è giusto. Su qualsiasi altro errore — rete, 429, o un intent già
+        // riuscito che Stripe rifiuta di annullare — la riga resta 'pending':
+        // nel secondo caso è proprio il webhook che deve promuoverla.
+        if (!intentSconosciuto(err)) {
+          console.warn(
+            `[create-intent] intent scaduto ${p.id} non annullato, riga lasciata pending: ${messaggioErrore(err)}`
+          );
+          continue;
+        }
+      }
     }
+    await sql`update payments set status = 'failed' where id = ${p.id}`;
   }
 
   const splitItemIds = body.orderItemIds?.filter(Boolean) ?? [];
@@ -178,15 +203,40 @@ export async function POST(request: Request) {
       and provider_payment_id is not null`;
 
   if (existingPending) {
-    // Un intent che Stripe non conosce più non deve bloccare il tavolo: si
-    // archivia il pending e si riparte da capo.
+    /*
+     * Un intent che Stripe non conosce più non deve bloccare il tavolo: si
+     * archivia il pending e si riparte da capo.
+     *
+     * Ma solo se Stripe dice davvero che non esiste. Il catch qui era nudo e
+     * prendeva tutto: un timeout, un 429, un 500 di passaggio finivano
+     * archiviati come "pagamento fallito" mentre l'intent restava
+     * confermabile. Il saldo sottrae solo i pagamenti riusciti, quindi
+     * restava pieno e poche righe più sotto nasceva un secondo intent
+     * sull'intero conto: chi era fermo sul 3DS confermava il primo e il
+     * tavolo pagava due volte. Il webhook non recuperava — promuove solo le
+     * righe 'pending' — e l'eccedenza non compariva né nel conto né
+     * nell'analisi, perché il saldo negativo viene azzerato.
+     *
+     * Su un errore di rete la risposta giusta è "riprova fra un momento":
+     * fastidioso, ma un tavolo che riprova costa infinitamente meno di un
+     * addebito doppio che nessuno vede.
+     */
     let existingIntent;
     try {
       existingIntent = await stripe.paymentIntents.retrieve(
         existingPending.provider_payment_id,
         { stripeAccount: venue.stripe_account_id }
       );
-    } catch {
+    } catch (err) {
+      if (!intentSconosciuto(err)) {
+        console.error(
+          `[create-intent] Stripe non raggiungibile sul pending ${existingPending.id}: ${messaggioErrore(err)}`
+        );
+        return NextResponse.json(
+          { error: "Pagamento non disponibile in questo momento, riprova fra poco" },
+          { status: 503 }
+        );
+      }
       await sql`update payments set status = 'failed' where id = ${existingPending.id}`;
       existingIntent = null;
     }

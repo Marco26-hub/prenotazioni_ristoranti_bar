@@ -142,17 +142,44 @@ const ENTITLED = new Set(["trialing", "active", "past_due"]);
  * spegnere il servizio al primo tentativo fallito significherebbe fermare la
  * sala per una carta scaduta. La pagina mostra comunque un avviso.
  *
- * `periodEnd` è obbligatorio perché conta durante la prova: uno stato
- * 'trialing' senza scadenza vale servizio gratuito a tempo indeterminato.
+ * `periodEnd` conta per ogni altro stato, non solo durante la prova.
+ *
+ * Contarlo solo per 'trialing' lasciava scoperto l'abbonamento concesso a
+ * mano: un locale che paga per bonifico viene messo su 'active' con una
+ * scadenza, e quella scadenza non veniva mai letta — il servizio restava
+ * acceso per sempre e nessuno se ne accorgeva, perché non c'è nessun
+ * webhook di Stripe che lo spenga. Un abbonamento che non scade è un
+ * abbonamento regalato.
+ *
+ * I tre giorni di tolleranza servono agli abbonamenti veri: fra la fine del
+ * periodo e l'`invoice.paid` che sposta la data in avanti passa qualche
+ * minuto, e a volte qualche ora. Spegnere la sala in quella finestra
+ * sarebbe un guasto nostro fatto pagare al locale.
  */
+const TOLLERANZA_RINNOVO_MS = 3 * 24 * 60 * 60 * 1000;
+
 export function isEntitled(
   status: string | null | undefined,
   periodEnd?: Date | string | null
 ): boolean {
   if (!ENTITLED.has(status ?? "")) return false;
-  if (status !== "trialing") return true;
-  if (!periodEnd) return false;
-  return new Date(periodEnd).getTime() > Date.now();
+
+  // Stripe sta già riprovando l'addebito: la scadenza è per forza passata,
+  // ed è esattamente il caso che questo stato esiste per coprire.
+  if (status === "past_due") return true;
+
+  if (!periodEnd) {
+    // Senza scadenza una prova varrebbe servizio gratuito a tempo
+    // indeterminato; un abbonamento gestito da Stripe la data ce l'ha
+    // sempre, quindi qui siamo su un record incompleto e si concede.
+    return status !== "trialing";
+  }
+
+  const scade = new Date(periodEnd).getTime();
+  if (Number.isNaN(scade)) return status !== "trialing";
+
+  const tolleranza = status === "trialing" ? 0 : TOLLERANZA_RINNOVO_MS;
+  return scade + tolleranza > Date.now();
 }
 
 /**

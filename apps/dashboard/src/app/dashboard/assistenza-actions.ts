@@ -28,23 +28,42 @@ export async function apriTicket(
     select coalesce(name, email) as etichetta from users where id = ${userId}`;
 
   /*
-   * Antiduplicato, ma solo finché non abbiamo risposto.
+   * Il duplicato non si scarta: si aggiorna quello che c'è.
    *
-   * Chi non vede risposta riscrive, ed è comprensibile: quella seconda
-   * richiesta non va messa in coda due volte. Ma se una risposta l'ha già
-   * ricevuta e riscrive con lo stesso oggetto, sta dicendo che la risposta
-   * non ha risolto — ed è esattamente il messaggio che non deve essere
-   * scartato. Bloccarlo lo lasciava senza modo di ribattere: la risposta è
-   * un campo solo, quindi la conversazione continua in una richiesta nuova.
+   * Prima usciva subito con un `ok`, che il form mostra in verde come un
+   * invio riuscito. Il locale rileggeva la propria vecchia richiesta e ne
+   * ricavava la conferma che era arrivata — mentre il nuovo messaggio non
+   * era stato scritto da nessuna parte. Il caso che conta è proprio questo:
+   * sabato sera lo stesso problema torna, il titolare riscrive lo stesso
+   * oggetto e spunta "blocca il servizio", e quella spunta si perdeva. Nel
+   * pannello il ticket restava 'normale' e non saliva in cima, con il
+   * ristorante fermo.
+   *
+   * Se invece una risposta l'ha già ricevuta e riscrive, sta dicendo che la
+   * risposta non ha risolto: la conversazione continua in una richiesta
+   * nuova, perché la risposta è un campo solo.
    */
-  const [gia] = await sql<{ id: string }[]>`
-    select id from support_tickets
+  const [gia] = await sql<{ id: string; urgenza: string }[]>`
+    select id, urgenza from support_tickets
      where venue_id = ${venue.venueId} and stato <> 'risolto'
        and risposta is null
        and oggetto = ${oggetto.slice(0, 120)}`;
 
   if (gia) {
-    return { ok: "Hai già una richiesta aperta con questo oggetto: la stiamo guardando." };
+    const saleUrgenza = urgenza === "blocca_servizio" && gia.urgenza !== "blocca_servizio";
+    await sql`
+      update support_tickets
+         set messaggio = left(messaggio || E'\n\n— riscritto —\n' || ${messaggio.slice(0, 4000)}, 8000),
+             urgenza = ${urgenza === "blocca_servizio" ? "blocca_servizio" : sql`urgenza`},
+             stato = 'aperto'
+       where id = ${gia.id}`;
+
+    revalidatePath("/dashboard/assistenza");
+    return {
+      ok: saleUrgenza
+        ? "Aggiunto alla richiesta che avevi già aperto, segnalata come urgente."
+        : "Aggiunto alla richiesta che avevi già aperto: la stiamo guardando.",
+    };
   }
 
   await sql`

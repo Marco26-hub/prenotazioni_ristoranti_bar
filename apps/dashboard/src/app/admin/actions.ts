@@ -51,15 +51,26 @@ export async function impostaModuli(
 export async function impostaAbbonamento(
   venueId: string,
   stato: string,
-  giorni: number,
+  /**
+   * Nuova durata a partire da adesso, oppure `null` per non toccare la
+   * scadenza che c'è già.
+   *
+   * Prima era un numero e basta, con 30 come valore di partenza in
+   * interfaccia: chi apriva la riga solo per cambiare lo stato riscriveva
+   * senza saperlo la scadenza a trenta giorni da oggi. Un locale che aveva
+   * pagato l'anno per bonifico perdeva dieci mesi, e la risposta era una
+   * conferma verde. Al contrario, una prova a tre giorni dalla fine veniva
+   * prorogata di un mese.
+   */
+  giorni: number | null,
   nota: string
 ): Promise<{ ok?: string; error?: string }> {
   const admin = await requireSuperAdmin();
 
   const statiValidi = ["trialing", "active", "past_due", "canceled", "none"];
   if (!statiValidi.includes(stato)) return { error: "Stato non valido" };
-  if (!Number.isFinite(giorni) || giorni < 0 || giorni > 1095) {
-    return { error: "Giorni fra 0 e 1095" };
+  if (giorni !== null && (!Number.isFinite(giorni) || giorni < 0 || giorni > 1095)) {
+    return { error: "Giorni fra 0 e 1095, oppure vuoto per non cambiare la scadenza" };
   }
 
   const sql = db();
@@ -67,7 +78,11 @@ export async function impostaAbbonamento(
     update venues
        set subscription_status = ${stato},
            subscription_period_end = ${
-             giorni > 0 ? sql`now() + make_interval(days => ${giorni})` : null
+             giorni === null
+               ? sql`subscription_period_end`
+               : giorni > 0
+                 ? sql`now() + make_interval(days => ${giorni})`
+                 : null
            }
      where id = ${venueId}
     returning name`;
@@ -76,10 +91,24 @@ export async function impostaAbbonamento(
   await sql`
     insert into platform_events (venue_id, admin_id, admin_label, azione, dettaglio)
     values (${venueId}, ${admin.userId}, ${admin.email}, 'abbonamento',
-            ${`${stato}${giorni ? ` per ${giorni} giorni` : ""}${nota ? " — " + nota.slice(0, 200) : ""}`})`;
+            ${`${stato}${
+              giorni === null
+                ? " (scadenza invariata)"
+                : giorni > 0
+                  ? ` per ${giorni} giorni`
+                  : " senza scadenza"
+            }${nota ? " — " + nota.slice(0, 200) : ""}`})`;
 
   revalidatePath("/admin");
-  return { ok: `${v.name}: ${stato}${giorni ? `, ancora ${giorni} giorni` : ""}.` };
+  return {
+    ok: `${v.name}: ${stato}${
+      giorni === null
+        ? ", scadenza invariata"
+        : giorni > 0
+          ? `, ancora ${giorni} giorni`
+          : ", senza scadenza"
+    }.`,
+  };
 }
 
 /**

@@ -70,8 +70,20 @@ export default async function AdminPage() {
 
   const note = await sql<
     { venue_id: string; autore_label: string; testo: string; created_at: Date }[]
-  >`select venue_id, autore_label, testo, created_at
-      from venue_notes order by created_at desc limit 200`;
+  /*
+   * Un tetto per locale, non un tetto globale.
+   *
+   * Con `limit 200` su tutta la piattaforma le note più recenti di pochi
+   * clienti riempivano la lista e per tutti gli altri la sezione appariva
+   * vuota: non "nessuna nota", proprio assente — che si legge come "questo
+   * cliente non l'abbiamo mai sentito", il contrario del vero.
+   */
+  >`select venue_id, autore_label, testo, created_at from (
+        select venue_id, autore_label, testo, created_at,
+               row_number() over (partition by venue_id order by created_at desc) as n
+          from venue_notes) x
+     where n <= 20
+     order by created_at desc`;
 
   type Nota = (typeof note)[number];
   const notePerLocale = new Map<string, Nota[]>();
@@ -83,8 +95,14 @@ export default async function AdminPage() {
 
   const eventi = await sql<
     { venue_id: string | null; admin_label: string; azione: string; dettaglio: string | null; created_at: Date }[]
-  >`select venue_id, admin_label, azione, dettaglio, created_at
-      from platform_events order by created_at desc limit 20`;
+  // Stesso motivo delle note: venti righe su tutta la piattaforma erano
+  // venti righe di un cliente solo, e lo storico degli altri spariva.
+  >`select venue_id, admin_label, azione, dettaglio, created_at from (
+        select venue_id, admin_label, azione, dettaglio, created_at,
+               row_number() over (partition by venue_id order by created_at desc) as n
+          from platform_events) x
+     where n <= 10
+     order by created_at desc`;
 
   type Evento = (typeof eventi)[number];
   const perLocale = new Map<string, Evento[]>();

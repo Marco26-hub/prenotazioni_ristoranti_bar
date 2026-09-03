@@ -142,3 +142,48 @@ test("dopo una risposta il locale può riscrivere sullo stesso oggetto", async (
     await sql.end();
   }
 });
+
+test("riscrivere prima di una risposta accoda il messaggio e alza l'urgenza", async ({
+  page,
+}) => {
+  const oggetto = `Comande ferme ${Date.now()}`;
+  const sql = db();
+
+  try {
+    // Richiesta aperta la settimana scorsa, non urgente e senza risposta.
+    await sql`
+      insert into support_tickets
+        (venue_id, aperto_da_label, oggetto, messaggio, urgenza)
+      values (${venue.venueId}, 'Titolare', ${oggetto}, 'Ogni tanto non arrivano',
+              'normale')`;
+
+    // Sabato sera il problema torna e stavolta blocca il servizio.
+    await entra(page, venue);
+    await page.goto(`${DASHBOARD_URL}/dashboard/assistenza`);
+    await page.getByLabel(/Di cosa si tratta/i).fill(oggetto);
+    await page
+      .getByLabel(/Raccontaci cosa succede/i)
+      .fill("Adesso non ne arriva più nessuna, siamo fermi.");
+    await page.getByLabel(/Blocca il servizio adesso/i).check();
+    await page.getByRole("button", { name: /Invia richiesta/i }).click();
+
+    // Resta una richiesta sola, ma porta il messaggio nuovo ed è salita in
+    // urgenza: è quella spunta che decide se qualcuno se ne occupa stasera.
+    await expect
+      .poll(
+        async () => {
+          const r = await sql<{ urgenza: string; messaggio: string }[]>`
+            select urgenza, messaggio from support_tickets
+             where venue_id = ${venue.venueId} and oggetto = ${oggetto}`;
+          return r.length === 1 ? r[0] : null;
+        },
+        { timeout: 20_000 }
+      )
+      .toMatchObject({
+        urgenza: "blocca_servizio",
+        messaggio: /siamo fermi/,
+      });
+  } finally {
+    await sql.end();
+  }
+});

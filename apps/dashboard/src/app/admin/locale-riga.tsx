@@ -52,7 +52,9 @@ export function LocaleRiga({ locale }: { locale: LocaleAdmin }) {
   const [aperto, setAperto] = useState(false);
   const [moduli, setModuli] = useState<string[]>(locale.moduli);
   const [stato, setStato] = useState(locale.stato);
-  const [giorni, setGiorni] = useState(30);
+  // Vuoto di proposito: significa "non toccare la scadenza". Un valore
+  // preimpostato qui riscriveva un abbonamento pagato a ogni cambio di stato.
+  const [giorni, setGiorni] = useState("");
   const [nota, setNota] = useState("");
   const [avviso, setAvviso] = useState<string | null>(null);
   const [nomeTitolare, setNomeTitolare] = useState("");
@@ -168,9 +170,13 @@ export function LocaleRiga({ locale }: { locale: LocaleAdmin }) {
                 min={0}
                 max={1095}
                 value={giorni}
-                onChange={(e) => setGiorni(Number(e.target.value))}
+                onChange={(e) => setGiorni(e.target.value)}
+                placeholder={residui === null ? "—" : String(residui)}
                 className={`${CAMPO} mt-1 block w-24`}
               />
+              <span className="mt-0.5 block font-normal">
+                Vuoto: la scadenza resta com&rsquo;è.
+              </span>
             </label>
             <label className="min-w-40 flex-1 text-xs font-medium text-muted">
               Perché
@@ -203,7 +209,12 @@ export function LocaleRiga({ locale }: { locale: LocaleAdmin }) {
               disabled={pending}
               onClick={() =>
                 start(async () => {
-                  const r = await impostaAbbonamento(locale.id, stato, giorni, nota);
+                  const r = await impostaAbbonamento(
+                    locale.id,
+                    stato,
+                    giorni.trim() === "" ? null : Number(giorni),
+                    nota
+                  );
                   setAvviso(r.error ?? r.ok ?? null);
                 })
               }
