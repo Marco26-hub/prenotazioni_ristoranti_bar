@@ -37,9 +37,10 @@ export default async function StaffPage() {
       role: string;
       is_me: boolean;
       reparti: string[];
+      codice_suffisso: string | null;
     }[]
   >`
-    select vs.id, vs.user_id, u.email, u.name, vs.role, vs.reparti,
+    select vs.id, vs.user_id, u.email, u.name, vs.role, vs.reparti, vs.codice_suffisso,
            (u.id = ${session!.user.id}) as is_me
     from venue_staff vs
     join users u on u.id = vs.user_id
@@ -117,6 +118,7 @@ export default async function StaffPage() {
           isMe: s.is_me,
           userId: s.user_id,
           reparti: s.reparti ?? [],
+          codice: s.codice_suffisso,
         }))}
         tavoli={tavoli.map((t) => ({
           id: t.id,

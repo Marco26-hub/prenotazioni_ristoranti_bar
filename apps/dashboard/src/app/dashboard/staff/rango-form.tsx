@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { assegnaTavoli, assegnaReparti } from "./actions";
+import { assegnaTavoli, assegnaReparti, impostaCodiceOperatore } from "./actions";
 
 export interface TavoloRango {
   id: string;
@@ -30,6 +30,8 @@ export function RangoForm({
   tavoli,
   altri,
   reparti,
+  codice,
+  ruolo,
 }: {
   userId: string;
   nome: string;
@@ -37,8 +39,12 @@ export function RangoForm({
   /** Nome di chi tiene ciascun tavolo, per id utente. */
   altri: Record<string, string>;
   reparti: string[];
+  codice: string | null;
+  ruolo: string;
 }) {
   const [suoiReparti, setSuoiReparti] = useState<string[]>(() => reparti);
+  const [suoCodice, setSuoCodice] = useState(codice ?? "");
+  const puoAvereCodice = ruolo === "waiter" || ruolo === "kitchen";
   const [aperto, setAperto] = useState(false);
   const [scelti, setScelti] = useState<Set<string>>(
     () => new Set(tavoli.filter((t) => t.assignedTo === userId).map((t) => t.id))
@@ -58,6 +64,7 @@ export function RangoForm({
         {[
           miei.length > 0 ? `Rango: ${miei.map((t) => t.code).join(", ")}` : "Assegna tavoli",
           suoiReparti.length > 0 ? `reparti: ${suoiReparti.join(", ")}` : null,
+          suoCodice ? `codice ${suoCodice}` : null,
         ]
           .filter(Boolean)
           .join(" · ")}
@@ -155,6 +162,30 @@ export function RangoForm({
         </ul>
       </div>
 
+      {puoAvereCodice && (
+        <div className="mt-3 border-t border-border pt-3">
+          <label className="text-sm font-medium" htmlFor={`cod-${userId}`}>
+            Codice operatore
+          </label>
+          <p className="mt-0.5 text-xs text-muted">
+            Da 4 a 6 cifre, per entrare in fretta dal tablet condiviso senza
+            ridigitare email e password a ogni cambio. Vuoto: entra con la
+            password. Titolare e responsabile non lo possono avere — quattro
+            cifre non difendono un pannello che vede il fatturato.
+          </p>
+          <input
+            id={`cod-${userId}`}
+            inputMode="numeric"
+            pattern="[0-9]*"
+            maxLength={6}
+            value={suoCodice}
+            onChange={(e) => setSuoCodice(e.target.value.replace(/\D/g, ""))}
+            placeholder="es. 4071"
+            className="mt-2 min-h-11 w-32 rounded-lg border border-border bg-background px-3 text-lg tracking-widest tabular-nums"
+          />
+        </div>
+      )}
+
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button
           type="button"
@@ -163,13 +194,17 @@ export function RangoForm({
             start(async () => {
               const r = await assegnaTavoli(userId, [...scelti]);
               const rr = await assegnaReparti(userId, suoiReparti);
-              setAvviso(r.error ?? rr.error ?? [r.ok, rr.ok].filter(Boolean).join(" ") ?? null);
-              if (!r.error && !rr.error) setAperto(false);
+              const rc = puoAvereCodice
+                ? await impostaCodiceOperatore(userId, suoCodice)
+                : {};
+              const errore = r.error ?? rr.error ?? rc.error;
+              setAvviso(errore ?? [r.ok, rr.ok, rc.ok].filter(Boolean).join(" "));
+              if (!errore) setAperto(false);
             })
           }
           className="min-h-11 rounded-full bg-accent px-5 text-sm font-medium text-accent-foreground disabled:opacity-60"
         >
-          {pending ? "Salvo…" : "Salva rango e reparti"}
+          {pending ? "Salvo…" : "Salva accessi"}
         </button>
         <button
           type="button"

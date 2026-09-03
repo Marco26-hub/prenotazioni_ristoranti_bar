@@ -134,8 +134,29 @@ create table venue_staff (
   user_id uuid references users(id) not null,
   role text not null check (role in ('owner','manager','waiter','kitchen')),
   created_at timestamptz default now(),
-  unique(venue_id, user_id)
+  unique(venue_id, user_id),
+  reparti text[] default '{}'::text[] not null,
+  codice_hash text,
+  codice_suffisso text
 );
+
+-- Gli schermi accesi nel locale. Il dispositivo si presenta da solo con un
+-- identificativo che genera lui: non è autenticazione — quella resta
+-- l'account — è un'etichetta per riconoscere il monitor e poterlo nominare.
+create table venue_devices (
+  id uuid primary key default gen_random_uuid(),
+  venue_id uuid references venues(id) on delete cascade not null,
+  device_key text not null,
+  nome text,
+  reparto text,
+  ultimo_utente uuid references users(id) on delete set null,
+  last_seen_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  unique (venue_id, device_key)
+);
+create index idx_venue_devices_visti on venue_devices (venue_id, last_seen_at desc);
+create unique index uq_codice_operatore on venue_staff (venue_id, codice_suffisso)
+  where codice_suffisso is not null;
 
 -- ------------------------------------------------------------
 -- TAVOLI / QR

@@ -188,3 +188,68 @@ export async function assegnaReparti(
         : `Opera su: ${puliti.join(", ")}.`,
   };
 }
+
+/**
+ * Codice operatore per entrare in fretta da un dispositivo condiviso.
+ *
+ * Salvato con lo stesso hash della password, mai in chiaro: è una
+ * credenziale, anche se corta. Il suffisso in chiaro serve solo a garantirne
+ * l'unicità nel locale e a mostrare al titolare quale codice ha assegnato a
+ * chi — due persone con lo stesso codice renderebbero ambiguo il registro,
+ * che è proprio quello che il codice deve evitare.
+ *
+ * Solo sala e cucina: titolare e responsabile vedono incassi e dati fiscali,
+ * e quattro cifre non difendono quel pannello.
+ */
+export async function impostaCodiceOperatore(
+  userId: string,
+  codice: string
+): Promise<StaffResult> {
+  const { venue } = await requireRole(["owner", "manager"]);
+  const sql = db();
+
+  const [membro] = await sql<{ role: string }[]>`
+    select role from venue_staff
+     where venue_id = ${venue.venueId} and user_id = ${userId}`;
+  if (!membro) return { error: "Questa persona non fa parte del locale" };
+
+  const pulito = codice.trim();
+
+  if (!pulito) {
+    await sql`
+      update venue_staff set codice_hash = null, codice_suffisso = null
+       where venue_id = ${venue.venueId} and user_id = ${userId}`;
+    revalidatePath("/dashboard/staff");
+    return { ok: "Codice rimosso: entrerà con email e password." };
+  }
+
+  if (membro.role === "owner" || membro.role === "manager") {
+    return {
+      error:
+        "Titolare e responsabile entrano con la password: il codice non protegge incassi e dati fiscali.",
+    };
+  }
+
+  if (!/^\d{4,6}$/.test(pulito)) {
+    return { error: "Il codice è da 4 a 6 cifre" };
+  }
+  // Sequenze ovvie: su un tablet appoggiato al passe le prova chiunque.
+  if (/^(\d)\1+$/.test(pulito) || "0123456789".includes(pulito)) {
+    return { error: "Codice troppo facile da indovinare: cambialo" };
+  }
+
+  const [occupato] = await sql<{ user_id: string }[]>`
+    select user_id from venue_staff
+     where venue_id = ${venue.venueId} and codice_suffisso = ${pulito}
+       and user_id <> ${userId}`;
+  if (occupato) return { error: "Questo codice è già di un'altra persona" };
+
+  await sql`
+    update venue_staff
+       set codice_hash = ${await bcrypt.hash(pulito, 10)},
+           codice_suffisso = ${pulito}
+     where venue_id = ${venue.venueId} and user_id = ${userId}`;
+
+  revalidatePath("/dashboard/staff");
+  return { ok: `Codice ${pulito} assegnato.` };
+}
