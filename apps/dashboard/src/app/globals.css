@@ -374,3 +374,49 @@ textarea {
     transition: none;
   }
 }
+
+/* --------------------------------------------------------------------
+   Stampa.
+
+   Un report stampato che porta con sé la navigazione, i banner e i
+   bottoni non è un report: è uno screenshot. Qui resta solo il
+   contenuto, su fondo bianco, perché il tema scuro su carta consuma
+   toner e si legge peggio.
+   -------------------------------------------------------------------- */
+@media print {
+  /* Il fondo scuro non si stampa: sprecherebbe toner e renderebbe il
+     testo chiaro illeggibile. */
+  :root,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  header,
+  nav,
+  [role="alert"],
+  [role="status"] {
+    display: none !important;
+  }
+
+  /* I riquadri restano, ma con un bordo grigio invece del colore. */
+  .bg-surface {
+    background: #fff !important;
+    border-color: #ccc !important;
+  }
+
+  /* Un riquadro spezzato a metà pagina obbliga a girare il foglio per
+     leggere un numero. */
+  section,
+  li {
+    break-inside: avoid;
+  }
+
+  a[href]::after {
+    content: "";
+  }
+
+  @page {
+    margin: 14mm;
+  }
+}

@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { db } from "@repo/shared/db";
+import { StampaReport } from "./stampa-report";
 import { formatPriceCents } from "@repo/shared";
 
 /**
@@ -104,6 +105,9 @@ export default async function AnalisiPage({
   const sp = await searchParams;
   const richiesti = Number(Array.isArray(sp.giorni) ? sp.giorni[0] : sp.giorni);
   const giorni = PERIODI.some((p) => p.giorni === richiesti) ? richiesti : 30;
+  const etichettaPeriodo =
+    PERIODI.find((p) => p.giorni === giorni)?.etichetta ?? `${giorni} giorni`;
+  const venueNome = venue.venueName;
 
   const sql = db();
   const da = sql`now() - (${giorni} || ' days')::interval`;
@@ -214,8 +218,21 @@ export default async function AnalisiPage({
   return (
     <main className="mx-auto max-w-4xl space-y-6 px-4 py-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-lg font-semibold">Analisi</h1>
-        <div className="flex gap-1">
+        <div>
+          <h1 className="text-lg font-semibold">Analisi</h1>
+          {/* In pagina il periodo si legge dal bottone acceso, ma su carta
+              i bottoni non ci sono e il foglio direbbe solo "Analisi". */}
+          <p className="hidden text-sm print:block">
+            {venueNome} · {etichettaPeriodo} · stampato il{" "}
+            {new Intl.DateTimeFormat("it-IT", {
+              dateStyle: "long",
+            }).format(new Date())}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 print:hidden">
+          <StampaReport periodo={etichettaPeriodo} />
+        </div>
+        <div className="flex gap-1 print:hidden">
           {PERIODI.map((p) => (
             <a
               key={p.giorni}
