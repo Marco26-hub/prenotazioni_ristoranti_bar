@@ -7,6 +7,9 @@ interface RigaTavolo {
   id: string;
   code: string;
   seats: number;
+  shape: string;
+  pos_x: number | null;
+  pos_y: number | null;
 }
 
 interface RigaSessione {
@@ -42,9 +45,13 @@ export default async function DashboardPage() {
   const sql = db();
 
   const tables = await sql<RigaTavolo[]>`
-    select id, code, seats from tables
+    select id, code, seats, shape, pos_x, pos_y from tables
      where venue_id = ${venue.venueId} and active = true
      order by code`;
+
+  const [locale] = await sql<
+    { floor_plan_url: string | null; floor_plan_opacity: number }[]
+  >`select floor_plan_url, floor_plan_opacity from venues where id = ${venue.venueId}`;
 
   // Ordinato e pagato in due sottoquery invece che con due join: incrociarli
   // nella stessa join moltiplicherebbe le righe dei pagamenti per quelle
@@ -94,6 +101,9 @@ export default async function DashboardPage() {
       id: t.id,
       codice: t.code,
       posti: t.seats,
+      forma: t.shape,
+      x: t.pos_x,
+      y: t.pos_y,
       sessionId: s?.session_id ?? null,
       // Serializzato in ISO: un oggetto Date non attraversa il confine fra
       // componente server e componente client.
@@ -112,14 +122,14 @@ export default async function DashboardPage() {
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-5">
-      <Sala tavoli={tavoli} chiudiConto={chiudiConto} />
+      <Sala
+        tavoli={tavoli}
+        chiudiConto={chiudiConto}
+        piantina={locale?.floor_plan_url ?? null}
+        piantinaOpacita={locale?.floor_plan_opacity ?? 35}
+      />
 
-      {tables.length === 0 && (
-        <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted">
-          Nessun tavolo configurato. Vai in <strong>QR e tavoli</strong> per
-          aggiungerli.
-        </p>
-      )}
+
     </main>
   );
 }

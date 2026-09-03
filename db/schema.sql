@@ -121,7 +121,9 @@ create table venues (
   reservation_email text,
   reservation_auto_confirm boolean default false not null,
   reservation_capacity integer,
-  public_texts jsonb default '{}'::jsonb not null
+  public_texts jsonb default '{}'::jsonb not null,
+  floor_plan_url text,
+  floor_plan_opacity smallint default 35 not null
 );
 
 create table venue_staff (
@@ -146,7 +148,10 @@ create table tables (
   qr_token text unique not null default encode(gen_random_bytes(16), 'hex'), -- token non indovinabile in URL
   active boolean default true,
   created_at timestamptz default now(),
-  unique(venue_id, code)
+  unique(venue_id, code),
+  pos_x smallint,
+  pos_y smallint,
+  shape text default 'rettangolo'::text not null
 );
 
 -- Sessione tavolo: apre quando primo cliente scansiona, chiude a conto saldato

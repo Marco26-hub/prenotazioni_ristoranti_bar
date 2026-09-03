@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { formatPriceCents } from "@repo/shared";
 import { impostaCoperti } from "./sala-actions";
 import { DettaglioTavolo } from "./dettaglio-tavolo";
+import { PiantaSala } from "./pianta-sala";
 
 export interface RigaOrdine {
   nome: string;
@@ -17,6 +18,9 @@ export interface TavoloSala {
   id: string;
   codice: string;
   posti: number;
+  forma: string;
+  x: number | null;
+  y: number | null;
   sessionId: string | null;
   apertoDa: string | null;
   coperti: number;
@@ -58,9 +62,13 @@ function orario(daISO: string): string {
 export function Sala({
   tavoli,
   chiudiConto,
+  piantina,
+  piantinaOpacita,
 }: {
   tavoli: TavoloSala[];
   chiudiConto: (sessionId: string) => Promise<void>;
+  piantina: string | null;
+  piantinaOpacita: number;
 }) {
   const router = useRouter();
   const [adesso, setAdesso] = useState(() => Date.now());
@@ -95,6 +103,24 @@ export function Sala({
           incassare
         </p>
       </div>
+
+      <PiantaSala
+        tavoli={tavoli.map((t) => ({
+          id: t.id,
+          codice: t.codice,
+          posti: t.posti,
+          forma: t.forma,
+          x: t.x,
+          y: t.y,
+          occupato: Boolean(t.sessionId),
+        }))}
+        piantina={piantina}
+        piantinaOpacita={piantinaOpacita}
+        onApri={(id) => {
+          const t = tavoli.find((x) => x.id === id);
+          if (t?.sessionId) setApertoId(id);
+        }}
+      />
 
       <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {tavoli.map((t) => {
