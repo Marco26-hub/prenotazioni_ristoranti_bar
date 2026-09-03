@@ -1,0 +1,22 @@
+[
+  {
+    "immagine": "passi/01-menu.png",
+    "didascalia": "Inquadra il QR sul tavolo: si apre il menu, senza scaricare niente"
+  },
+  {
+    "immagine": "passi/02-scheda.png",
+    "didascalia": "Ogni piatto apre ingredienti, allergeni e conservazione"
+  },
+  {
+    "immagine": "passi/03-carrello.png",
+    "didascalia": "Tocca + per aggiungere: il totale si aggiorna mentre scegli"
+  },
+  {
+    "immagine": "passi/04-inviato.png",
+    "didascalia": "Ordina: la comanda parte in cucina, nessuno deve venire a prenderla"
+  },
+  {
+    "immagine": "passi/05-conto.png",
+    "didascalia": "Il conto è sempre aggiornato: si paga quando si vuole"
+  }
+]

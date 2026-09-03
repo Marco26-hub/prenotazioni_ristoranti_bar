@@ -1,9 +1,9 @@
-import Link from "next/link";
 import { auth, signOut } from "@/auth";
 import { db } from "@repo/shared/db";
 import { DPA_VERSION } from "@/lib/dpa";
 import { AvvisoConformita } from "./avviso-conformita";
 import { Notifiche } from "./notifiche";
+import { MenuNavigazione } from "./menu-navigazione";
 import { hasModulo, type Modulo } from "@repo/shared";
 
 const NAV = [
@@ -87,22 +87,11 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
           </form>
         </div>
 
-        {/* Su telefono la nav scorre in orizzontale invece di andare a capo:
-            in sala si usa con una mano sola. */}
-        <nav className="mx-auto max-w-4xl overflow-x-auto px-4 pb-2">
-          <ul className="flex gap-1">
-            {NAV.filter((item) => !item.modulo || moduliAttivi.has(item.modulo)).map((item) => (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className="flex min-h-11 items-center whitespace-nowrap rounded-full px-3 text-sm text-muted hover:bg-background hover:text-foreground"
-                >
-                  {item.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        <MenuNavigazione
+          voci={NAV.filter((item) => !item.modulo || moduliAttivi.has(item.modulo)).map(
+            (item) => ({ href: item.href, label: item.label })
+          )}
+        />
       </header>
 
       <Notifiche />
