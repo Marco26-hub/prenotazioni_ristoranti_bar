@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { db } from "@repo/shared/db";
+import { jsonLdSicuro } from "@repo/shared/json-ld";
 import { testo, type TestiPubblici } from "@repo/shared/testi";
 import { headers } from "next/headers";
 import { scegliLingua, traduci, type Traduzioni } from "@repo/shared/lingue";
@@ -248,7 +249,7 @@ export default async function PublicMenuPage({
 
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdSicuro(jsonLd) }}
       />
 
       <header className="menu-header border-b border-border">

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { db } from "@repo/shared/db";
+import { jsonLdSicuro } from "@repo/shared/json-ld";
 import { testo, type TestiPubblici } from "@repo/shared/testi";
 import { hasModulo } from "@repo/shared";
 import { BookingForm } from "./booking-form";
@@ -126,7 +127,7 @@ export default async function BookingPage({ params }: PageProps<"/p/[slug]">) {
     >
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdSicuro(jsonLd) }}
       />
 
       <header className="mb-6 text-center">
