@@ -179,7 +179,8 @@ create table menu_categories (
   venue_id uuid references venues(id) on delete cascade not null,
   name text not null,
   sort_order int default 0,
-  translations jsonb default '{}'::jsonb not null
+  translations jsonb default '{}'::jsonb not null,
+  reparto text default 'cucina'::text not null   -- dove si prepara: cucina/bar/pizzeria/pasticceria
 );
 
 create table menu_items (

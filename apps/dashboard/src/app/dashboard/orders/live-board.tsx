@@ -20,6 +20,7 @@ interface LiveItem {
   created_at?: string;
   selected_options?: Array<{ opzione: string }>;
   held_at?: string | null;
+  reparto?: string;
   mio_tavolo?: boolean;
   ultimo_da?: string | null;
 }
@@ -37,6 +38,48 @@ const PROSSIMO: Partial<Record<OrderItemStatus, OrderItemStatus>> = {
  * leggeva come "portalo a: da preparare". Con le mani occupate e dieci righe
  * a schermo, un bottone deve dire cosa succede se lo premi.
  */
+const REPARTI: Record<string, string> = {
+  cucina: "Cucina",
+  bar: "Bar",
+  pizzeria: "Pizzeria",
+  pasticceria: "Pasticceria",
+};
+
+/**
+ * Il reparto scelto vale per QUESTO schermo, non per l'utente.
+ *
+ * Lo schermo del bar resta sul bar anche quando ci passa un altro operatore,
+ * e lo stesso account aperto in cucina e al bar deve mostrare due cose
+ * diverse. È una preferenza del dispositivo, quindi vive nel dispositivo.
+ */
+const CHIAVE_REPARTO = "comande.reparto";
+
+const ascoltatori = new Set<() => void>();
+
+function abbonatiReparto(fn: () => void) {
+  ascoltatori.add(fn);
+}
+function disabbonatiReparto(fn: () => void) {
+  ascoltatori.delete(fn);
+}
+
+function leggiReparto(): string {
+  try {
+    return localStorage.getItem(CHIAVE_REPARTO) ?? "tutti";
+  } catch {
+    return "tutti";
+  }
+}
+
+function scegliReparto(r: string) {
+  try {
+    localStorage.setItem(CHIAVE_REPARTO, r);
+  } catch {
+    // Navigazione privata o storage pieno: vale per questa sessione soltanto.
+  }
+  for (const fn of ascoltatori) fn();
+}
+
 const DESTINAZIONE: Record<string, string> = {
   sent_to_kitchen: "Metti in preparazione",
   preparing: "Segna pronto",
@@ -61,6 +104,18 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
   const [erroreVocale, setErroreVocale] = useState<string | null>(null);
   const [soloMiei, setSoloMiei] = useState(true);
   const [negato, setNegato] = useState<string | null>(null);
+  // Letto dal dispositivo, non dallo stato: il server non sa cosa c'è nel
+  // localStorage e leggerlo durante il render darebbe due HTML diversi. Con
+  // useSyncExternalStore il primo render combacia col server e il valore vero
+  // arriva subito dopo, senza un effetto che rincorra lo stato.
+  const reparto = useSyncExternalStore(
+    (notifica) => {
+      abbonatiReparto(notifica);
+      return () => disabbonatiReparto(notifica);
+    },
+    leggiReparto,
+    () => "tutti"
+  );
 
   // Stesso elenco che applica il server. Qui serve solo a non mostrare un
   // bottone che risponderebbe "non puoi": il controllo vero sta nell'action.
@@ -285,11 +340,13 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
 
   // --- Raggruppamento per tavolo ------------------------------------------
   const haRango = items.some((i) => i.mio_tavolo);
+  const repartiPresenti = [...new Set(items.map((i) => i.reparto ?? "cucina"))].sort();
 
   const perTavolo = new Map<string, LiveItem[]>();
   for (const i of items) {
     if (i.status === "served") continue;
     if (soloMiei && haRango && !i.mio_tavolo) continue;
+    if (reparto !== "tutti" && (i.reparto ?? "cucina") !== reparto) continue;
     const lista = perTavolo.get(i.table_code) ?? [];
     lista.push(i);
     perTavolo.set(i.table_code, lista);
@@ -352,6 +409,27 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
         <p role="alert" className="mt-2 text-sm text-danger">
           {erroreVocale}
         </p>
+      )}
+
+      {repartiPresenti.length > 1 && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="text-sm text-muted">Questo schermo:</span>
+          {["tutti", ...repartiPresenti].map((r) => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => scegliReparto(r)}
+              aria-pressed={reparto === r}
+              className={`min-h-11 rounded-full px-4 text-sm font-medium ${
+                reparto === r
+                  ? "bg-accent text-accent-foreground"
+                  : "border border-border"
+              }`}
+            >
+              {r === "tutti" ? "Tutto" : (REPARTI[r] ?? r)}
+            </button>
+          ))}
+        </div>
       )}
 
       {haRango && (
