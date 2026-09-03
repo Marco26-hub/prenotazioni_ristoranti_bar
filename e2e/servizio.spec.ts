@@ -144,3 +144,75 @@ test("con una carta in corso l'incasso al banco viene rifiutato", async ({
     await sql.end();
   }
 });
+
+test("con l'intervallo attivo il secondo ordine viene respinto", async ({ context }) => {
+  const sql = (await import("postgres")).default(process.env.DATABASE_URL!, {
+    ssl: "require",
+    prepare: false,
+  });
+
+  try {
+    // Formula a prezzo fisso: si ordina a ondate, non tutto in una volta.
+    await sql`
+      update venues set ordine_intervallo_min = 5 where id = ${venue.venueId}`;
+
+    const guest = await context.newPage();
+    await guest.goto(`${GUEST_URL}/v/${venue.slug}/t/${venue.qrToken}`);
+    await guest.getByRole("button", { name: /^Aggiungi / }).first().click();
+    await guest.getByRole("button", { name: "Ordina" }).click();
+    await expect(guest.getByText("Ordine inviato in cucina.")).toBeVisible({
+      timeout: 20_000,
+    });
+
+    // Subito dopo, il secondo ordine non deve passare. Il controllo che conta
+    // è quello del server: il bottone si può aggirare, l'endpoint no.
+    const esito = await guest.evaluate(async () => {
+      const r = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: "", items: [] }),
+      });
+      return r.status;
+    });
+    // Corpo vuoto: 400. Serve solo a provare che l'endpoint risponde.
+    expect(esito).toBe(400);
+
+    const [sessione] = await sql<{ id: string }[]>`
+      select ts.id from table_sessions ts
+        join tables t on t.id = ts.table_id
+       where t.qr_token = ${venue.qrToken} and ts.status = 'open'
+       order by ts.opened_at desc limit 1`;
+
+    const [piatto] = await sql<{ id: string }[]>`
+      select id from menu_items where venue_id = ${venue.venueId} limit 1`;
+
+    const risposta = await guest.evaluate(
+      async ([sessionId, menuItemId]) => {
+        const r = await fetch("/api/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId,
+            items: [{ menuItemId, quantity: 1 }],
+          }),
+        });
+        return { stato: r.status, corpo: await r.json() };
+      },
+      [sessione.id, piatto.id]
+    );
+
+    expect(risposta.stato).toBe(429);
+    expect(risposta.corpo.attesaSecondi).toBeGreaterThan(0);
+
+    // Nessuna seconda comanda scritta.
+    const [n] = await sql<{ n: string }[]>`
+      select count(*)::text as n from orders
+       where table_session_id = ${sessione.id} and status <> 'cancelled'`;
+    expect(Number(n.n)).toBe(1);
+
+    await guest.close();
+  } finally {
+    await sql`update venues set ordine_intervallo_min = 0 where id = ${venue.venueId}`;
+    await sql.end();
+  }
+});

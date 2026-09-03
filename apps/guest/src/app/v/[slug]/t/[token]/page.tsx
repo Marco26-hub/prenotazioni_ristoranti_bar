@@ -141,6 +141,7 @@ export default async function TablePage({
             currency={resolved.venue.currency}
             categories={categories}
             items={itemsConVarianti}
+            intervalloMin={venue.ordine_intervallo_min ?? 0}
           />
         </section>
 

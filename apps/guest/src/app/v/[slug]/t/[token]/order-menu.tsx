@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formatPriceCents } from "@repo/shared";
 import { DishSheet, type DishDetail } from "./dish-sheet";
 
@@ -41,11 +41,14 @@ export function OrderMenu({
   currency,
   categories,
   items,
+  intervalloMin,
 }: {
   sessionId: string;
   currency: string;
   categories: MenuCategory[];
   items: MenuItem[];
+  /** Minuti fra un'ordinazione e la successiva. 0 = nessuna attesa. */
+  intervalloMin: number;
 }) {
   const [cart, setCart] = useState<Record<string, CartLine>>({});
   const [noteFor, setNoteFor] = useState<string | null>(null);
@@ -57,6 +60,17 @@ export function OrderMenu({
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /*
+   * Secondi che mancano prima di poter ordinare di nuovo, se il locale ha
+   * impostato un'attesa fra un'ordinazione e l'altra (il metodo degli
+   * all-you-can-eat).
+   *
+   * Il numero arriva dal server e da lì scala. Non si calcola da un istante
+   * letto sul telefono: l'orologio del telefono si può spostare, e
+   * l'attesa vera la decide comunque il database — questa serve solo a non
+   * far scoprire l'attesa premendo.
+   */
+  const [mancanoSecondi, setMancanoSecondi] = useState(0);
 
   const itemsByCategory = useMemo(() => {
     const map = new Map<string | null, MenuItem[]>();
@@ -111,6 +125,22 @@ export function OrderMenu({
   const lines = Object.entries(cart).map(([chiave, riga]) => ({ ...riga, chiave }));
   const totalCents = lines.reduce((sum, l) => sum + l.unitPriceCents * l.quantity, 0);
 
+  useEffect(() => {
+    if (mancanoSecondi <= 0) return;
+    const t = setInterval(
+      () => setMancanoSecondi((s) => (s > 0 ? s - 1 : 0)),
+      1000
+    );
+    return () => clearInterval(t);
+  }, [mancanoSecondi]);
+
+  const inAttesa = mancanoSecondi > 0;
+
+  const attesaTesto =
+    mancanoSecondi >= 60
+      ? `${Math.ceil(mancanoSecondi / 60)} min`
+      : `${mancanoSecondi} s`;
+
   const submitOrder = async () => {
     if (lines.length === 0) return;
     setSubmitting(true);
@@ -132,10 +162,19 @@ export function OrderMenu({
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
+        // Attesa fra un'ordinazione e l'altra: il carrello non si svuota,
+        // così fra due minuti basta premere di nuovo.
+        if (res.status === 429 && typeof body.attesaSecondi === "number") {
+          setMancanoSecondi(body.attesaSecondi);
+        }
         throw new Error(body.error ?? "Errore invio ordine");
       }
+      setMancanoSecondi(0);
       setCart({});
       setNoteFor(null);
+      // L'attesa parte da qui: il server la conta dall'ultimo ordine, e il
+      // bottone deve dirlo prima che qualcuno ci provi.
+      if (intervalloMin > 0) setMancanoSecondi(intervalloMin * 60);
       setSubmitted(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Errore invio ordine");
@@ -498,10 +537,10 @@ export function OrderMenu({
             <button
               type="button"
               onClick={submitOrder}
-              disabled={submitting}
+              disabled={submitting || inAttesa}
               className="mt-2 min-h-12 w-full rounded-full bg-accent font-medium text-accent-foreground active:scale-95 disabled:opacity-50 lg:hidden"
             >
-              {submitting ? "Invio…" : "Ordina"}
+              {submitting ? "Invio…" : inAttesa ? `Ancora ${attesaTesto}` : "Ordina"}
             </button>
           </div>
         </aside>
@@ -531,10 +570,10 @@ export function OrderMenu({
             <button
               type="button"
               onClick={submitOrder}
-              disabled={submitting}
+              disabled={submitting || inAttesa}
               className="min-h-12 rounded-full bg-accent px-7 font-medium text-accent-foreground active:scale-95 disabled:opacity-50"
             >
-              {submitting ? "Invio..." : "Ordina"}
+              {submitting ? "Invio..." : inAttesa ? `Ancora ${attesaTesto}` : "Ordina"}
             </button>
           </div>
           {error && <p className="mx-auto mt-2 max-w-2xl text-sm text-danger">{error}</p>}

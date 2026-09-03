@@ -44,6 +44,8 @@ export default async function SettingsPage() {
       cover_charge_cents: number;
       service_percent: string;
       service_vat_rate: string;
+      ordine_intervallo_min: number;
+      venue_type: string | null;
       cover_charge_label: string | null;
       soglia_attesa_min: number;
       soglia_liberazione_min: number;
@@ -78,6 +80,7 @@ export default async function SettingsPage() {
            reservation_email, reservation_capacity, reservation_auto_confirm,
            resend_api_key, resend_from,
            cover_charge_cents, service_percent, service_vat_rate,
+           ordine_intervallo_min, venue_type,
            cover_charge_label, public_texts,
            soglia_attesa_min, soglia_liberazione_min,
            openrouter_api_key, openrouter_model,
@@ -226,6 +229,14 @@ export default async function SettingsPage() {
           copertoCents={venueRow?.cover_charge_cents ?? 0}
           servizio={Number(venueRow?.service_percent ?? 0)}
           ivaSupplementi={Number(venueRow?.service_vat_rate ?? 10)}
+          intervallo={venueRow?.ordine_intervallo_min ?? 0}
+          // Il campo compare al sushi, e a chi ce l'ha già impostato: se un
+          // locale cambia formato non deve ritrovarsi un'attesa attiva che
+          // non ha più modo di togliere.
+          mostraIntervallo={
+            venueRow?.venue_type === "sushi" ||
+            (venueRow?.ordine_intervallo_min ?? 0) > 0
+          }
           etichetta={venueRow?.cover_charge_label ?? null}
         />
       </section>

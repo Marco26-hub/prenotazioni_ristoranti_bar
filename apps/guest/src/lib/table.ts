@@ -21,6 +21,7 @@ export interface ResolvedVenue {
   modules: string[] | null;
   /** Ore dopo cui una sessione lasciata aperta scade. 0 = mai. */
   sessione_max_ore: number;
+  ordine_intervallo_min: number;
 }
 
 export interface ResolvedTable {
@@ -45,7 +46,7 @@ export async function resolveTableFromQr(
            public_phone, public_email, vat_number,
            address, address_zip, address_city, address_province,
            subscription_status, subscription_period_end, modules,
-           sessione_max_ore
+           sessione_max_ore, ordine_intervallo_min
     from venues where slug = ${slug}`;
   if (
     !venue ||

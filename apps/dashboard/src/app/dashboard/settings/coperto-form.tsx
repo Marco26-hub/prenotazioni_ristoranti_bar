@@ -9,11 +9,16 @@ export function CopertoForm({
   copertoCents,
   servizio,
   ivaSupplementi,
+  intervallo,
+  mostraIntervallo,
   etichetta,
 }: {
   copertoCents: number;
   servizio: number;
   ivaSupplementi: number;
+  intervallo: number;
+  /** Solo per la formula a prezzo fisso: altrove è un impedimento. */
+  mostraIntervallo: boolean;
   etichetta: string | null;
 }) {
   const [state, formAction, pending] = useActionState<EsitoCoperto | null, FormData>(
@@ -76,6 +81,33 @@ export function CopertoForm({
           programma non decide al posto suo.
         </p>
       </div>
+
+      {mostraIntervallo ? (
+        <div>
+          <label className="mb-1 block text-sm" htmlFor="intervallo">
+            Attesa fra un&apos;ordinazione e la successiva (minuti)
+          </label>
+          <input
+            id="intervallo"
+            name="intervallo"
+            type="number"
+            step="1"
+            min="0"
+            max="120"
+            defaultValue={intervallo}
+            className={CAMPO}
+          />
+          <p className="mt-1 text-xs text-muted">
+            Il metodo dell&apos;all you can eat: si ordina a ondate. Senza, un
+            tavolo da sei manda ottanta piatti in tre minuti, la cucina li
+            prepara tutti insieme e metà restano nel piatto. Il cliente vede
+            il tempo che manca sul pulsante, non lo scopre premendo. 0 =
+            nessuna attesa.
+          </p>
+        </div>
+      ) : (
+        <input type="hidden" name="intervallo" value={intervallo} />
+      )}
 
       <div>
         <label className="mb-1 block text-sm" htmlFor="etichetta">

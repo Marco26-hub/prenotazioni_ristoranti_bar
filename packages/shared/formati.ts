@@ -15,6 +15,7 @@ export type TipoLocale =
   | "pizzeria"
   | "pizza_al_trancio"
   | "piadineria"
+  | "sushi"
   | "steak_house"
   | "paninoteca"
   | "hamburgeria"
@@ -260,6 +261,70 @@ export const MODELLI: ModelloLocale[] = [
     promemoria: [
       "La piadina classica contiene strutto: dichiaralo, non è scontato per chi non mangia maiale.",
       "Il senza glutine va cotto su piastra separata, altrimenti non è senza glutine.",
+    ],
+  },
+  {
+    tipo: "sushi",
+    nome: "Sushi / All you can eat",
+    descrizione: "Ordinazioni a ondate, con intervallo fra una e l'altra.",
+    categorie: [
+      "Antipasti",
+      "Nigiri",
+      "Sashimi",
+      "Uramaki",
+      "Hosomaki",
+      "Temaki",
+      "Fritti",
+      "Wok e riso",
+      "Dolci",
+      "Bevande",
+    ],
+    gruppi: [
+      {
+        nome: "Pezzi",
+        categorie: ["Nigiri", "Sashimi", "Uramaki", "Hosomaki"],
+        tipo: "scelta",
+        obbligatorio: true,
+        multiplo: false,
+        opzioni: [
+          ["2 pezzi", 0],
+          ["4 pezzi", 200],
+          ["8 pezzi", 550],
+        ],
+      },
+      {
+        nome: "Salse",
+        categorie: ["Nigiri", "Sashimi", "Uramaki", "Hosomaki", "Temaki", "Fritti"],
+        tipo: "aggiunta",
+        obbligatorio: false,
+        multiplo: true,
+        opzioni: [
+          ["Zenzero", 0],
+          ["Wasabi", 0],
+          ["Salsa di soia", 0],
+          ["Salsa teriyaki", 50],
+          ["Maionese piccante", 50],
+        ],
+      },
+      {
+        nome: "Togli",
+        categorie: ["Uramaki", "Hosomaki", "Temaki", "Wok e riso"],
+        tipo: "rimozione",
+        obbligatorio: false,
+        multiplo: true,
+        opzioni: [
+          ["Avocado", 0],
+          ["Philadelphia", 0],
+          ["Sesamo", 0],
+          ["Cipollotto", 0],
+        ],
+      },
+    ],
+    promemoria: [
+      "Il pesce servito crudo va abbattuto a -20 \u00b0C per 24 ore: \u00e8 obbligatorio (Reg. CE 853/2004), e in men\u00f9 va dichiarato che il prodotto \u00e8 stato sottoposto a bonifica preventiva.",
+      "Pesce, crostacei, molluschi, soia, sesamo e uova sono tutti nell'Allegato II: su una carta sushi gli allergeni riguardano quasi ogni voce.",
+      "Nella formula a prezzo fisso, imposta l'intervallo fra le ordinazioni in Impostazioni: senza, un tavolo da sei manda ottanta piatti in tre minuti e met\u00e0 restano nel piatto.",
+      "Se applichi un supplemento per l'avanzato non consumato, va scritto sul men\u00f9 prima dell'ordinazione, non sul conto.",
     ],
   },
   {

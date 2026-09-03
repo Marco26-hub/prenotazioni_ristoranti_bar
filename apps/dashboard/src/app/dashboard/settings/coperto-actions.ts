@@ -39,12 +39,27 @@ export async function salvaCoperto(formData: FormData): Promise<EsitoCoperto> {
     return { error: "Aliquota di coperto e servizio non valida (0-30%)" };
   }
 
+  /*
+   * Attesa fra un'ordinazione e la successiva.
+   *
+   * Ha senso solo nella formula a prezzo fisso: si ordina a ondate, con
+   * qualche minuto in mezzo, o un tavolo da sei manda ottanta piatti in tre
+   * minuti e metà restano nel piatto. Fuori da lì è un impedimento, quindi
+   * il campo compare solo ai locali che hanno scelto quel formato — e chi
+   * non lo vede manda zero, che è "nessuna attesa".
+   */
+  const intervallo = Number.parseInt(String(formData.get("intervallo") ?? "0"), 10);
+  if (!Number.isFinite(intervallo) || intervallo < 0 || intervallo > 120) {
+    return { error: "Intervallo fra gli ordini non valido (0-120 minuti)" };
+  }
+
   const sql = db();
   await sql`
     update venues set
       cover_charge_cents = ${Math.round(copertoEuro * 100)},
       service_percent = ${servizio},
       cover_charge_label = ${etichetta},
+      ordine_intervallo_min = ${intervallo},
       service_vat_rate = ${ivaSupplementi}
     where id = ${venue.venueId}`;
 

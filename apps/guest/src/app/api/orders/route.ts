@@ -52,8 +52,10 @@ export async function POST(request: Request) {
       subscription_status: string;
       subscription_period_end: Date | null;
       modules: string[] | null;
+      ordine_intervallo_min: number;
     }[]
-  >`select subscription_status, subscription_period_end, modules
+  >`select subscription_status, subscription_period_end, modules,
+           ordine_intervallo_min
       from venues where id = ${session.venue_id}`;
 
   if (
@@ -68,6 +70,47 @@ export async function POST(request: Request) {
       { error: "Ordine dal tavolo non attivo per questo locale — chiedi al personale" },
       { status: 402 }
     );
+  }
+
+  /*
+   * Intervallo fra un'ordinazione e la successiva.
+   *
+   * È il metodo degli all-you-can-eat: si ordina a piccole ondate, con
+   * qualche minuto in mezzo. Senza, un tavolo da sei manda ottanta piatti in
+   * tre minuti, la cucina li prepara tutti insieme e metà arrivano freddi —
+   * o restano nel piatto, che nella formula a prezzo fisso è lo spreco che
+   * manda in perdita il servizio.
+   *
+   * Il controllo sta qui e non solo nel bottone: questo endpoint è pubblico,
+   * e un'attesa che si aggira con una richiesta a mano non è un'attesa.
+   * L'attesa si conta dal database, non dall'orologio del telefono, che il
+   * cliente può spostare.
+   */
+  const attesaMin = venueSub?.ordine_intervallo_min ?? 0;
+
+  if (attesaMin > 0) {
+    const [ultimo] = await sql<{ mancano: number }[]>`
+      select ceil(extract(epoch from (
+               max(created_at) + make_interval(mins => ${attesaMin}) - now()
+             )))::int as mancano
+        from orders
+       where table_session_id = ${session.id} and status <> 'cancelled'`;
+
+    const mancano = ultimo?.mancano ?? 0;
+
+    if (mancano > 0) {
+      const minuti = Math.ceil(mancano / 60);
+      return NextResponse.json(
+        {
+          error:
+            minuti === 1
+              ? "Ancora un minuto e puoi ordinare di nuovo."
+              : `Puoi ordinare di nuovo fra ${minuti} minuti.`,
+          attesaSecondi: mancano,
+        },
+        { status: 429 }
+      );
+    }
   }
 
   // Lo stesso piatto può comparire in più righe con varianti diverse

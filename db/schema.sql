@@ -81,6 +81,10 @@ create table venues (
   service_vat_rate numeric(4,2) not null default 10.00,
   -- Banco senza tavoli: si chiama un numero invece di servire al tavolo.
   pickup_numbering_enabled boolean not null default false,
+  -- Minuti fra due ordini dello stesso tavolo, come negli all-you-can-eat:
+  -- senza, un tavolo da sei manda ottanta piatti in tre minuti. 0 = libero.
+  ordine_intervallo_min smallint not null default 0
+    check (ordine_intervallo_min between 0 and 120),
   cover_charge_label text,
   currency text default 'EUR',
   stripe_account_id text,                -- Stripe Connect account: con cui il LOCALE incassa

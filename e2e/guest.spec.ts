@@ -67,7 +67,12 @@ test("una prenotazione occupa automaticamente un tavolo compatibile", async ({ p
   await page.getByLabel("Giorno e ora").fill(quando);
   await page.getByLabel("Telefono").fill("+393331234567");
   await page.getByRole("button", { name: "Prenota il tavolo" }).click();
-  await expect(page.getByText(/Prenotazione ricevuta/)).toBeVisible();
+  // Più dei 5 secondi di default: la richiesta apre una transazione e prova
+  // ad avvisare il locale per email prima di rispondere, e su una funzione
+  // appena avviata non ci sta.
+  await expect(page.getByText(/Prenotazione ricevuta/)).toBeVisible({
+    timeout: 20_000,
+  });
 
   const sql = postgres(process.env.DATABASE_URL!, { ssl: "require", prepare: false });
   try {
