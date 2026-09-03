@@ -89,3 +89,58 @@ test("lo staff può chiudere un conto pagato al banco", async ({ page, context }
   await page.goto(`${DASHBOARD_URL}/dashboard/orders/storico`);
   await expect(page.getByText("Incassato")).toBeVisible();
 });
+
+test("con una carta in corso l'incasso al banco viene rifiutato", async ({
+  page,
+  context,
+}) => {
+  const guest = await context.newPage();
+  await guest.goto(`${GUEST_URL}/v/${venue.slug}/t/${venue.qrToken}`);
+  await guest.getByRole("button", { name: /^Aggiungi / }).first().click();
+  await guest.getByRole("button", { name: "Ordina" }).click();
+  await expect(guest.getByText("Ordine inviato in cucina.")).toBeVisible();
+  await guest.close();
+
+  const sql = (await import("postgres")).default(process.env.DATABASE_URL!, {
+    ssl: "require",
+    prepare: false,
+  });
+
+  try {
+    // Il cliente ha aperto il pagamento con carta ed è fermo
+    // sull'autorizzazione. Intanto dice al cameriere "faccio in contanti".
+    const [s] = await sql<{ id: string }[]>`
+      select ts.id from table_sessions ts
+       where ts.venue_id = ${venue.venueId} and ts.status = 'open'
+       order by ts.created_at desc limit 1`;
+
+    await sql`
+      insert into payments (venue_id, table_session_id, amount_cents, method,
+                            provider, provider_payment_id, split_type, status)
+      values (${venue.venueId}, ${s.id}, 1000, 'card', 'stripe',
+              ${"pi_test_" + Date.now()}, 'full', 'pending')`;
+
+    await login(page);
+    const chiudi = page.getByRole("button", { name: /Incassa e chiudi|Chiudi conto/ });
+    await expect(chiudi.first()).toBeVisible({ timeout: 15000 });
+    await chiudi.first().click();
+
+    // Rifiutato, e detto: incassare adesso farebbe pagare due volte.
+    await expect(page.getByText(/pagamento con carta in corso/i)).toBeVisible({
+      timeout: 15000,
+    });
+
+    // E il conto è rimasto aperto davvero, non solo a schermo.
+    const [dopo] = await sql<{ status: string }[]>`
+      select status from table_sessions where id = ${s.id}`;
+    expect(dopo.status).toBe("open");
+
+    // Nessun incasso in contanti registrato.
+    const [contanti] = await sql<{ n: string }[]>`
+      select count(*)::text as n from payments
+       where table_session_id = ${s.id} and method = 'cash'`;
+    expect(Number(contanti.n)).toBe(0);
+  } finally {
+    await sql.end();
+  }
+});

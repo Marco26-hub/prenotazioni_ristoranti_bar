@@ -147,7 +147,7 @@ export function Sala({
   sogliaLiberazioneMin,
 }: {
   tavoli: TavoloSala[];
-  chiudiConto: (sessionId: string) => Promise<void>;
+  chiudiConto: (sessionId: string) => Promise<{ ok?: string; error?: string }>;
   avanzaRiga: (
     itemId: string,
     a: string,
@@ -362,7 +362,11 @@ export function Sala({
 
                   <form
                     action={async () => {
-                      await chiudiConto(t.sessionId!);
+                      // L'esito non si butta via: la chiusura può essere
+                      // rifiutata perché una carta sta pagando, o riuscire
+                      // segnalando che il tavolo ha versato di più.
+                      const r = await chiudiConto(t.sessionId!);
+                      setAvvisoRiga(r.error ?? r.ok ?? null);
                     }}
                   >
                     <button
@@ -388,8 +392,11 @@ export function Sala({
             adesso={adesso}
             onClose={() => setApertoId(null)}
             onChiudiConto={async () => {
-              setApertoId(null);
-              await chiudiConto(t.sessionId!);
+              const r = await chiudiConto(t.sessionId!);
+              setAvvisoRiga(r.error ?? r.ok ?? null);
+              // Rifiutata: la scheda resta aperta, o l'avviso parlerebbe di
+              // un tavolo che non si sta più guardando.
+              if (!r.error) setApertoId(null);
             }}
           />
         );

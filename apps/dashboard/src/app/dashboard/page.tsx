@@ -160,7 +160,7 @@ export default async function DashboardPage() {
 
   async function chiudiConto(sessionId: string) {
     "use server";
-    await closeTableInPerson(sessionId);
+    return closeTableInPerson(sessionId);
   }
 
   // La sala è dove il titolare guarda: doverci andare, vedere un piatto
