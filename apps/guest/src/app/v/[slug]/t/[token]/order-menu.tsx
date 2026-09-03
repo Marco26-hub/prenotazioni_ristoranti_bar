@@ -52,6 +52,8 @@ export function OrderMenu({
   const [openDish, setOpenDish] = useState<MenuItem | null>(null);
   const [riepilogoAperto, setRiepilogoAperto] = useState(false);
   const [notePerRiga, setNotePerRiga] = useState<string | null>(null);
+  /** null = tutte le portate. */
+  const [categoriaScelta, setCategoriaScelta] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -266,11 +268,68 @@ export function OrderMenu({
 
   const uncategorised = itemsByCategory.get(null) ?? [];
 
+  // Solo le categorie che hanno davvero qualcosa: una linguetta "Dolci" che
+  // apre il vuoto fa sembrare rotto il filtro.
+  const categoriePiene = categories.filter(
+    (c) => (itemsByCategory.get(c.id) ?? []).length > 0
+  );
+
+  const mostra = (id: string | null) =>
+    categoriaScelta === null || categoriaScelta === id;
+
   return (
     <div className="space-y-7 pb-28">
-      {categories.map((cat) => {
+      {/*
+        Il filtro per portata, come sul menu pubblico.
+
+        Su una carta da quindici voci si scorre; su una da settanta — un
+        ristorante vero, con vini e bevande — trovare i secondi voleva dire
+        passare in mezzo a tutto il resto. La barra resta appiccicata in alto
+        mentre si scorre, perché serve proprio mentre si è a metà elenco.
+      */}
+      {categoriePiene.length > 1 && (
+        <nav
+          aria-label="Filtra per portata"
+          className="sticky top-0 z-10 -mx-4 overflow-x-auto border-b border-border bg-background/95 px-4 py-2 backdrop-blur"
+        >
+          <ul className="flex gap-1.5">
+            <li>
+              <button
+                type="button"
+                onClick={() => setCategoriaScelta(null)}
+                aria-current={categoriaScelta === null ? "true" : undefined}
+                className={`flex min-h-11 items-center whitespace-nowrap rounded-full px-4 text-sm font-medium ${
+                  categoriaScelta === null
+                    ? "bg-accent text-accent-foreground"
+                    : "border border-border"
+                }`}
+              >
+                Tutto
+              </button>
+            </li>
+            {categoriePiene.map((c) => (
+              <li key={c.id}>
+                <button
+                  type="button"
+                  onClick={() => setCategoriaScelta(c.id)}
+                  aria-current={categoriaScelta === c.id ? "true" : undefined}
+                  className={`flex min-h-11 items-center whitespace-nowrap rounded-full px-4 text-sm font-medium ${
+                    categoriaScelta === c.id
+                      ? "bg-accent text-accent-foreground"
+                      : "border border-border"
+                  }`}
+                >
+                  {c.name}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
+
+      {categoriePiene.map((cat) => {
         const catItems = itemsByCategory.get(cat.id) ?? [];
-        if (catItems.length === 0) return null;
+        if (!mostra(cat.id)) return null;
         return (
           <section key={cat.id}>
             <h2 className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-muted">
@@ -281,7 +340,7 @@ export function OrderMenu({
         );
       })}
 
-      {uncategorised.length > 0 && (
+      {uncategorised.length > 0 && mostra(null) && (
         <section>
           <ul className="space-y-2.5">{uncategorised.map(renderItem)}</ul>
         </section>
