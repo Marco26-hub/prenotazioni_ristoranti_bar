@@ -25,7 +25,21 @@ if (!url) {
 
 // I NOTICE di Postgres ("relation already exists, skipping") sono attesi con
 // le CREATE ... IF NOT EXISTS e renderebbero illeggibile l'output.
-const sql = postgres(url, { ssl: "require", prepare: false, onnotice: () => {} });
+/*
+ * TLS obbligatorio, tranne su localhost.
+ *
+ * Il pooler di produzione lo esige, ma imponendolo sempre non si poteva
+ * applicare le migrazioni a un Postgres locale — cioe' proprio la prova che
+ * serve prima di rilasciare: verificare che partendo da zero le migrazioni
+ * e schema.sql producano lo stesso database. Senza poterla fare, una
+ * divergenza si scopre alla prima installazione vera.
+ */
+const locale = /@(localhost|127\.0\.0\.1|\[::1\])[:/]/.test(url);
+const sql = postgres(url, {
+  ssl: locale ? false : "require",
+  prepare: false,
+  onnotice: () => {},
+});
 
 try {
   await sql`

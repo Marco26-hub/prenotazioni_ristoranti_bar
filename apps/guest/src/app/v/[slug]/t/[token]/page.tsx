@@ -9,6 +9,7 @@ import { annuncioAttivo } from "@/lib/annuncio";
 import { gruppiPerPiatti } from "@repo/shared/varianti";
 import { notaConservazione, type Conservazione } from "@repo/shared/bevande";
 import { Bill } from "./bill";
+import { Recensione } from "./recensione";
 
 /**
  * Mai nei motori di ricerca: l'URL contiene il token stampato sul QR, e
@@ -169,6 +170,8 @@ export default async function TablePage({
           <p className="mt-3 text-xs leading-relaxed text-muted">{nota}</p>
         )}
 
+        {/* Dopo il conto: si chiede quando si è finito di mangiare, non
+            mentre si sta ancora ordinando. */}
         <div id="conto" aria-label="Conto e pagamento">
           <Bill
             sessionId={resolved.sessionId}
@@ -176,6 +179,8 @@ export default async function TablePage({
             token={token}
           />
         </div>
+
+        <Recensione token={token} />
       </main>
 
       <footer className="mx-auto w-full max-w-2xl px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-6">

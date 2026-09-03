@@ -79,6 +79,8 @@ create table venues (
   -- Aliquota IVA di coperto e servizio in fattura: la stabilisce il
   -- commercialista del locale, non il programma.
   service_vat_rate numeric(4,2) not null default 10.00,
+  -- Banco senza tavoli: si chiama un numero invece di servire al tavolo.
+  pickup_numbering_enabled boolean not null default false,
   cover_charge_label text,
   currency text default 'EUR',
   stripe_account_id text,                -- Stripe Connect account: con cui il LOCALE incassa
@@ -352,6 +354,12 @@ create table orders (
     check (status in ('pending','confirmed','preparing','served','cancelled')),
   guest_label text,                      -- "Mario", "Posto 3" — per split per persona
   notes text,
+  -- Numero di ritiro, per il banco senza tavoli. La giornata di servizio si
+  -- porta dietro perché la numerazione riparte all'apertura, non a
+  -- mezzanotte: un locale che chiude alle due avrebbe due serie nella
+  -- stessa serata.
+  pickup_number int,
+  pickup_service_date date,
   created_at timestamptz default now()
 );
 
@@ -546,4 +554,41 @@ create table rate_limits (
   bucket_key text primary key,
   window_start timestamptz not null default now(),
   count int not null default 0
+);
+
+-- ------------------------------------------------------------
+-- Recensioni lasciate dal tavolo
+-- ------------------------------------------------------------
+
+create table reviews (
+  id uuid primary key default gen_random_uuid(),
+  venue_id uuid references venues(id) on delete cascade not null,
+  table_session_id uuid references table_sessions(id) on delete set null,
+  voto smallint not null check (voto between 1 and 5),
+  commento text,
+  nome text,
+  created_at timestamptz not null default now(),
+  letta_at timestamptz
+);
+
+-- Una per servizio: senza, bastava premere invio dieci volte.
+create unique index uq_recensione_sessione
+  on reviews (table_session_id) where table_session_id is not null;
+
+create index idx_recensioni_locale on reviews (venue_id, created_at desc);
+
+-- ------------------------------------------------------------
+-- Numero di ritiro per il banco senza tavoli
+-- ------------------------------------------------------------
+--
+-- Piadineria, pizza al taglio, gastronomia: il cliente non ha un tavolo a cui
+-- riportare l'ordine, quindi si chiama un numero. Riparte da uno a ogni
+-- giornata di servizio -- che non e' la data civile: un locale che chiude
+-- alle due avrebbe altrimenti due serie nella stessa serata.
+
+create table order_number_counters (
+  venue_id uuid references venues(id) on delete cascade not null,
+  service_date date not null,
+  last_number int not null check (last_number > 0),
+  primary key (venue_id, service_date)
 );

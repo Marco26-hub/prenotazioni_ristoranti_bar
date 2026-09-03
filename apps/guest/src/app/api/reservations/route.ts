@@ -261,20 +261,35 @@ export async function POST(request: Request) {
        where id = ${prenotazione.id}`;
   }
 
-  if (automatica && email) {
+  /*
+   * Il cliente riceve una mail in entrambi i casi.
+   *
+   * Prima partiva solo con la conferma automatica: chi finiva in un locale
+   * che approva a mano compilava il modulo, premeva invio e non riceveva
+   * più niente, anche per ore. Il messaggio a schermo lo dice, ma sparisce
+   * chiudendo la pagina, e a quel punto non resta traccia di aver
+   * prenotato — così si telefona, o si prenota altrove per sicurezza.
+   */
+  if (email) {
     const esito = await inviaEmail({
       a: email,
       rispondiA: venue.reservation_email ?? venue.public_email ?? undefined,
       mittenteLocale,
-      oggetto: `Prenotazione confermata — ${venue.name}`,
+      oggetto: automatica
+        ? `Prenotazione confermata — ${venue.name}`
+        : `Richiesta ricevuta — ${venue.name}`,
       testo: [
         `Ciao ${nome},`,
         "",
-        `la tua prenotazione da ${venue.name} è confermata.`,
+        automatica
+          ? `la tua prenotazione da ${venue.name} è confermata.`
+          : `abbiamo ricevuto la tua richiesta per ${venue.name}. Non è ancora una prenotazione: il locale ti risponde a breve, e ti arriva un'altra email.`,
         "",
         `Quando: ${quandoTesto}`,
         `Persone: ${partySize}`,
-        `Tavolo: ${tavoliTesto}`,
+        // Il tavolo assegnato si dice solo quando è davvero suo: annunciarlo
+        // in una richiesta ancora da approvare fa credere di avere posto.
+        automatica ? `Tavolo: ${tavoliTesto}` : null,
         notes ? `Richieste: ${notes}` : null,
         "",
         venue.public_phone
