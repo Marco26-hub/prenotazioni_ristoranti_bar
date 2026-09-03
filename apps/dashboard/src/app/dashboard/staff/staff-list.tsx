@@ -13,6 +13,7 @@ interface Member {
   role: string;
   roleLabel: string;
   isMe: boolean;
+  reparti: string[];
 }
 
 export function StaffList({
@@ -86,6 +87,7 @@ export function StaffList({
                 nome={m.name ?? m.email}
                 tavoli={tavoli}
                 altri={nomiPerUtente}
+                reparti={m.reparti}
               />
             )}
           </li>

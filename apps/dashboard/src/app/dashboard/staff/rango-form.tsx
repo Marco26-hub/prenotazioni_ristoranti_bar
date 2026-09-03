@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { assegnaTavoli } from "./actions";
+import { assegnaTavoli, assegnaReparti } from "./actions";
 
 export interface TavoloRango {
   id: string;
@@ -10,10 +10,17 @@ export interface TavoloRango {
   assignedTo: string | null;
 }
 
+const REPARTI: Array<[string, string]> = [
+  ["cucina", "Cucina"],
+  ["bar", "Bar"],
+  ["pizzeria", "Pizzeria"],
+  ["pasticceria", "Pasticceria"],
+];
+
 /**
- * Il rango di un addetto: quali tavoli sono suoi.
+ * Rango e reparti di un addetto: quali tavoli sono suoi, e su cosa può agire.
  *
- * Si spuntano guardando l'elenco, come si fa a inizio servizio. I tavoli già
+ * I tavoli si spuntano guardando l'elenco, come a inizio servizio. Quelli già
  * assegnati a qualcun altro restano cliccabili ma segnati: capita di
  * spostarli, e impedirlo costringerebbe a passare da due schermate.
  */
@@ -22,13 +29,16 @@ export function RangoForm({
   nome,
   tavoli,
   altri,
+  reparti,
 }: {
   userId: string;
   nome: string;
   tavoli: TavoloRango[];
   /** Nome di chi tiene ciascun tavolo, per id utente. */
   altri: Record<string, string>;
+  reparti: string[];
 }) {
+  const [suoiReparti, setSuoiReparti] = useState<string[]>(() => reparti);
   const [aperto, setAperto] = useState(false);
   const [scelti, setScelti] = useState<Set<string>>(
     () => new Set(tavoli.filter((t) => t.assignedTo === userId).map((t) => t.id))
@@ -45,9 +55,12 @@ export function RangoForm({
         onClick={() => setAperto(true)}
         className="min-h-10 text-sm underline underline-offset-4"
       >
-        {miei.length > 0
-          ? `Rango: ${miei.map((t) => t.code).join(", ")}`
-          : "Assegna tavoli"}
+        {[
+          miei.length > 0 ? `Rango: ${miei.map((t) => t.code).join(", ")}` : "Assegna tavoli",
+          suoiReparti.length > 0 ? `reparti: ${suoiReparti.join(", ")}` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
       </button>
     );
   }
@@ -104,6 +117,44 @@ export function RangoForm({
         </p>
       )}
 
+      {/* Il reparto qui è un permesso, non un filtro dello schermo: senza,
+          un barista poteva mandare avanti i primi dal monitor del bar. */}
+      <div className="mt-3 border-t border-border pt-3">
+        <p className="text-sm font-medium">Reparti su cui può operare</p>
+        <p className="mt-0.5 text-xs text-muted">
+          Nessuna spunta = tutti. Fuori dai suoi reparti vede le comande ma
+          non può spostarle.
+        </p>
+        <ul className="mt-2 flex flex-wrap gap-1.5">
+          {REPARTI.map(([chiave, etichetta]) => {
+            const on = suoiReparti.includes(chiave);
+            return (
+              <li key={chiave}>
+                <label
+                  className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm ${
+                    on ? "border-accent bg-accent/15" : "border-border"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={on}
+                    onChange={() =>
+                      setSuoiReparti((p) =>
+                        p.includes(chiave)
+                          ? p.filter((x) => x !== chiave)
+                          : [...p, chiave]
+                      )
+                    }
+                    className="h-4 w-4"
+                  />
+                  {etichetta}
+                </label>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button
           type="button"
@@ -111,13 +162,14 @@ export function RangoForm({
           onClick={() =>
             start(async () => {
               const r = await assegnaTavoli(userId, [...scelti]);
-              setAvviso(r.error ?? r.ok ?? null);
-              if (!r.error) setAperto(false);
+              const rr = await assegnaReparti(userId, suoiReparti);
+              setAvviso(r.error ?? rr.error ?? [r.ok, rr.ok].filter(Boolean).join(" ") ?? null);
+              if (!r.error && !rr.error) setAperto(false);
             })
           }
           className="min-h-11 rounded-full bg-accent px-5 text-sm font-medium text-accent-foreground disabled:opacity-60"
         >
-          {pending ? "Salvo…" : "Salva rango"}
+          {pending ? "Salvo…" : "Salva rango e reparti"}
         </button>
         <button
           type="button"

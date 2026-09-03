@@ -12,6 +12,51 @@ import type { OrderItemStatus, StaffRole } from "@repo/shared";
  * join: se domani l'addetto cambia nome o lascia il locale, la comanda di
  * stasera deve continuare a dire chi l'ha servita.
  */
+/**
+ * I reparti su cui l'addetto può agire. Vuoto significa tutti.
+ *
+ * Letto qui a ogni azione e non messo nel token: un permesso tolto deve
+ * valere subito, non alla prossima sessione, e un token dura dodici ore.
+ */
+async function repartiAddetto(userId: string, venueId: string): Promise<string[]> {
+  const sql = db();
+  const [r] = await sql<{ reparti: string[] }[]>`
+    select reparti from venue_staff
+     where user_id = ${userId} and venue_id = ${venueId}`;
+  return r?.reparti ?? [];
+}
+
+/** Il reparto di una riga di comanda, risalendo alla sua categoria. */
+async function repartoDiRiga(orderItemId: string): Promise<string> {
+  const sql = db();
+  const [r] = await sql<{ reparto: string }[]>`
+    select coalesce(mc.reparto, 'cucina') as reparto
+      from order_items oi
+      join menu_items mi on mi.id = oi.menu_item_id
+      left join menu_categories mc on mc.id = mi.category_id
+     where oi.id = ${orderItemId}`;
+  return r?.reparto ?? "cucina";
+}
+
+const NOME_REPARTO: Record<string, string> = {
+  cucina: "cucina",
+  bar: "bar",
+  pizzeria: "pizzeria",
+  pasticceria: "pasticceria",
+};
+
+async function vietatoPerReparto(
+  userId: string,
+  venueId: string,
+  orderItemId: string
+): Promise<string | null> {
+  const suoi = await repartiAddetto(userId, venueId);
+  if (suoi.length === 0) return null;
+  const reparto = await repartoDiRiga(orderItemId);
+  if (suoi.includes(reparto)) return null;
+  return `Questa riga è del reparto ${NOME_REPARTO[reparto] ?? reparto}, su cui non operi.`;
+}
+
 async function etichettaAddetto(userId: string): Promise<string> {
   const sql = db();
   const [u] = await sql<{ name: string | null; email: string }[]>`
@@ -71,6 +116,9 @@ export async function setOrderItemStatus(
   const vietato = puo(venue.role, status);
   if (vietato) return { error: vietato };
 
+  const fuoriReparto = await vietatoPerReparto(userId, venue.venueId, orderItemId);
+  if (fuoriReparto) return { error: fuoriReparto };
+
   const sql = db();
 
   // order_items non ha venue_id diretto — verifica ownership via join,
@@ -114,6 +162,9 @@ export async function trattieniRiga(
   const { venue, userId } = await requireVenue();
   const sql = db();
 
+  const fuoriReparto = await vietatoPerReparto(userId, venue.venueId, orderItemId);
+  if (fuoriReparto) return { error: fuoriReparto };
+
   const [riga] = await sql<{ id: string }[]>`
     update order_items
        set held_at = ${trattieni ? sql`now()` : null},
@@ -148,6 +199,7 @@ export async function trattieniTavolo(
   trattieni: boolean
 ): Promise<{ aggiornate: number }> {
   const { venue, userId } = await requireVenue();
+  const suoiReparti = await repartiAddetto(userId, venue.venueId);
   const sql = db();
 
   const righe = await sql<{ id: string }[]>`
@@ -163,6 +215,13 @@ export async function trattieniTavolo(
        and t.code = ${tableCode}
        and oi.status not in ('served', 'cancelled')
        and oi.held_at is ${trattieni ? sql`null` : sql`not null`}
+       ${
+         suoiReparti.length > 0
+           ? sql`and coalesce((select mc.reparto from menu_items mi
+                                 left join menu_categories mc on mc.id = mi.category_id
+                                where mi.id = oi.menu_item_id), 'cucina') in ${sql(suoiReparti)}`
+           : sql``
+       }
     returning oi.id`;
 
   if (righe.length > 0) {
@@ -198,6 +257,7 @@ export async function advanceTableItems(
   const vietato = puo(venue.role, to);
   if (vietato) return { aggiornate: 0, error: vietato };
 
+  const suoiReparti = await repartiAddetto(userId, venue.venueId);
   const sql = db();
 
   const righe = await sql<{ id: string }[]>`
@@ -212,6 +272,15 @@ export async function advanceTableItems(
        -- Un piatto trattenuto non si avvia in blocco: trattenerlo è stata una
        -- decisione esplicita e un "manda tutto" non deve scavalcarla.
        and oi.held_at is null
+       -- E non si tocca il reparto altrui: "tutto pronto" dal bar non deve
+       -- mandare fuori i primi.
+       ${
+         suoiReparti.length > 0
+           ? sql`and coalesce((select mc.reparto from menu_items mi
+                                 left join menu_categories mc on mc.id = mi.category_id
+                                where mi.id = oi.menu_item_id), 'cucina') in ${sql(suoiReparti)}`
+           : sql``
+       }
     returning oi.id`;
 
   if (righe.length > 0) {

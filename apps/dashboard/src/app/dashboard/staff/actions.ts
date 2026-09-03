@@ -153,3 +153,38 @@ export async function assegnaTavoli(
   revalidatePath("/dashboard/orders");
   return { ok: ids.length === 0 ? "Rango svuotato." : `${ids.length} tavoli assegnati.` };
 }
+
+
+const REPARTI_VALIDI = ["cucina", "bar", "pizzeria", "pasticceria"];
+
+/**
+ * Su quali reparti può operare un addetto.
+ *
+ * Nessuna spunta significa tutti: è il caso della maggioranza dei locali,
+ * dove chi c'è fa tutto, e non deve costare una configurazione per partire.
+ */
+export async function assegnaReparti(
+  userId: string,
+  reparti: string[]
+): Promise<StaffResult> {
+  const { venue } = await requireRole(["owner", "manager"]);
+  const sql = db();
+
+  const puliti = [...new Set((reparti ?? []).filter((r) => REPARTI_VALIDI.includes(r)))];
+
+  const [row] = await sql<{ id: string }[]>`
+    update venue_staff set reparti = ${puliti}
+     where venue_id = ${venue.venueId} and user_id = ${userId}
+    returning id`;
+
+  if (!row) return { error: "Questa persona non fa parte del locale" };
+
+  revalidatePath("/dashboard/staff");
+  revalidatePath("/dashboard/orders");
+  return {
+    ok:
+      puliti.length === 0
+        ? "Può operare su tutti i reparti."
+        : `Opera su: ${puliti.join(", ")}.`,
+  };
+}

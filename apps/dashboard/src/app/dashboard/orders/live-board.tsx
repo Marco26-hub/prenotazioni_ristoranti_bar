@@ -7,6 +7,7 @@ import {
   trattieniRiga,
   trattieniTavolo,
 } from "./actions";
+import { segnalaDispositivo } from "../staff/dispositivi-actions";
 import type { OrderItemStatus, StaffRole } from "@repo/shared";
 import { creaRiconoscimento, interpreta, type Riconoscimento } from "./comando-vocale";
 
@@ -83,6 +84,21 @@ const REPARTI: Record<string, string> = {
  * diverse. È una preferenza del dispositivo, quindi vive nel dispositivo.
  */
 const CHIAVE_REPARTO = "comande.reparto";
+const CHIAVE_DISPOSITIVO = "comande.dispositivo";
+
+/** Identificativo dello schermo, generato qui e conservato qui. */
+function chiaveDispositivo(): string {
+  try {
+    let k = localStorage.getItem(CHIAVE_DISPOSITIVO);
+    if (!k) {
+      k = crypto.randomUUID();
+      localStorage.setItem(CHIAVE_DISPOSITIVO, k);
+    }
+    return k;
+  } catch {
+    return "";
+  }
+}
 
 const ascoltatori = new Set<() => void>();
 
@@ -174,6 +190,11 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
     const data = await res.json();
     setItems(data.items);
     if (typeof data.soglia === "number") setSoglia(data.soglia);
+
+    // Ci si presenta insieme ai dati, non con un timer proprio: uno schermo
+    // che non carica comande non è in servizio, e non deve risultare acceso.
+    const k = chiaveDispositivo();
+    if (k) void segnalaDispositivo(k, leggiReparto());
   }, []);
 
   useEffect(() => {
