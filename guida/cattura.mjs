@@ -102,13 +102,16 @@ await page.getByRole("button", { name: /^Ordina/ }).click();
 await page.waitForTimeout(2500);
 passi.push(await scatta("inviato", "Ordina: la comanda parte in cucina, nessuno deve venire a prenderla"));
 
-// Il conto.
+// Il conto. "Paga ora" è un'ancora: porta la sezione in pagina ma il
+// riepilogo arriva da una fetch, quindi si aspetta il totale, non lo scroll.
 await page.getByRole("link", { name: /Paga ora/i }).first().click();
-await page.waitForTimeout(2500);
+const contanti = page.getByRole("button", { name: /Pago in contanti/i });
+await contanti.first().waitFor({ state: "visible", timeout: 20_000 });
+await contanti.first().scrollIntoViewIfNeeded();
+await page.waitForTimeout(800);
 passi.push(await scatta("conto", "Il conto è sempre aggiornato: si paga quando si vuole"));
 
 // Contanti e chiamata al cameriere.
-const contanti = page.getByRole("button", { name: /Pago in contanti/i });
 if (await contanti.count()) {
   await contanti.first().click();
   await page.waitForTimeout(700);
