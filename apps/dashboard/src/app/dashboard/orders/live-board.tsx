@@ -45,12 +45,24 @@ const PROSSIMO: Partial<Record<OrderItemStatus, OrderItemStatus>> = {
  * in mano, ed è la cosa più vicina a un problema dopo il ritardo.
  */
 const COLORE_RIGA: Record<string, string> = {
-  pending: "border-l-4 border-l-border",
-  sent_to_kitchen: "border-l-4 border-l-muted",
-  preparing: "border-l-4 border-l-amber-500 bg-amber-500/5",
-  ready: "border-l-4 border-l-sky-400 bg-sky-500/5",
-  served: "border-l-4 border-l-success bg-success/5 opacity-70",
+  // Grigio: il cliente ha scelto ma non è ancora partito niente.
+  pending: "border-l-4 border-l-zinc-500 bg-zinc-500/5",
+  // Viola: la comanda è in coda e aspetta la cucina. Un colore suo, perché
+  // "in coda" e "in cottura" sono due problemi diversi.
+  sent_to_kitchen: "border-l-4 border-l-violet-500 bg-violet-500/10",
+  preparing: "border-l-4 border-l-amber-500 bg-amber-500/10",
+  ready: "border-l-4 border-l-sky-400 bg-sky-500/10",
+  served: "border-l-4 border-l-emerald-500 bg-emerald-500/10 opacity-70",
 };
+
+/** Stesso colore per lo stesso stato, qui e sulla pianta della sala. */
+const LEGENDA_RIGA: Array<[string, string]> = [
+  ["pending", "da inviare"],
+  ["sent_to_kitchen", "in coda"],
+  ["preparing", "in cottura"],
+  ["ready", "pronto"],
+  ["served", "portato"],
+];
 
 const REPARTI: Record<string, string> = {
   cucina: "Cucina",
@@ -453,6 +465,27 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
           </p>
         </div>
       </details>
+
+      {/* Senza legenda cinque colori sono cinque indovinelli. */}
+      {items.length > 0 && (
+        <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
+          {LEGENDA_RIGA.filter(([k]) => items.some((i) => i.status === k)).map(
+            ([k, testo]) => (
+              <li key={k} className="flex items-center gap-1.5">
+                <span
+                  aria-hidden
+                  className={`inline-block h-3 w-3 rounded-sm ${COLORE_RIGA[k].replace(/border-l-4 |opacity-70/g, "").replace("border-l-", "bg-").split(" ")[0]}`}
+                />
+                {testo}
+              </li>
+            )
+          )}
+          <li className="flex items-center gap-1.5">
+            <span aria-hidden className="inline-block h-3 w-3 rounded-sm bg-danger" />
+            in ritardo
+          </li>
+        </ul>
+      )}
 
       {negato && (
         <p role="alert" className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">

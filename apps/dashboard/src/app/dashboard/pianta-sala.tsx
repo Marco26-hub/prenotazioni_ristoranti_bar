@@ -37,11 +37,14 @@ export type StatoTavolo =
   | "saldato";
 
 const COLORE: Record<StatoTavolo, string> = {
-  libero: "border-border bg-background text-foreground",
-  incorso: "border-accent bg-accent text-accent-foreground",
+  libero: "border-border bg-background text-muted",
+  // Viola: servizio in corso, nessuna azione richiesta. Prima era il colore
+  // del marchio, lo stesso dell'ambra del pagamento parziale a un metro di
+  // distanza.
+  incorso: "border-violet-400 bg-violet-500 text-white",
   // Alla romana con qualche quota già incassata: il tavolo sta chiudendo ma
   // non è chiuso, e chi passa deve sapere che manca ancora qualcuno.
-  parziale: "border-amber-500 bg-amber-500/25 text-foreground",
+  parziale: "border-2 border-amber-400 bg-amber-500 text-white",
   // Rosso e lampeggiante solo per il ritardo: è l'unico stato in cui il
   // cliente non ha niente davanti. Un rosso che vale per due cose diverse
   // non dice a nessuno dove andare.
@@ -49,7 +52,7 @@ const COLORE: Record<StatoTavolo, string> = {
   // Blu fisso: c'è un piatto da portare, non un problema. Colore diverso e
   // niente lampeggio, così si distingue dal ritardo anche di sfuggita.
   pronto: "border-2 border-sky-400 bg-sky-500 text-white",
-  saldato: "border-success bg-success/25 text-foreground",
+  saldato: "border-2 border-emerald-400 bg-emerald-600 text-white",
 };
 
 const VOCE: Record<StatoTavolo, string> = {
