@@ -7,66 +7,122 @@ Per chi prende in mano il progetto. Descrive cosa fa il sistema, cosa è
 stato verificato, e — soprattutto — **cosa manca ancora**, perché è quella
 la parte che serve davvero a chi arriva dopo.
 
-Ultimo aggiornamento: settembre 2026.
-
-Gestione menu estesa: l'admin puo modificare manualmente anche
-sottocategoria (naturale/frizzante, bionda/rossa, bianco/rosso), formato,
-servizio (bottiglia/spina/calice/lattina), stile birra e vitigno. La nuova
-migrazione e `db/migrations/023_menu_beverage_details.sql`. L'import CSV/TSV/XLSX
-legge gli stessi campi, oltre a foto, produttore, annata, gradazione,
-allergeni ed etichette; il template aggiornato e scaricabile dalla pagina Menu.
-Le migrazioni 023, 024 e 025 sono state applicate alla produzione il 3 settembre 2026.
-
-Il template pubblico del menu ora usa una grafica premium editoriale: fondo
-avorio pulito, superfici calde, ombre leggere, gerarchia tipografica serif
-per nome locale e sezioni, card fotografiche coerenti e tema Giorno/Notte
-automatico per fascia oraria, con comando manuale. La navigazione categorie
-resta visibile e ora filtra davvero la carta: `Tutti` mostra tutto, una
-categoria mostra soltanto le proprie voci. Il footer espone dati del locale,
-telefono, email, indicazioni stradali e collegamenti legali senza valori
-fittizi. Il menu non contiene prenotazioni: quelle vivono nella pagina
-dedicata `/p/[slug]`.
-
-L'app privata aperta dal QR evidenzia sempre il codice del tavolo e offre in
-testata i due percorsi operativi `Menu e ordine` e `Paga ora`. Il pagamento
-non compare nel menu pubblico `/m/[slug]`, che non ha una sessione tavolo e
-non deve poter attribuire un incasso alla persona o al conto sbagliato.
-
-La shell del gestionale usa la stessa identita cromatica in una variante piu
-neutra e operativa: header sticky, navigazione leggibile, focus da tastiera,
-skip link e contenitori con gerarchia visiva piu chiara.
-
-Aggiornamento menu demo: la pagina pubblica del menu ha ora una griglia
-responsive più curata, immagini locali con dimensioni stabili e focus
-accessibile. Il seed demo include foto coerenti per bruschetta, carbonara,
-bevande e Chianti in `apps/guest/public/piatti/`. Sono immagini fotografiche
-generate per la demo; per un locale reale vanno sostituite con gli scatti
-autentici del ristorante.
-
-Il menu pubblico `/m/[slug]` apre ora una scheda dettagli cliccando una voce:
-foto ingrandita, descrizione e prezzo, con chiusura tramite pulsante o tasto
-Escape. Le voci senza foto restano testuali e non mostrano illustrazioni finte.
-
-Il gestionale ha `/dashboard/invoices`: elenco delle fatture del locale,
-stato, numero, data, importo, identificativo SDI/Invoicetronic e stampa della
-lista. La gestione fatture è stata completata lato codice: il dettaglio sincronizza
-lo stato con Invoicetronic, `/dashboard/invoices/[id]/document` scarica l'XML
-dal provider e `/api/webhooks/invoicetronic` aggiorna gli stati con firma HMAC.
-Il webhook va registrato nel pannello Invoicetronic con l'URL pubblico e il
-segreto in `INVOICETRONIC_WEBHOOK_SECRET`. La richiesta fattura raccoglie
-privato italiano, azienda italiana e cliente estero. Per l'Italia supporta
-codice destinatario o PEC; per l'estero usa il destinatario SDI `XXXXXXX` e
-l'identificativo fiscale con codice paese ISO. La scheda admin mostra sede,
-paese e canale fiscale. Resend invia la copia email con XML allegato quando
-Invoicetronic lo rende disponibile subito dopo la trasmissione.
-
-Dopo il saldo il cliente puo aprire `/api/receipts/[sessionId]`: una ricevuta
-di pagamento dettagliata, stampabile o salvabile in PDF, con righe ordinate,
-coperto/servizio, mancia e metodo di pagamento. E indicata esplicitamente come
-documento di cortesia non fiscale; lo scontrino fiscale richiede ancora il
-registratore telematico o l'integrazione con la cassa del locale.
+Ultimo aggiornamento: 3 settembre 2026.
 
 ---
+
+## 0. Cosa è cambiato in quest'ultima sessione
+
+Elencato qui perché è la parte che cambia il lavoro di chi riprende in mano
+il progetto. Il resto del documento è già aggiornato di conseguenza.
+
+### Sala e servizio
+
+- **Pianta della sala trascinabile.** I tavoli si dispongono come stanno
+  davvero in sala, con forma (rettangolo, tondo, bancone) e dimensione
+  proporzionata ai posti. Coordinate su griglia astratta 16×12, non pixel:
+  la pianta si adatta agli schermi senza che le posizioni perdano senso.
+  Si può caricare **la piantina del locale** come sfondo (PDF, SVG, PNG,
+  JPG) e farne **riconoscere i tavoli dall'AI**, che li propone senza mai
+  crearli da sola. Migrazioni 027, 028.
+- **Un colore per ogni stato del tavolo**, uguale su pianta e monitor
+  comande: viola in corso, ambra pagato in parte, blu piatti al passe,
+  rosso lampeggiante in ritardo, verde saldato, fucsia saldato da troppo.
+  Con legenda, perché sei colori senza legenda sono sei indovinelli.
+- **Soglie configurabili** (Impostazioni → Tempi e allarmi): dopo quanti
+  minuti una comanda è in ritardo, e dopo quanti minuti dal saldo un tavolo
+  va recuperato. Zero spegne l'avviso. Migrazioni 032, 034.
+- **Trattenere un piatto** («ritarda i secondi»): non è uno stato del flusso
+  ma una condizione sopra di esso, quindi il piatto riparte dal punto in cui
+  era. Escluso dalle azioni in blocco e dai conteggi. Migrazione 029.
+- **I piatti serviti non spariscono più** dal monitor: restano col loro
+  colore, e quando il tavolo ha ricevuto tutto la card diventa verde.
+
+### Chi fa cosa
+
+- **Ruoli con permessi veri sugli stati.** «Pronto» è la parola della
+  cucina, «servito» quella della sala. Titolare e responsabile fanno tutto.
+  Verificato nell'action, non solo nascondendo il bottone.
+- **Reparti come permesso** (cucina, bar, pizzeria, pasticceria), non più
+  solo come filtro dello schermo: un barista non può mandare avanti i primi,
+  nemmeno con le azioni in blocco. Nessuna spunta = tutti. Migrazioni 031, 035.
+- **Rango**: i tavoli assegnati al singolo cameriere. È una vista, non un
+  divieto: un tocco passa a tutta la sala. Migrazione 030.
+- **Codice operatore** da 4 a 6 cifre per entrare in fretta dal tablet
+  condiviso. Salvato con lo stesso hash della password, unico nel locale,
+  rifiuta le sequenze ovvie. Solo sala e cucina: titolare e responsabile
+  vedono incassi e dati fiscali e continuano con la password. Migrazione 037.
+- **Registro di chi ha mosso cosa.** Ogni cambio di stato e ogni trattenuta
+  porta il nome dell'addetto, congelato al momento del gesto: resta
+  corretto anche se la persona cambia nome o lascia il locale.
+- **Registro dei dispositivi.** Gli schermi si presentano da soli: dalla
+  pagina *Personale e dispositivi* si vede quali sono accesi, su che reparto
+  sono impostati e quando sono stati visti l'ultima volta. Migrazione 036.
+- **Zone della sala** (Sala 1, Dehors, Veranda). La colonna `tables.zone`
+  esisteva nello schema **e non era letta da nessuna parte**: ora si imposta
+  dalla pianta e la mappa filtra per sala.
+
+### Cliente
+
+- **Pagamento in contanti con chiamata al cameriere.** Il cliente sceglie
+  scontrino o fattura e la richiesta arriva in sala in rosso, col numero del
+  tavolo e cosa portare. Premere più volte aggiorna la stessa chiamata.
+  Migrazione 033.
+- **Ogni piatto apre ingredienti, allergeni e conservazione**, con
+  l'asterisco di legge sul nome per le voci non fresche.
+- **Allergeni a caselle** in admin: i quattordici dell'Allegato II al posto
+  del campo libero, che accettava «latticini» e «frutta secca» — diciture
+  che a un controllo non valgono.
+- **Testi delle pagine pubbliche riscrivibili** dal locale (Impostazioni):
+  titolo della pagina prenotazioni, presentazione, nota in fondo alla carta.
+  Migrazione 026.
+- **Sezione Informazioni** sul menu pubblico: la linguetta *Info* portava al
+  piè di pagina e sembrava vuota.
+
+### Stampa e documenti
+
+- **PDF per la tipografia** dei cavalierini: A6 con 3 mm di abbondanza per
+  lato e crocini di taglio, singolo o **tutti i tavoli in un file**.
+- **Stampa comande divisa per reparto**: il foglio del bar non contiene più
+  i primi.
+- **Stampa del report Analisi** dal dialogo del browser, così si sceglie la
+  stampante oppure il PDF, e il testo resta selezionabile.
+
+### Guida
+
+- `guida/` contiene lo script che cattura **venti schermate dalla
+  produzione** e ne costruisce una **guida interattiva** in una pagina sola,
+  con capitoli, indice, avanti/indietro e ingrandimento. Si rifà con
+  `node guida/cattura.mjs && node guida/costruisci.mjs`. C'è anche una
+  composizione Remotion per il video verticale.
+- `db/servizio-prova.mjs` popola la sala come una sera vera — cinque tavoli
+  in momenti diversi del servizio, trenta servizi chiusi, prenotazioni — e
+  `--pulisci` rimuove esattamente quello che ha creato.
+
+### Rotture trovate e corrette
+
+- **Il contante era dentro la condizione che richiede Stripe o Satispay**:
+  un locale che incassa solo in cassa non vedeva il bottone che gli serve
+  di più.
+- **`create-satispay` non controllava l'abbonamento**: un locale scaduto non
+  poteva incassare con carta ma incassava con Satispay.
+- **L'assistente restava acceso dopo la scadenza**, consumando il credito
+  OpenRouter del locale.
+- **Le chiamate dei tavoli chiusi continuavano a suonare** per sempre.
+- **Le barre del grafico Analisi uscivano dal riquadro** fin sopra la
+  navigazione: il picco era calcolato sulle righe singole, le barre sui
+  giorni aggregati.
+- **`schema.sql` non compilava**: una virgola era finita dentro un commento
+  `--`. Un'installazione nuova sarebbe fallita del tutto. Verificato
+  applicandolo a un Postgres vuoto — 265 colonne, zero differenze con la
+  produzione.
+- **Il modello OpenRouter non si poteva cambiare** senza reinserire la
+  chiave, che non viene mai ripopolata perché è un segreto.
+- **Con due palmari si poteva far saltare uno stato**: ora l'aggiornamento
+  dichiara da quale stato parte e si ferma se è cambiato.
+
+---
+
 
 ## 1. Cos'è
 
@@ -314,8 +370,8 @@ La parte importante di questo documento.
 
 | Cosa | Chi lo sblocca |
 |---|---|
-| **Sandbox Stripe da rivendicare.** Finché non lo è, Connect non funziona e nessun pagamento reale è possibile: la chiave provvisoria non ha i permessi. | Titolare dell'account Stripe |
-| **Chiave Resend** (`RESEND_API_KEY`, `RESEND_FROM`). Senza, nessuna email parte: prenotazioni e fatture restano visibili in gestionale ma non arriva la copia di cortesia. | Chi vende |
+| **Sandbox Stripe da rivendicare.** Finché non lo è, Connect non funziona e nessun pagamento reale è possibile: verificato il 3 settembre 2026, gli account collegati sono **zero**. Prodotti, prezzi e webhook invece **sono già a posto** (vedi 6.1). | Titolare dell'account Stripe |
+| **Chiave Resend** (`RESEND_API_KEY`, `RESEND_FROM`). Senza, **nessuna email parte**: le prenotazioni restano visibili in gestionale ma il cliente non riceve conferme, e la pagina lo dice da sola in giallo. Serve creare l'account, **verificare il dominio** con i record DKIM/SPF — senza, Gmail manda le conferme in spam — e generare la chiave. Il codice è già collegato: `inviaEmail` è usata da conferme, rifiuti, fatture e dal bottone di prova in Impostazioni, e c'è la sovrascrittura per singolo locale. | Chi vende |
 | **Foto autentiche del locale.** La demo ha ora immagini fotografiche locali coerenti; per la produzione servono gli scatti reali dei piatti e delle bevande. | Il locale |
 | **Account intermediario SDI** per la fatturazione | Il locale |
 | **Developer Program Tilby** per il collegamento cassa | Chi vende |
@@ -360,6 +416,13 @@ In ordine di quanto bloccano una vendita in Italia:
 - **`db/seed.sql` è solo per lo sviluppo.** Non applicarlo in produzione.
 - **Il repo GitHub è pubblico.** Non contiene segreti, ma va valutato se
   renderlo privato prima della vendita.
+- **Nessun test automatico sulle nuove aree.** Trattenute, permessi di
+  reparto, codice operatore e chiamate dal tavolo sono stati verificati a
+  mano contro la produzione, non da una suite. Gli E2E esistenti coprono il
+  giro ordine/pagamento di prima.
+- **Le soglie di ritardo e recupero tavolo non generano storico.** Si vede
+  che un tavolo è in ritardo adesso, non quante volte lo è stato: non c'è
+  ancora un dato su cui ragionare a fine mese.
 
 ---
 
@@ -406,6 +469,30 @@ primo estratto conto.
 
 I moduli non stanno nel codice: arrivano dai metadata del Price su Stripe,
 letti dal webhook. Cambiare listino non richiede un deploy.
+
+### 6.1 Stripe: cosa c'è già
+
+Account **ristorazione**, separato dagli altri, in ambiente test. Verificato
+e ripulito il 3 settembre 2026: **4 prodotti, 8 prezzi, nessun doppione**.
+Erano rimasti 23 prezzi attivi dei giri precedenti (29, 39, 49, 59, 79,
+119 €) e un prodotto duplicato: archiviati, dopo aver controllato che
+nessun abbonamento vi fosse agganciato. L'archiviazione è reversibile.
+
+I due webhook sono registrati e attivi, correttamente separati: incassi dei
+locali su `guest`, abbonamenti su `dashboard`. Sono **due segreti diversi**
+e scambiarli è un errore silenzioso — le firme non verificano e gli eventi
+vengono scartati senza dirlo.
+
+Questo è il valore di `STRIPE_PRICES` da mettere fra le variabili d'ambiente,
+generato dai dati reali dell'account:
+
+```
+{"ordini-mensile":"price_1UBKQgGlajKIILdUKWYC9O8B","ordini-annuale":"price_1UBKQhGlajKIILdU9K2HuvM7","prenotazioni-mensile":"price_1UBLC4GlajKIILdUrycQZjo4","prenotazioni-annuale":"price_1UBLC4GlajKIILdUxIllwjEd","completo-mensile":"price_1UBKQjGlajKIILdUjkKrWC8P","completo-annuale":"price_1UBKQjGlajKIILdUkuZSfQus","setup":"price_1UBKP1GlajKIILdUNJl7eGQ5","setup-prenotazioni":"price_1UBLBsGlajKIILdUlDxDXtn0"}
+```
+
+I moduli che un piano concede stanno nei **metadata del prezzo** (`moduli`),
+letti dal webhook degli abbonamenti: cambiando il listino su Stripe non
+serve toccare il codice, ma un prezzo senza metadata non concede niente.
 
 ---
 
