@@ -56,12 +56,13 @@ export default async function TablePage({
       denomination: string | null;
       origin: string | null;
       abv: string | null;
+      serving_note: string | null;
     }[]
   >`
     select id, category_id, name, description, price_cents, allergens,
            (image_url is not null) as ha_foto,
            dietary_tags, ingredients, pairing_item_id, conservation, origin_note,
-           kind, producer, vintage, denomination, origin, abv
+           kind, producer, vintage, denomination, origin, abv, serving_note
     from menu_items
     where venue_id = ${resolved.venue.id} and available = true
     order by sort_order`;

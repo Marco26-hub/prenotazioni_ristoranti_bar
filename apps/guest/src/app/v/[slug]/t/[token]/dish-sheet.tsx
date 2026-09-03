@@ -40,6 +40,7 @@ export interface DishDetail {
   denomination?: string | null;
   origin?: string | null;
   abv?: string | null;
+  serving_note?: string | null;
 }
 
 const DIETARY_LABEL: Record<string, string> = {
@@ -208,7 +209,7 @@ export function DishSheet({
                 denomination: dish.denomination ?? null,
                 origin: dish.origin ?? null,
                 abv: dish.abv ?? null,
-                serving_note: null,
+                serving_note: dish.serving_note ?? null,
               }) && (
                 <p className="mt-1 text-sm text-muted">
                   {descriviBevanda({
@@ -217,7 +218,7 @@ export function DishSheet({
                     denomination: dish.denomination ?? null,
                     origin: dish.origin ?? null,
                     abv: dish.abv ?? null,
-                    serving_note: null,
+                    serving_note: dish.serving_note ?? null,
                   })}
                 </p>
               )}
