@@ -19,6 +19,8 @@ interface UnpaidItem {
 
 interface BillState {
   balanceCents: number;
+  /** Quanto e gia stato incassato su questa sessione. */
+  paidCents: number;
   currency: string;
   stripeAccountId: string | null;
   satispayEnabled: boolean;
@@ -84,12 +86,20 @@ export function Bill({
     if (!res.ok) return;
     const data = (await res.json()) as BillState & { sessionStatus: string };
     setBill(data);
-    // "Saldato" lo decide il saldo, non il fatto che un pagamento sia
-    // riuscito: pagando solo i propri piatti alla romana, il tavolo deve
-    // ancora il resto. Dichiararlo chiuso su quel telefono faceva credere di
-    // aver pagato tutto, e la ricevuta scaricata era quella dell'intera
-    // sessione.
-    setPaid(data.sessionStatus === "closed" || data.balanceCents <= 0);
+    /*
+     * "Saldato" lo decide il saldo, non il fatto che un pagamento sia
+     * riuscito: pagando solo i propri piatti alla romana, il tavolo deve
+     * ancora il resto, e dichiararlo chiuso su quel telefono faceva credere
+     * di aver pagato tutto — con la ricevuta dell'intera sessione.
+     *
+     * Ma saldo zero da solo non basta: un tavolo che non ha ancora ordinato
+     * ha saldo zero e non ha saldato niente. Serve che ci sia stato qualcosa
+     * da pagare, cioè un conto che era aperto e adesso non lo è più.
+     */
+    setPaid(
+      data.sessionStatus === "closed" ||
+        (data.paidCents > 0 && data.balanceCents <= 0)
+    );
   }, [sessionId]);
 
   useEffect(() => {

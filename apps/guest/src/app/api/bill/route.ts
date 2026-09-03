@@ -35,14 +35,23 @@ export async function GET(request: Request) {
            tips_enabled, tip_percents, google_review_url
     from venues where id = ${session.venue_id}`;
 
-  const [balanceCents, items, extra] = await Promise.all([
+  const [balanceCents, items, extra, incassato] = await Promise.all([
     outstandingBalanceCents(session.id),
     unpaidItems(session.id),
     supplementiCents(session.id),
+    // Quanto e' gia entrato. Senza questo il cliente non puo distinguere un
+    // tavolo saldato da un tavolo che non ha ancora ordinato niente: hanno
+    // entrambi saldo zero.
+    sql<{ tot: string | null }[]>`
+      select sum(amount_cents) as tot from payments
+       where table_session_id = ${session.id} and status = 'succeeded'`,
   ]);
+
+  const paidCents = Number(incassato[0]?.tot ?? 0);
 
   return NextResponse.json({
     balanceCents,
+    paidCents,
     currency: venue?.currency ?? "EUR",
     stripeAccountId: venue?.stripe_account_id ?? null,
     satispayEnabled: Boolean(venue?.satispay_key_id),

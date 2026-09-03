@@ -98,7 +98,9 @@ test("ordine: aggiungi al carrello, invia, il conto si aggiorna", async ({ page 
   await page.getByRole("button", { name: /^Aggiungi / }).first().click();
 
   await expect(page.getByText("articoli")).toBeVisible();
-  await expect(page.getByText("30,00 €")).toBeVisible();
+  // Il riepilogo mostra lo stesso importo piu volte — unitario, riga e
+  // totale — quindi si verifica che ci sia, non che sia unico.
+  await expect(page.getByText("30,00 €").first()).toBeVisible();
 
   await page.getByRole("button", { name: "Ordina" }).click();
   await expect(page.getByText("Ordine inviato in cucina.")).toBeVisible();
