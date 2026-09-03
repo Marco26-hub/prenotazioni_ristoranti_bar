@@ -55,13 +55,17 @@ const COLORE_RIGA: Record<string, string> = {
   served: "border-l-4 border-l-emerald-500 bg-emerald-500/10 opacity-70",
 };
 
-/** Stesso colore per lo stesso stato, qui e sulla pianta della sala. */
-const LEGENDA_RIGA: Array<[string, string]> = [
-  ["pending", "da inviare"],
-  ["sent_to_kitchen", "in coda"],
-  ["preparing", "in cottura"],
-  ["ready", "pronto"],
-  ["served", "portato"],
+/**
+ * Il quadratino della legenda, dichiarato e non ricavato dalla classe della
+ * riga: derivarlo a stringhe lasciava tre voci su cinque senza colore, e una
+ * legenda incompleta è peggio di nessuna legenda.
+ */
+const LEGENDA_RIGA: Array<[string, string, string]> = [
+  ["pending", "da inviare", "bg-zinc-500"],
+  ["sent_to_kitchen", "in coda", "bg-violet-500"],
+  ["preparing", "in cottura", "bg-amber-500"],
+  ["ready", "pronto", "bg-sky-500"],
+  ["served", "portato", "bg-emerald-500"],
 ];
 
 const REPARTI: Record<string, string> = {
@@ -470,11 +474,11 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
       {items.length > 0 && (
         <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
           {LEGENDA_RIGA.filter(([k]) => items.some((i) => i.status === k)).map(
-            ([k, testo]) => (
+            ([k, testo, colore]) => (
               <li key={k} className="flex items-center gap-1.5">
                 <span
                   aria-hidden
-                  className={`inline-block h-3 w-3 rounded-sm ${COLORE_RIGA[k].replace(/border-l-4 |opacity-70/g, "").replace("border-l-", "bg-").split(" ")[0]}`}
+                  className={`inline-block h-3 w-3 shrink-0 rounded-sm ${colore}`}
                 />
                 {testo}
               </li>
