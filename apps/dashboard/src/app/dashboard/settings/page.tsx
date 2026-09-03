@@ -43,6 +43,7 @@ export default async function SettingsPage() {
       resend_from: string | null;
       cover_charge_cents: number;
       service_percent: string;
+      service_vat_rate: string;
       cover_charge_label: string | null;
       soglia_attesa_min: number;
       soglia_liberazione_min: number;
@@ -76,7 +77,8 @@ export default async function SettingsPage() {
            announcement_starts_at, announcement_ends_at, announcement_enabled,
            reservation_email, reservation_capacity, reservation_auto_confirm,
            resend_api_key, resend_from,
-           cover_charge_cents, service_percent, cover_charge_label, public_texts,
+           cover_charge_cents, service_percent, service_vat_rate,
+           cover_charge_label, public_texts,
            soglia_attesa_min, soglia_liberazione_min,
            openrouter_api_key, openrouter_model,
            opening_hours, practical_info, assistant_enabled, brand_color, public_phone, public_email,
@@ -223,6 +225,7 @@ export default async function SettingsPage() {
         <CopertoForm
           copertoCents={venueRow?.cover_charge_cents ?? 0}
           servizio={Number(venueRow?.service_percent ?? 0)}
+          ivaSupplementi={Number(venueRow?.service_vat_rate ?? 10)}
           etichetta={venueRow?.cover_charge_label ?? null}
         />
       </section>

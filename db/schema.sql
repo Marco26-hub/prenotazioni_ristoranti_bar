@@ -76,6 +76,9 @@ create table venues (
   -- insieme ai prezzi (R.D. 635/1940 art. 180), non solo in fondo al conto.
   cover_charge_cents int not null default 0,
   service_percent numeric(4,1) not null default 0,
+  -- Aliquota IVA di coperto e servizio in fattura: la stabilisce il
+  -- commercialista del locale, non il programma.
+  service_vat_rate numeric(4,2) not null default 10.00,
   cover_charge_label text,
   currency text default 'EUR',
   stripe_account_id text,                -- Stripe Connect account: con cui il LOCALE incassa

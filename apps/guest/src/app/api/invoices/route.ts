@@ -6,6 +6,7 @@ import { buildFatturaPaJson, type CustomerData } from "@/lib/invoice/fatturapa";
 import { invoicetronicClient } from "@/lib/invoice/invoicetronic-client";
 import { inviaEmail } from "@repo/shared/email";
 import { messaggioErrore } from "@repo/shared/errori";
+import { supplementiCents } from "@/lib/balance";
 
 interface InvoiceRequestBody {
   sessionId: string;
@@ -105,9 +106,11 @@ export async function POST(request: Request) {
       address_city: string | null;
       address_province: string | null;
       invoice_provider_api_key: string | null;
+      service_vat_rate: string;
     }[]
   >`select name, vat_number, fiscal_code, regime_fiscale, address, address_zip,
-           address_city, address_province, invoice_provider_api_key
+           address_city, address_province, invoice_provider_api_key,
+           service_vat_rate
     from venues where id = ${session.venue_id}`;
 
   if (
@@ -170,6 +173,49 @@ export async function POST(request: Request) {
     invoiceRowId = row.id;
   }
 
+  /*
+   * Coperto e servizio vanno in fattura come tutto il resto.
+   *
+   * Il documento si costruiva dalle sole righe dei piatti, mentre il conto
+   * incassa anche questi: la fattura dichiarava meno di quanto il cliente
+   * aveva pagato, e la differenza non era un arrotondamento — quattro
+   * coperti da due euro con il dieci per cento di servizio su un conto da
+   * cento fanno diciotto euro non dichiarati.
+   *
+   * L'aliquota è quella impostata dal locale, perché non è una decisione che
+   * spetta al programma: il coperto segue di norma l'aliquota della
+   * somministrazione, ma il caso concreto lo stabilisce il commercialista.
+   */
+  const supplementi = await supplementiCents(session.id);
+  const ivaSupplementi = Number(venue.service_vat_rate ?? 10);
+
+  const righeFattura = [
+    ...orderItems.map((i) => ({
+      description: i.name,
+      quantity: i.quantity,
+      unitPriceCents: i.unit_price_cents,
+      vatRate: Number(i.vat_rate),
+    })),
+  ];
+
+  if (supplementi.copertoTotaleCents > 0) {
+    righeFattura.push({
+      description: supplementi.etichettaCoperto,
+      quantity: supplementi.coperti,
+      unitPriceCents: supplementi.copertoUnitarioCents,
+      vatRate: ivaSupplementi,
+    });
+  }
+
+  if (supplementi.servizioCents > 0) {
+    righeFattura.push({
+      description: `Servizio ${supplementi.servizioPercent}%`,
+      quantity: 1,
+      unitPriceCents: supplementi.servizioCents,
+      vatRate: ivaSupplementi,
+    });
+  }
+
   const invoiceJson = buildFatturaPaJson({
     venue: {
       name: venue.name,
@@ -182,12 +228,7 @@ export async function POST(request: Request) {
       addressProvince: venue.address_province,
     },
     customer: body.customer,
-    lines: orderItems.map((i) => ({
-      description: i.name,
-      quantity: i.quantity,
-      unitPriceCents: i.unit_price_cents,
-      vatRate: Number(i.vat_rate),
-    })),
+    lines: righeFattura,
     invoiceNumber,
     invoiceDate: new Date(),
   });

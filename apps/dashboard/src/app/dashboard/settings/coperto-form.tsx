@@ -8,10 +8,12 @@ const CAMPO = "min-h-11 w-full rounded-lg border border-border bg-background px-
 export function CopertoForm({
   copertoCents,
   servizio,
+  ivaSupplementi,
   etichetta,
 }: {
   copertoCents: number;
   servizio: number;
+  ivaSupplementi: number;
   etichetta: string | null;
 }) {
   const [state, formAction, pending] = useActionState<EsitoCoperto | null, FormData>(
@@ -52,6 +54,27 @@ export function CopertoForm({
             className={CAMPO}
           />
         </div>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-sm" htmlFor="ivaSupplementi">
+          IVA su coperto e servizio (%)
+        </label>
+        <input
+          id="ivaSupplementi"
+          name="ivaSupplementi"
+          type="number"
+          step="0.01"
+          min="0"
+          max="30"
+          defaultValue={ivaSupplementi}
+          className={CAMPO}
+        />
+        <p className="mt-1 text-xs text-muted">
+          Vale solo in fattura elettronica. Di norma è l&apos;aliquota della
+          somministrazione, ma chiedilo al tuo commercialista: qui il
+          programma non decide al posto suo.
+        </p>
       </div>
 
       <div>

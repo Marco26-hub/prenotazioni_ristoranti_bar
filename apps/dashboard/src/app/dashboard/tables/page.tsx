@@ -34,7 +34,36 @@ export default async function TablesPage() {
     { id: string; code: string; seats: number; qr_token: string; active: boolean }[]
   >`select id, code, seats, qr_token, active from tables where venue_id = ${venue.venueId} order by code`;
 
-  const guestAppUrl = process.env.GUEST_APP_URL ?? "http://localhost:3010";
+  /*
+   * L'indirizzo dell'app cliente non si indovina.
+   *
+   * Qui si generano i QR che il locale manda in tipografia. Un ripiego su
+   * localhost produceva cavalierini stampati e messi sui tavoli che nessun
+   * telefono può aprire: la spesa è già fatta e il difetto si scopre dal
+   * primo cliente che inquadra. In sviluppo localhost è giusto; in
+   * produzione, senza la variabile, la pagina lo dice e non stampa nulla.
+   */
+  const guestAppUrl =
+    process.env.GUEST_APP_URL ??
+    (process.env.NODE_ENV === "production" ? null : "http://localhost:3010");
+
+  if (!guestAppUrl) {
+    return (
+      <main className="mx-auto max-w-4xl p-4">
+        <h1 className="text-xl font-semibold">QR e tavoli</h1>
+        <p
+          role="alert"
+          className="mt-3 rounded-lg border border-danger bg-danger/10 p-3 text-sm text-danger"
+        >
+          Manca l&apos;indirizzo dell&apos;app cliente (GUEST_APP_URL), quindi i
+          QR non si possono generare: stamparli adesso vorrebbe dire mettere
+          sui tavoli codici che non aprono niente. Scrivi a chi gestisce la
+          piattaforma prima di mandare qualcosa in tipografia.
+        </p>
+      </main>
+    );
+  }
+
 
   const tablesWithQr = await Promise.all(
     tables.map(async (t) => {

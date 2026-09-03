@@ -36,14 +36,43 @@ export async function GET(request: Request) {
   );
 
   if (status.status === "ACCEPTED") {
+    /*
+     * Si promuove solo una riga ancora in attesa.
+     *
+     * Senza `status = 'pending'` questa update riportava a 'succeeded'
+     * qualsiasi riga, compresa una già archiviata come fallita: il conto
+     * poteva nel frattempo essere stato saldato da un altro commensale, e il
+     * secondo incasso rientrava in silenzio in una riga che nessuno stava più
+     * guardando. Una consegna ripetuta dello stesso webhook — Satispay le fa,
+     * ed è normale — non deve produrre nulla la seconda volta.
+     */
     const [payment] = await sql<{ id: string; table_session_id: string | null }[]>`
       update payments set status = 'succeeded'
-      where provider_payment_id = ${paymentId}
+      where provider_payment_id = ${paymentId} and status = 'pending'
       returning id, table_session_id`;
 
     if (!payment) {
-      console.error(`[satispay-webhook] pagamento accettato senza riga corrispondente: ${paymentId}`);
-      return NextResponse.json({ error: "Payment record not found" }, { status: 500 });
+      const [esistente] = await sql<{ id: string; status: string }[]>`
+        select id, status from payments where provider_payment_id = ${paymentId}`;
+
+      if (!esistente) {
+        console.error(
+          `[satispay-webhook] pagamento accettato senza riga corrispondente: ${paymentId}`
+        );
+        return NextResponse.json({ error: "Payment record not found" }, { status: 500 });
+      }
+
+      if (esistente.status === "failed") {
+        // Incassato da Satispay su una riga che avevamo archiviato: il conto
+        // può essere già stato saldato altrimenti. Va guardato da una persona.
+        console.error(
+          `[satispay-webhook] incasso su riga già archiviata ${esistente.id}: possibile doppio addebito da rimborsare`
+        );
+      }
+
+      // Consegna ripetuta o riga già a posto: nulla da fare, e va risposto 200
+      // o Satispay continua a riprovare.
+      return NextResponse.json({ received: true });
     }
 
     if (payment.table_session_id) {

@@ -111,10 +111,18 @@ export async function POST(request: Request) {
    * l'annullamento non riesce la riga resta com'è e ci si riprova al giro
    * dopo: uno slot occupato qualche minuto in più è un fastidio, un doppio
    * addebito invisibile no.
+   *
+   * Solo le righe Stripe. Senza il filtro sul fornitore questo endpoint
+   * scadeva anche i pagamenti Satispay, che qui non si sanno annullare: la
+   * riga finiva 'failed' con il pagamento ancora aperto sull'app del
+   * cliente, che poteva pagarlo dieci minuti dopo su un conto nel frattempo
+   * saldato da qualcun altro. Chi apre un pagamento Satispay passa dal suo
+   * endpoint, ed è quello che sa interrogare Satispay prima di archiviare.
    */
   const daScadere = await sql<{ id: string; provider_payment_id: string | null }[]>`
     select id, provider_payment_id from payments
      where table_session_id = ${session.id} and status = 'pending'
+       and provider = 'stripe'
        and created_at < now() - interval '10 minutes'`;
 
   for (const p of daScadere) {

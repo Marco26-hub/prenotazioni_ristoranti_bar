@@ -30,12 +30,22 @@ export async function salvaCoperto(formData: FormData): Promise<EsitoCoperto> {
     return { error: "Servizio non valido (0-30%)" };
   }
 
+  // Aliquota di coperto e servizio in fattura elettronica. Sta qui e non nel
+  // codice perché non è una decisione nostra: il coperto segue di norma
+  // l'aliquota della somministrazione, ma il caso concreto lo stabilisce il
+  // commercialista del locale, e un valore fisso non si potrebbe correggere.
+  const ivaSupplementi = Number.parseFloat(String(formData.get("ivaSupplementi") ?? "10"));
+  if (!Number.isFinite(ivaSupplementi) || ivaSupplementi < 0 || ivaSupplementi > 30) {
+    return { error: "Aliquota di coperto e servizio non valida (0-30%)" };
+  }
+
   const sql = db();
   await sql`
     update venues set
       cover_charge_cents = ${Math.round(copertoEuro * 100)},
       service_percent = ${servizio},
-      cover_charge_label = ${etichetta}
+      cover_charge_label = ${etichetta},
+      service_vat_rate = ${ivaSupplementi}
     where id = ${venue.venueId}`;
 
   revalidatePath("/dashboard/settings");
