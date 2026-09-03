@@ -90,7 +90,7 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
     <div className="dashboard-shell flex min-h-full flex-col">
       <a href="#main-content" className="dashboard-skip-link">Vai al contenuto</a>
       <header className="sticky top-0 z-10 border-b border-border backdrop-blur">
-        <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-3">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3">
           <div className="min-w-0">
             <p className="truncate font-semibold leading-tight">
               {venue?.venueName ?? "Gestionale"}

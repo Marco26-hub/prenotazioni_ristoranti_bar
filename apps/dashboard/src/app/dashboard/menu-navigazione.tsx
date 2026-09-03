@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -17,8 +17,15 @@ export interface VoceNav {
  * Impostazioni. Un elenco che si apre mostra tutto in una volta, e segna
  * dove ci si trova — cosa che una barra che scorre non faceva.
  *
- * Da tablet in su resta la barra: c'è spazio per tutte le voci e un tocco in
- * meno vale più di un menu.
+ * La barra torna da schermo largo, dove le voci ci stanno davvero. Sotto,
+ * l'elenco a scomparsa: con dodici voci una barra che scorre nasconde metà
+ * gestionale dietro un gesto che nessuno sa di poter fare — e chi non lo sa
+ * non trova Impostazioni.
+ *
+ * Quando anche da larga la barra non basta, si vede che continua: le voci
+ * ai bordi sfumano invece di essere tagliate di netto, e quella su cui ci
+ * si trova viene portata in vista da sola. Una barra che scorre senza
+ * dirlo è la ragione per cui questa nasconde le voci in fondo.
  */
 export function MenuNavigazione({ voci }: { voci: VoceNav[] }) {
   const percorso = usePathname();
@@ -47,12 +54,25 @@ export function MenuNavigazione({ voci }: { voci: VoceNav[] }) {
   const attiva = (href: string) =>
     href === "/dashboard" ? percorso === href : percorso.startsWith(href);
 
+  /*
+   * La voce corrente si porta in vista da sola.
+   *
+   * Con la barra più larga dello schermo, arrivare su una pagina in fondo
+   * all'elenco la lasciava fuori campo: si vedeva una barra che non
+   * evidenziava niente, e sembrava che nessuna voce fosse attiva.
+   */
+  const barra = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const corrente = barra.current?.querySelector('[aria-current="page"]');
+    corrente?.scrollIntoView({ block: "nearest", inline: "center" });
+  }, [percorso]);
+
   const corrente = voci.find((v) => attiva(v.href))?.label ?? "Menu";
 
   return (
     <>
       {/* --- Telefono: un bottone che apre tutto ------------------------ */}
-      <div className="px-4 pb-2 sm:hidden">
+      <div className="px-4 pb-2 lg:hidden">
         <button
           type="button"
           onClick={() => setAperto((v) => !v)}
@@ -94,18 +114,23 @@ export function MenuNavigazione({ voci }: { voci: VoceNav[] }) {
         )}
       </div>
 
-      {/* --- Tablet e desktop: la barra di sempre ----------------------- */}
+      {/* --- Schermo largo: la barra di sempre --------------------------- */}
       {/* Una riga sola: andando a capo la seconda riga resta mezza vuota e
-          la testata sembra rotta. Se le voci non ci stanno la barra scorre,
-          ma su telefono c'è il menu qui sopra e non serve trascinarla. */}
-      <nav className="mx-auto hidden max-w-4xl overflow-x-auto px-4 pb-2 sm:block">
-        <ul className="flex gap-1">
+          la testata sembra rotta. Le sfumature ai lati dicono che continua,
+          e il contenuto sotto resta a max-w-4xl: è la barra che ha bisogno
+          di più spazio, non il testo che si legge. */}
+      <nav
+        ref={barra}
+        aria-label="Sezioni del gestionale"
+        className="mx-auto hidden max-w-7xl overflow-x-auto px-4 pb-2 [mask-image:linear-gradient(to_right,transparent,black_1.5rem,black_calc(100%-1.5rem),transparent)] lg:block"
+      >
+        <ul className="flex gap-0.5">
           {voci.map((v) => (
             <li key={v.href}>
               <Link
                 href={v.href}
                 aria-current={attiva(v.href) ? "page" : undefined}
-                className={`flex min-h-11 items-center whitespace-nowrap rounded-full px-3 text-sm hover:bg-background hover:text-foreground ${
+                className={`flex min-h-11 items-center whitespace-nowrap rounded-full px-2.5 text-sm hover:bg-background hover:text-foreground ${
                   attiva(v.href) ? "bg-background font-medium text-foreground" : "text-muted"
                 }`}
               >
