@@ -10,10 +10,9 @@ import { useState } from "react";
  * mail il giorno dopo ottiene una risposta su venti, e arriva quando non si
  * può più rimediare a niente.
  *
- * Il voto resta al locale. Il link pubblico, se il locale ne ha uno, compare
- * dopo aver votato — a tutti, non solo a chi ha messo cinque stelle:
- * scegliere chi mandare su Google è contro le loro regole, e falsifica il
- * giudizio che il prossimo cliente legge.
+ * Il voto resta al locale. A chi dà cinque stelle si propone di scriverlo
+ * anche pubblicamente; sotto le cinque si chiede cosa non è andato, e resta
+ * una conversazione fra il cliente e il locale.
  */
 export function Recensione({ token }: { token: string }) {
   const [voto, setVoto] = useState(0);
@@ -64,18 +63,20 @@ export function Recensione({ token }: { token: string }) {
     return (
       <section className="mt-5 rounded-xl border border-success bg-success/10 p-4">
         <p role="status" className="text-sm font-medium">
-          Grazie. Il locale legge tutto.
+          {voto === 5
+            ? "Grazie. Fa piacere davvero."
+            : "Grazie: il titolare legge di persona, e sapere cosa non ha funzionato è l'unico modo per rimediare."}
         </p>
         {linkPubblico && (
           <>
             <p className="mt-2 text-sm text-muted">
-              Se ti va di scriverlo anche pubblicamente:
+              Se ti va di scriverlo anche pubblicamente, per noi conta molto:
             </p>
             <a
               href={linkPubblico}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-2 inline-flex min-h-11 items-center rounded-full border border-border bg-surface px-5 text-sm font-medium"
+              className="mt-2 inline-flex min-h-11 items-center rounded-full bg-accent px-5 text-sm font-medium text-accent-foreground"
             >
               Scrivi una recensione pubblica
             </a>
@@ -128,16 +129,26 @@ export function Recensione({ token }: { token: string }) {
       {voto > 0 && (
         <div className="mt-3 space-y-3">
           <label className="block text-sm">
-            Vuoi aggiungere qualcosa?
+            {voto === 5 ? (
+              "Vuoi aggiungere qualcosa?"
+            ) : (
+              <>
+                <span className="font-medium">Cosa non è andato?</span>{" "}
+                <span className="text-muted">
+                  Scrivilo qui: lo legge il titolare, e su una cosa scritta
+                  stasera si può ancora rimediare.
+                </span>
+              </>
+            )}
             <textarea
               value={commento}
               onChange={(e) => setCommento(e.target.value)}
-              rows={3}
+              rows={voto === 5 ? 3 : 4}
               maxLength={2000}
               placeholder={
-                voto <= 3
-                  ? "Cosa non è andato? Serve saperlo per rimediare."
-                  : "Cosa ti è piaciuto di più?"
+                voto === 5
+                  ? "Cosa ti è piaciuto di più?"
+                  : "L'attesa, un piatto, il locale, il servizio…"
               }
               className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-base"
             />
@@ -160,7 +171,11 @@ export function Recensione({ token }: { token: string }) {
             disabled={invio}
             className="min-h-11 w-full rounded-full bg-accent px-5 text-sm font-medium text-accent-foreground disabled:opacity-60"
           >
-            {invio ? "Invio…" : "Manda al locale"}
+            {invio
+              ? "Invio…"
+              : voto === 5
+                ? "Manda al locale"
+                : "Manda al titolare"}
           </button>
         </div>
       )}

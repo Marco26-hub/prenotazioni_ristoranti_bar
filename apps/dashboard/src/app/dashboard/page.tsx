@@ -61,27 +61,36 @@ export default async function DashboardPage() {
 
   const sql = db();
 
-  const tables = await sql<RigaTavolo[]>`
+  /*
+   * Le quattro letture partono insieme, non in fila.
+   *
+   * Nessuna dipende dal risultato di un'altra: aspettarle una per volta
+   * significava sommare quattro andate e ritorno verso il database prima di
+   * disegnare la sala, ed è la pagina che il titolare tiene aperta tutta la
+   * sera e ricarica di continuo.
+   */
+  const [tables, [locale], sessioni, comande] = await Promise.all([
+    sql<RigaTavolo[]>`
     select id, code, seats, shape, zone, pos_x, pos_y from tables
      where venue_id = ${venue.venueId} and active = true
-     order by code`;
+     order by code`,
 
-  const [locale] = await sql<
-    {
-      floor_plan_url: string | null;
-      floor_plan_opacity: number;
-      openrouter_api_key: string | null;
-      soglia_attesa_min: number;
-      soglia_liberazione_min: number;
-    }[]
-  >`select floor_plan_url, floor_plan_opacity, openrouter_api_key,
-           soglia_attesa_min, soglia_liberazione_min
-      from venues where id = ${venue.venueId}`;
+    sql<
+      {
+        floor_plan_url: string | null;
+        floor_plan_opacity: number;
+        openrouter_api_key: string | null;
+        soglia_attesa_min: number;
+        soglia_liberazione_min: number;
+      }[]
+    >`select floor_plan_url, floor_plan_opacity, openrouter_api_key,
+             soglia_attesa_min, soglia_liberazione_min
+        from venues where id = ${venue.venueId}`,
 
   // Ordinato e pagato in due sottoquery invece che con due join: incrociarli
   // nella stessa join moltiplicherebbe le righe dei pagamenti per quelle
   // delle comande, gonfiando entrambi i totali.
-  const sessioni = await sql<RigaSessione[]>`
+    sql<RigaSessione[]>`
     select ts.table_id, ts.id as session_id, ts.opened_at, ts.guest_count,
            (select sum(oi.quantity * oi.unit_price_cents)
               from order_items oi
@@ -95,9 +104,9 @@ export default async function DashboardPage() {
            (select max(p.created_at) from payments p
              where p.table_session_id = ts.id and p.status = 'succeeded') as ultimo_pagamento
       from table_sessions ts
-     where ts.venue_id = ${venue.venueId} and ts.status = 'open'`;
+     where ts.venue_id = ${venue.venueId} and ts.status = 'open'`,
 
-  const comande = await sql<RigaComanda[]>`
+    sql<RigaComanda[]>`
     select o.table_session_id, oi.id as item_id, mi.name as nome,
            oi.quantity as quantita,
            -- Il prezzo bloccato alla comanda, non quello del menu di oggi:
@@ -113,7 +122,8 @@ export default async function DashboardPage() {
       join table_sessions ts on ts.id = o.table_session_id
      where ts.venue_id = ${venue.venueId} and ts.status = 'open'
        and o.status != 'cancelled' and oi.status != 'cancelled'
-     order by o.created_at, mi.name`;
+     order by o.created_at, mi.name`,
+  ]);
 
   const righePerSessione = new Map<string, RigaOrdine[]>();
   for (const c of comande) {

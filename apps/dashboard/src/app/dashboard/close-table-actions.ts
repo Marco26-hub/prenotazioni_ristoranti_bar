@@ -127,6 +127,14 @@ export async function closeTableInPerson(
        where table_session_id = ${session.id} and handled_at is null`;
   });
 
-  revalidatePath("/dashboard");
+  /*
+   * Si ricarica solo se qualcosa è cambiato.
+   *
+   * Sul rifiuto la revalidate rimontava la sala e cancellava l'avviso appena
+   * mostrato: il cameriere vedeva la pagina sfarfallare, nessun messaggio, e
+   * il tavolo ancora aperto — cioè esattamente la situazione in cui si
+   * riprova, che è quello che il rifiuto serviva a evitare.
+   */
+  if (!esito.error) revalidatePath("/dashboard");
   return esito.error || esito.ok ? esito : { ok: "Conto chiuso." };
 }

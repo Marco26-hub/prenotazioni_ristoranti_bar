@@ -9,10 +9,15 @@ import { checkRateLimit, clientKey } from "@repo/shared/rate-limit";
  * e il menu è già aperto. Una mail il giorno dopo ottiene una risposta su
  * venti, e arriva quando non si può più rimediare a niente.
  *
- * Il voto resta al locale. Il link pubblico, se il locale ne ha impostato
- * uno, viene restituito a chiunque abbia votato — non solo a chi ha messo
- * cinque stelle: filtrare chi mandare su Google è contro le loro regole e,
- * a parte quello, falsifica il giudizio che il prossimo cliente legge.
+ * Il voto resta al locale. Il link pubblico viene proposto a chi ha dato
+ * cinque stelle; sotto le cinque si chiede invece cosa non è andato, e la
+ * risposta resta al ristoratore.
+ *
+ * Scelta del committente, presa sapendo il rischio: proporre la recensione
+ * pubblica solo a chi è contento è contrario alle norme di Google, che può
+ * rimuovere le recensioni raccolte così e, nei casi peggiori, la scheda del
+ * locale. Sta qui scritto perché chi legge questo file fra un anno non lo
+ * prenda per una svista e non lo "sistemi" senza chiedere.
  */
 
 interface Corpo {
@@ -91,7 +96,7 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     ok: true,
-    // Restituito a chiunque abbia votato, qualunque sia il voto.
-    linkPubblico: sessione.google_review_url,
+    // Solo con il massimo: sotto, al cliente si chiede cosa non è andato.
+    linkPubblico: voto === 5 ? sessione.google_review_url : null,
   });
 }
