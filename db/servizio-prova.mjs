@@ -36,6 +36,7 @@ if (!venue) {
 /* ------------------------------------------------------------------ */
 
 async function pulisci() {
+  // Aperte e chiuse: lo storico creato per le analisi va via con il resto.
   const sessioni = await sql`
     select distinct ts.id
       from table_sessions ts
@@ -211,6 +212,73 @@ for (let i = 0; i < Math.min(SCENA.length, tavoli.length); i++) {
     `  ${t.code}: ${s.coperti} coperti · ${(totale / 100).toFixed(2)} € · ${s.note}`
   );
 }
+
+/* --- Servizi già chiusi, per le analisi ------------------------------ */
+
+/**
+ * Le analisi misurano i servizi chiusi: permanenza, spesa per coperto e
+ * rotazione non esistono finché il tavolo è aperto. Senza uno storico la
+ * pagina resta muta, e sotto i venti tavoli chiusi si rifiuta pure di
+ * disegnare la fascia oraria — giustamente, perché mostrerebbe il caso.
+ */
+const ORE_SERVIZIO = [12, 12, 13, 13, 13, 14, 19, 19, 20, 20, 20, 21, 21, 22];
+
+let chiusi = 0;
+for (let giorno = 1; giorno <= 7; giorno++) {
+  // Il fine settimana pesa di più: un locale che lavora uguale tutti i
+  // giorni non esiste, e i grafici piatti non insegnano niente.
+  const data = new Date();
+  data.setDate(data.getDate() - giorno);
+  const feriale = data.getDay() >= 1 && data.getDay() <= 4;
+  const quanti = feriale ? 3 : 6;
+
+  for (let n = 0; n < quanti; n++) {
+    const t = tavoli[(giorno * 3 + n) % tavoli.length];
+    const ora = ORE_SERVIZIO[(giorno * 5 + n * 3) % ORE_SERVIZIO.length];
+    const coperti = 2 + ((giorno + n) % 4);
+    const durata = 55 + ((giorno * 7 + n * 11) % 70);
+
+    const apertura = new Date(data);
+    apertura.setHours(ora, (n * 17) % 60, 0, 0);
+    const chiusura = new Date(apertura.getTime() + durata * 60_000);
+
+    const [ses] = await sql`
+      insert into table_sessions (table_id, venue_id, status, guest_count,
+                                  opened_at, closed_at)
+      values (${t.id}, ${venue.id}, 'closed', ${coperti}, ${apertura}, ${chiusura})
+      returning id`;
+
+    const [ord] = await sql`
+      insert into orders (venue_id, table_session_id, status, notes, created_at)
+      values (${venue.id}, ${ses.id}, 'served', ${`${MARCA} servizio chiuso`}, ${apertura})
+      returning id`;
+
+    // Da uno a tre piatti a testa, presi dal menu vero: così "cosa vende"
+    // mostra una classifica plausibile invece di sempre lo stesso piatto.
+    let totale = 0;
+    const quantiPiatti = coperti + ((giorno + n) % 3);
+    for (let k = 0; k < quantiPiatti; k++) {
+      const p = piatti[(giorno * 13 + n * 7 + k * 3) % piatti.length];
+      totale += p.price_cents;
+      await sql`
+        insert into order_items (order_id, menu_item_id, quantity,
+                                 unit_price_cents, status)
+        values (${ord.id}, ${p.id}, 1, ${p.price_cents}, 'served')`;
+    }
+
+    const metodo = ["card", "card", "card", "satispay", "cash"][(giorno + n) % 5];
+    await sql`
+      insert into payments (venue_id, table_session_id, amount_cents, method,
+                            provider, split_type, status, created_at)
+      values (${venue.id}, ${ses.id}, ${totale}, ${metodo},
+              ${metodo === "cash" ? "manual" : metodo === "satispay" ? "satispay" : "stripe"},
+              'full', 'succeeded', ${chiusura})`;
+
+    chiusi++;
+  }
+}
+
+console.log(`  ${chiusi} servizi chiusi negli ultimi 7 giorni`);
 
 /* --- Prenotazioni della serata ------------------------------------- */
 
