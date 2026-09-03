@@ -19,7 +19,9 @@ create table users (
   email text unique not null,
   password_hash text not null,
   name text,
-  created_at timestamptz default now()
+  created_at timestamptz default now(),
+  is_super_admin boolean default false not null,
+  must_change_password boolean default false not null
 );
 
 -- ------------------------------------------------------------
@@ -129,8 +131,59 @@ create table venues (
   -- Minuti dal saldo dopo cui il tavolo va recuperato; 0 spegne l'avviso.
   soglia_liberazione_min smallint default 15 not null,
   -- Ore dopo cui una sessione tavolo lasciata aperta scade; 0 = mai.
-  sessione_max_ore smallint default 6 not null
+  sessione_max_ore smallint default 6 not null,
+  referente_nome text,
+  referente_telefono text,
+  referente_email text,
+  provenienza text,
+  ricontattare_il date,
+  motivo_abbandono text
 );
+
+-- Lato piattaforma: chi vende il servizio, non chi gestisce un locale.
+create table platform_events (
+  id uuid primary key default gen_random_uuid(),
+  venue_id uuid references venues(id) on delete cascade,
+  admin_id uuid references users(id) on delete set null,
+  admin_label text not null,
+  azione text not null,
+  dettaglio text,
+  created_at timestamptz not null default now()
+);
+create index idx_platform_events_venue on platform_events (venue_id, created_at desc);
+
+-- Note sul cliente: non modificabili, perche una cronologia riscrivibile non
+-- e una cronologia.
+create table venue_notes (
+  id uuid primary key default gen_random_uuid(),
+  venue_id uuid references venues(id) on delete cascade not null,
+  autore_id uuid references users(id) on delete set null,
+  autore_label text not null,
+  testo text not null,
+  created_at timestamptz not null default now()
+);
+create index idx_venue_notes on venue_notes (venue_id, created_at desc);
+create index idx_venues_ricontattare on venues (ricontattare_il) where ricontattare_il is not null;
+
+-- Richieste di assistenza dai locali: su WhatsApp vivono nel telefono di chi
+-- le riceve e non si possono contare ne riprendere.
+create table support_tickets (
+  id uuid primary key default gen_random_uuid(),
+  venue_id uuid references venues(id) on delete cascade not null,
+  aperto_da uuid references users(id) on delete set null,
+  aperto_da_label text not null,
+  oggetto text not null,
+  messaggio text not null,
+  urgenza text not null default 'normale' check (urgenza in ('normale','blocca_servizio')),
+  stato text not null default 'aperto' check (stato in ('aperto','in_corso','risolto')),
+  risposta text,
+  gestito_da uuid references users(id) on delete set null,
+  gestito_da_label text,
+  created_at timestamptz not null default now(),
+  risolto_at timestamptz
+);
+create index idx_ticket_aperti on support_tickets (stato, created_at desc);
+create index idx_ticket_venue on support_tickets (venue_id, created_at desc);
 
 create table venue_staff (
   id uuid primary key default gen_random_uuid(),

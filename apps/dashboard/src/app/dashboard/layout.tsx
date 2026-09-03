@@ -29,9 +29,17 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
    */
   if (session?.user.id) {
     const sqlAdmin = db();
-    const [chi] = await sqlAdmin<{ is_super_admin: boolean }[]>`
-      select is_super_admin from users where id = ${session.user.id}`;
+    const [chi] = await sqlAdmin<
+      { is_super_admin: boolean; must_change_password: boolean }[]
+    >`select is_super_admin, must_change_password
+        from users where id = ${session.user.id}`;
+
     if (chi?.is_super_admin) redirect("/admin");
+
+    // Vale per chiunque, non solo per il super amministratore: la password
+    // che il titolare ha ricevuto al telefono è stata detta a voce, quindi
+    // vale per un accesso solo.
+    if (chi?.must_change_password) redirect("/cambia-password");
   }
   const venue = session?.venues[0];
 

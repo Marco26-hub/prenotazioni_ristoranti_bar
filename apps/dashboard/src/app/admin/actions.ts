@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
+import { randomBytes } from "node:crypto";
 import { db } from "@repo/shared/db";
 import { requireSuperAdmin } from "@/lib/authz";
 import { type Modulo } from "@repo/shared";
@@ -208,4 +209,82 @@ export async function rispondiTicket(
   if (!t) return { error: "Richiesta non trovata" };
   revalidatePath("/admin");
   return { ok: stato === "risolto" ? "Segnata risolta." : "Risposta salvata." };
+}
+
+/**
+ * Crea il titolare di un locale dal pannello.
+ *
+ * Vendere un servizio e poi chiedere al cliente di registrarsi da solo
+ * significa perderne una parte al primo modulo. Qui l'account lo si crea
+ * mentre si è al telefono con lui, e gli si dà la password a voce.
+ *
+ * La password iniziale la generiamo noi e la si vede una volta sola: una
+ * password scelta da chi la deve comunicare finisce per essere "1234567" su
+ * tutti i clienti. Vale per un accesso, poi il titolare deve cambiarla.
+ */
+export async function creaTitolare(
+  venueId: string,
+  nome: string,
+  email: string
+): Promise<{ ok?: string; error?: string; password?: string }> {
+  const admin = await requireSuperAdmin();
+
+  const mail = String(email ?? "").trim().toLowerCase();
+  const chi = String(nome ?? "").trim();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)) return { error: "Email non valida" };
+  if (!chi) return { error: "Serve il nome del referente" };
+
+  const sql = db();
+  const [locale] = await sql<{ name: string }[]>`
+    select name from venues where id = ${venueId}`;
+  if (!locale) return { error: "Locale non trovato" };
+
+  const [esistente] = await sql<{ id: string }[]>`
+    select id from users where email = ${mail}`;
+  if (esistente) {
+    // Un account c'è già: lo si collega, non si sovrascrive la sua password.
+    const [gia] = await sql<{ id: string }[]>`
+      select id from venue_staff
+       where venue_id = ${venueId} and user_id = ${esistente.id}`;
+    if (gia) return { error: "Questa persona è già nel locale" };
+
+    await sql`
+      insert into venue_staff (venue_id, user_id, role)
+      values (${venueId}, ${esistente.id}, 'owner')`;
+    await sql`
+      insert into platform_events (venue_id, admin_id, admin_label, azione, dettaglio)
+      values (${venueId}, ${admin.userId}, ${admin.email}, 'titolare collegato', ${mail})`;
+    revalidatePath("/admin");
+    return { ok: `${mail} è ora titolare di ${locale.name}. Usa la password che ha già.` };
+  }
+
+  // Password iniziale generata: leggibile a voce, ma non indovinabile.
+  const alfabeto = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const bytes = randomBytes(10);
+  const password =
+    Array.from(bytes.slice(0, 4), (b) => alfabeto[b % alfabeto.length]).join("") +
+    "-" +
+    Array.from(bytes.slice(4, 8), (b) => alfabeto[b % alfabeto.length]).join("") +
+    "-" +
+    Array.from(bytes.slice(8), (b) => alfabeto[b % alfabeto.length]).join("");
+
+  const [u] = await sql<{ id: string }[]>`
+    insert into users (email, password_hash, name, must_change_password)
+    values (${mail}, ${bcrypt.hashSync(password, 10)}, ${chi.slice(0, 80)}, true)
+    returning id`;
+
+  await sql`
+    insert into venue_staff (venue_id, user_id, role)
+    values (${venueId}, ${u.id}, 'owner')`;
+
+  await sql`
+    insert into platform_events (venue_id, admin_id, admin_label, azione, dettaglio)
+    values (${venueId}, ${admin.userId}, ${admin.email}, 'titolare creato', ${mail})`;
+
+  revalidatePath("/admin");
+  return {
+    ok: `Titolare creato per ${locale.name}.`,
+    // Mostrata una volta sola: non la salviamo in chiaro da nessuna parte.
+    password,
+  };
 }

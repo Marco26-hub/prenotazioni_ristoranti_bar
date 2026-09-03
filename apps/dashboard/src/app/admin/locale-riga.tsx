@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { impostaModuli, impostaAbbonamento } from "./actions";
+import { impostaModuli, impostaAbbonamento, creaTitolare } from "./actions";
 
 export interface LocaleAdmin {
   id: string;
@@ -40,6 +40,10 @@ export function LocaleRiga({ locale }: { locale: LocaleAdmin }) {
   const [giorni, setGiorni] = useState(30);
   const [nota, setNota] = useState("");
   const [avviso, setAvviso] = useState<string | null>(null);
+  const [nomeTitolare, setNomeTitolare] = useState("");
+  const [mailTitolare, setMailTitolare] = useState("");
+  // Mostrata una volta sola: non è salvata in chiaro da nessuna parte.
+  const [passwordUnaVolta, setPasswordUnaVolta] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
   const residui = locale.giorniResidui;
@@ -191,6 +195,67 @@ export function LocaleRiga({ locale }: { locale: LocaleAdmin }) {
               {avviso}
             </p>
           )}
+
+          <div className="border-t border-border pt-4">
+            <p className="text-sm font-medium">Titolare</p>
+            <p className="mt-0.5 text-xs text-muted">
+              Crea l&apos;accesso mentre sei al telefono con lui: chiedergli di
+              registrarsi da solo ne fa perdere una parte al primo modulo. La
+              password iniziale la generiamo noi e si vede una volta sola.
+            </p>
+            <div className="mt-2 flex flex-wrap items-end gap-2">
+              <label className="text-xs font-medium text-muted">
+                Nome
+                <input
+                  value={nomeTitolare}
+                  onChange={(e) => setNomeTitolare(e.target.value)}
+                  placeholder="Luca Rossi"
+                  className={`${CAMPO} mt-1 block w-40`}
+                />
+              </label>
+              <label className="min-w-48 flex-1 text-xs font-medium text-muted">
+                Email
+                <input
+                  type="email"
+                  value={mailTitolare}
+                  onChange={(e) => setMailTitolare(e.target.value)}
+                  placeholder="luca@trattoria.it"
+                  className={`${CAMPO} mt-1 block w-full`}
+                />
+              </label>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() =>
+                  start(async () => {
+                    const r = await creaTitolare(locale.id, nomeTitolare, mailTitolare);
+                    setAvviso(r.error ?? r.ok ?? null);
+                    setPasswordUnaVolta(r.password ?? null);
+                    if (!r.error) {
+                      setNomeTitolare("");
+                      setMailTitolare("");
+                    }
+                  })
+                }
+                className="min-h-11 rounded-full border border-accent px-4 text-sm font-medium disabled:opacity-60"
+              >
+                Crea accesso
+              </button>
+            </div>
+
+            {passwordUnaVolta && (
+              <p className="mt-2 rounded-lg border border-accent bg-accent/10 p-3 text-sm">
+                Password iniziale, <strong>scrivila adesso</strong> — non
+                ricompare:{" "}
+                <code className="rounded bg-background px-2 py-0.5 text-base font-semibold tracking-wider">
+                  {passwordUnaVolta}
+                </code>
+                <span className="mt-1 block text-xs text-muted">
+                  Al primo accesso gli verrà chiesto di cambiarla.
+                </span>
+              </p>
+            )}
+          </div>
 
           {locale.interventi.length > 0 && (
             <div>
