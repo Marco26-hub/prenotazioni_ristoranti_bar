@@ -150,6 +150,9 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
   const [erroreVocale, setErroreVocale] = useState<string | null>(null);
   const [soloMiei, setSoloMiei] = useState(true);
   const [negato, setNegato] = useState<string | null>(null);
+  // L'ultimo tentativo di aggiornamento non è riuscito: quello che si vede
+  // a schermo non arriva più dal server.
+  const [scollegato, setScollegato] = useState(false);
   const [soglia, setSoglia] = useState(SOGLIA_PREDEFINITA);
   // Letto dal dispositivo, non dallo stato: il server non sa cosa c'è nel
   // localStorage e leggerlo durante il render darebbe due HTML diversi. Con
@@ -185,10 +188,25 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
   );
 
   const carica = useCallback(async () => {
-    const res = await fetch("/api/orders-live");
-    if (!res.ok) return;
-    const data = await res.json();
+    /*
+     * Uno schermo fermo non deve sembrare uno schermo vuoto.
+     *
+     * Prima un fetch fallito usciva in silenzio: la board restava sull'ultimo
+     * dato buono e continuava a sembrare aggiornata. In cucina è la peggiore
+     * delle bugie — si guarda il monitor per sapere cosa manca, e un monitor
+     * che ha smesso di parlare col server risponde "non manca niente".
+     */
+    let data;
+    try {
+      const res = await fetch("/api/orders-live");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      data = await res.json();
+    } catch {
+      setScollegato(true);
+      return;
+    }
     setItems(data.items);
+    setScollegato(false);
     if (typeof data.soglia === "number") setSoglia(data.soglia);
 
     // Ci si presenta insieme ai dati, non con un timer proprio: uno schermo
@@ -219,11 +237,14 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
         const r = await setOrderItemStatus(item.id, next, item.status);
         if (r?.error) setNegato(r.error);
       } catch {
-        // Azione fallita (sessione scaduta, permessi): non lasciare a schermo
-        // uno stato che il database non ha mai registrato.
+        // Azione fallita (sessione scaduta, rete, permessi): non lasciare a
+        // schermo uno stato che il database non ha mai registrato — e dirlo.
+        // Un piatto che torna indietro da solo, senza spiegazione, si legge
+        // come un tocco andato a vuoto e si ripete.
         setItems((prev) =>
           prev.map((i) => (i.id === item.id ? { ...i, status: item.status } : i))
         );
+        setNegato("Non ha funzionato: controlla la connessione e riprova.");
       }
     },
     []
@@ -242,7 +263,11 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
       );
       try {
         await trattieniRiga(r.id, !r.held_at);
+      } catch {
+        setNegato("Non ha funzionato: controlla la connessione e riprova.");
       } finally {
+        // Il ricarico rimette comunque a schermo quello che il database sa:
+        // l'aggiornamento ottimistico non deve sopravvivere a un errore.
         await carica();
       }
     },
@@ -251,8 +276,13 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
 
   const trattieniIlTavolo = useCallback(
     async (codice: string, valore: boolean) => {
-      await trattieniTavolo(codice, valore);
-      await carica();
+      try {
+        await trattieniTavolo(codice, valore);
+      } catch {
+        setNegato("Non ha funzionato: controlla la connessione e riprova.");
+      } finally {
+        await carica();
+      }
     },
     [carica]
   );
@@ -267,6 +297,11 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
       try {
         const r = await advanceTableItems(codice, da, a);
         if (r.error) setNegato(r.error);
+      } catch {
+        // È il gesto che si usa davvero in cucina, ed era l'unico senza
+        // rete di protezione: l'aggiornamento ottimistico spostava i piatti
+        // a schermo e un errore li faceva tornare indietro senza una parola.
+        setNegato("Non ha funzionato: controlla la connessione e riprova.");
       } finally {
         await carica();
       }
@@ -510,6 +545,16 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
             in ritardo
           </li>
         </ul>
+      )}
+
+      {scollegato && (
+        <p
+          role="alert"
+          className="mt-2 rounded-lg border border-danger bg-danger/10 p-3 text-sm font-medium text-danger"
+        >
+          Schermo non aggiornato: nessuna risposta dal server. Quello che vedi
+          potrebbe non essere più vero.
+        </p>
       )}
 
       {negato && (
