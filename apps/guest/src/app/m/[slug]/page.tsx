@@ -274,13 +274,6 @@ export default async function PublicMenuPage({
             <TemaMenu />
           </div>
 
-          {(venue.opening_hours || venue.practical_info) && (
-            <div className="mt-5 max-w-2xl border-l-2 border-accent pl-4 text-sm leading-relaxed text-muted">
-              {venue.opening_hours && <p className="whitespace-pre-line">{venue.opening_hours}</p>}
-              {venue.practical_info && <p className="mt-1">{venue.practical_info}</p>}
-            </div>
-          )}
-
           <div className="mt-6">
             <SelettoreLingua base={`/m/${slug}`} attiva={lingua} disponibili={venue.languages ?? []} />
           </div>
@@ -289,7 +282,79 @@ export default async function PublicMenuPage({
 
       <MenuCategories categories={categorieConVoci} currency={venue.currency} />
 
-      <footer id="informazioni" className="mx-auto w-full max-w-5xl scroll-mt-20 px-4 pb-10 pt-2 sm:px-6">
+      {/* La linguetta "Info" portava direttamente al piè di pagina, che ha
+          soltanto i link legali: sembrava non contenere niente. Qui c'è la
+          sezione che quella linguetta promette — orari, indicazioni pratiche,
+          dove siamo, come chiamare — e il piè di pagina torna a fare il piè
+          di pagina. */}
+      <section
+        id="informazioni"
+        aria-label="Informazioni sul locale"
+        className="mx-auto w-full max-w-5xl scroll-mt-20 px-4 pt-10 sm:px-6"
+      >
+        <h2 className="text-xl font-semibold">Informazioni</h2>
+
+        <div className="mt-4 grid gap-6 sm:grid-cols-2">
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted">
+              Orari
+            </h3>
+            <p className="mt-1 whitespace-pre-line leading-relaxed">
+              {venue.opening_hours ?? "Chiedi al locale: gli orari non sono indicati."}
+            </p>
+          </div>
+
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted">
+              Dove siamo
+            </h3>
+            <p className="mt-1 leading-relaxed">{address || venue.name}</p>
+            {address && (
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${venue.name} ${address}`)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-1 inline-block py-1.5 text-sm underline underline-offset-2"
+              >
+                Apri le indicazioni
+              </a>
+            )}
+          </div>
+
+          {venue.practical_info && (
+            <div className="sm:col-span-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted">
+                Buono a sapersi
+              </h3>
+              <p className="mt-1 whitespace-pre-line leading-relaxed">
+                {venue.practical_info}
+              </p>
+            </div>
+          )}
+
+          {(venue.public_phone || venue.public_email) && (
+            <div className="sm:col-span-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted">
+                Contatti
+              </h3>
+              <p className="mt-1 flex flex-wrap gap-x-5 gap-y-1">
+                {venue.public_phone && (
+                  <a href={`tel:${venue.public_phone}`} className="py-1.5 underline underline-offset-2">
+                    {venue.public_phone}
+                  </a>
+                )}
+                {venue.public_email && (
+                  <a href={`mailto:${venue.public_email}`} className="py-1.5 underline underline-offset-2">
+                    {venue.public_email}
+                  </a>
+                )}
+              </p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <footer className="mx-auto w-full max-w-5xl scroll-mt-20 px-4 pb-10 pt-2 sm:px-6">
         {notaLegale && (
           <p className="border-t border-border pt-6 text-xs leading-relaxed text-muted">
             {notaLegale}

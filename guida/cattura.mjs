@@ -133,7 +133,8 @@ const sala = await browser.newContext({
 });
 const admin = await sala.newPage();
 
-await admin.goto(`${ADMIN}/`, { waitUntil: "networkidle" });
+// La radice dell'admin è la pagina di presentazione, non il login.
+await admin.goto(`${ADMIN}/login`, { waitUntil: "networkidle" });
 // Per tipo e non per etichetta: la label non è associata all'input.
 await admin.locator('input[type="email"]').fill(process.env.GUIDA_EMAIL ?? "");
 await admin.locator('input[type="password"]').fill(process.env.GUIDA_PASSWORD ?? "");

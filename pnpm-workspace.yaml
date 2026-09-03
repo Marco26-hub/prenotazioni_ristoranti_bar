@@ -1,3 +1,6 @@
 packages:
   - "apps/*"
   - "packages/*"
+  # La guida video sta a parte: dipende da Remotion e da un browser
+  # headless, e non deve pesare sulle build delle due app.
+  - "guida"

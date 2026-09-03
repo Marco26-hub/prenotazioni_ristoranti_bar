@@ -26,5 +26,17 @@
   {
     "immagine": "passi/07-chiamato.png",
     "didascalia": "Il tavolo compare in sala: il cameriere sa già cosa portare"
+  },
+  {
+    "immagine": "passi/08-sala.png",
+    "didascalia": "In sala ogni tavolo ha un colore: chi aspetta, chi deve pagare, chi può alzarsi"
+  },
+  {
+    "immagine": "passi/09-cucina.png",
+    "didascalia": "In cucina la comanda arriva già scritta: niente fogli, niente voce"
+  },
+  {
+    "immagine": "passi/10-analisi.png",
+    "didascalia": "A fine servizio i conti tornano da soli: coperti, scontrino medio, rotazione"
   }
 ]

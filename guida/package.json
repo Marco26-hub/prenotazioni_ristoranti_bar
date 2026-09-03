@@ -1,0 +1,16 @@
+{
+  "name": "guida",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "cattura": "node cattura.mjs",
+    "anteprima": "remotion studio src/index.ts",
+    "video": "remotion render src/index.ts guida guida-ordina-e-paga.mp4"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.443",
+    "remotion": "4.0.443",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  }
+}
