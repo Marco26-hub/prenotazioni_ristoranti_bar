@@ -8,7 +8,7 @@
  * servono, e il testo resta selezionabile invece di diventare un'immagine —
  * un commercialista il numero lo copia, non lo ricopia a mano.
  */
-export function StampaReport({ periodo }: { periodo: string }) {
+export function StampaReport() {
   return (
     <button
       type="button"

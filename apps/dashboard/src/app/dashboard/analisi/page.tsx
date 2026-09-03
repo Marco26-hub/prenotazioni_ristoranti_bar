@@ -230,7 +230,7 @@ export default async function AnalisiPage({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 print:hidden">
-          <StampaReport periodo={etichettaPeriodo} />
+          <StampaReport />
         </div>
         <div className="flex gap-1 print:hidden">
           {PERIODI.map((p) => (
