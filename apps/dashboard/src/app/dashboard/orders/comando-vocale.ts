@@ -13,6 +13,7 @@
 
 export type Azione =
   | { tipo: "avanza"; tavolo: string; a: "preparing" | "ready" | "served" }
+  | { tipo: "trattieni"; tavolo: string; trattieni: boolean }
   | { tipo: "sconosciuto"; testo: string };
 
 /** I numeri detti a voce arrivano scritti in lettere. */
@@ -49,6 +50,16 @@ export function interpreta(testo: string): Azione {
   }
 
   if (!numero) return { tipo: "sconosciuto", testo };
+
+  // Trattenere prima di tutto: "ritarda il tre" e "manda il tre" contengono
+  // spesso anche la parola del piatto o della portata, e finirebbero
+  // interpretate come un avanzamento.
+  if (/\britard|\btratt|\baspett|\bferma/.test(t)) {
+    return { tipo: "trattieni", tavolo: numero, trattieni: true };
+  }
+  if (/\bmanda|\blibera|\bvai col|\bfai partire/.test(t)) {
+    return { tipo: "trattieni", tavolo: numero, trattieni: false };
+  }
 
   // "servito" prima di "pronto": chi dice "servito" ha già superato pronto,
   // e la parola "pronto" può comparire in entrambe le frasi.

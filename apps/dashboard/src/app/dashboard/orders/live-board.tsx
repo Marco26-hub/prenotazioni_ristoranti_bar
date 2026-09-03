@@ -188,11 +188,29 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
         return;
       }
 
+      if (azione.tipo === "trattieni") {
+        const { aggiornate } = await trattieniTavolo(codice, azione.trattieni);
+        await carica();
+        setUltimoComando(
+          aggiornate > 0
+            ? `Tavolo ${codice}: ${aggiornate} ${aggiornate === 1 ? "piatto" : "piatti"} ${azione.trattieni ? "trattenuti" : "mandati"}`
+            : `Tavolo ${codice}: niente da ${azione.trattieni ? "trattenere" : "mandare"}`
+        );
+        return;
+      }
+
       const da: OrderItemStatus =
         azione.a === "served" ? "ready" : azione.a === "ready" ? "preparing" : "sent_to_kitchen";
 
-      const { aggiornate } = await advanceTableItems(codice, da, azione.a);
+      const { aggiornate, error } = await advanceTableItems(codice, da, azione.a);
       await carica();
+
+      // Un comando rifiutato per ruolo deve dirlo: a voce, senza risposta,
+      // chi ha parlato crede di aver spostato la comanda.
+      if (error) {
+        setUltimoComando(error);
+        return;
+      }
 
       setUltimoComando(
         aggiornate > 0
@@ -299,8 +317,9 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
 
         {vocale && (
           <p className="text-sm text-muted">
-            Di&apos; &laquo;tavolo 3 pronto&raquo; o &laquo;tavolo 3
-            servito&raquo;.
+            Di&apos; &laquo;tavolo 3 pronto&raquo;, &laquo;tavolo 3
+            servito&raquo;, &laquo;ritarda il 3&raquo; o &laquo;manda il
+            3&raquo;.
           </p>
         )}
         {!vocaleDisponibile && (
