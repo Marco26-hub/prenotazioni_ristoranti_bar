@@ -57,6 +57,7 @@ export function OrderMenu({
   const [notePerRiga, setNotePerRiga] = useState<string | null>(null);
   /** null = tutte le portate. */
   const [categoriaScelta, setCategoriaScelta] = useState<string | null>(null);
+  const [cerca, setCerca] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -316,6 +317,26 @@ export function OrderMenu({
   const mostra = (id: string | null) =>
     categoriaScelta === null || categoriaScelta === id;
 
+  /*
+   * Ricerca per nome, ingredienti o denominazione.
+   *
+   * Su una carta da quindici voci non serve; su una da duecento — un sushi,
+   * dove Uramaki da solo sono quaranta righe — scorrere per trovare il
+   * salmone è la differenza fra ordinare e chiamare il cameriere. Cercando,
+   * le portate si ignorano: chi scrive "salmone" lo vuole ovunque sia.
+   */
+  const cercato = cerca.trim().toLowerCase();
+  const trovati = useMemo(() => {
+    if (cercato.length < 2) return null;
+    return items.filter((i) =>
+      [i.name, i.description, i.ingredients, i.denomination]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(cercato)
+    );
+  }, [cercato, items]);
+
   return (
     <div className="space-y-7 pb-28">
       {/*
@@ -326,10 +347,44 @@ export function OrderMenu({
         passare in mezzo a tutto il resto. La barra resta appiccicata in alto
         mentre si scorre, perché serve proprio mentre si è a metà elenco.
       */}
+      {/* La ricerca compare solo quando la carta è lunga davvero: su
+          quindici voci sarebbe un campo in più da guardare per niente. */}
+      {items.length >= 40 && (
+        <div className="sticky top-0 z-10 -mx-4 border-b border-border bg-background/95 px-4 py-2 backdrop-blur">
+          <input
+            type="search"
+            value={cerca}
+            onChange={(e) => setCerca(e.target.value)}
+            placeholder="Cerca un piatto o un ingrediente"
+            aria-label="Cerca nel menu"
+            className="min-h-11 w-full rounded-full border border-border bg-surface px-4 text-base"
+          />
+        </div>
+      )}
+
+      {trovati !== null ? (
+        <section aria-label={`Risultati per ${cerca}`}>
+          <h2 className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-muted">
+            {trovati.length === 0
+              ? `Nessun piatto per "${cerca}"`
+              : `${trovati.length} ${trovati.length === 1 ? "piatto" : "piatti"} per "${cerca}"`}
+          </h2>
+          {trovati.length === 0 ? (
+            <p className="text-sm text-muted">
+              Prova con una parola sola, o chiedi al personale.
+            </p>
+          ) : (
+            <ul className="space-y-2.5">{trovati.map(renderItem)}</ul>
+          )}
+        </section>
+      ) : (
+        <>
       {categoriePiene.length > 1 && (
         <nav
           aria-label="Filtra per portata"
-          className="sticky top-0 z-10 -mx-4 overflow-x-auto border-b border-border bg-background/95 px-4 py-2 backdrop-blur"
+          className={`sticky z-10 -mx-4 overflow-x-auto border-b border-border bg-background/95 px-4 py-2 backdrop-blur ${
+            items.length >= 40 ? "top-[3.75rem]" : "top-0"
+          }`}
         >
           <ul className="flex gap-1.5">
             <li>
@@ -383,6 +438,8 @@ export function OrderMenu({
         <section>
           <ul className="space-y-2.5">{uncategorised.map(renderItem)}</ul>
         </section>
+      )}
+        </>
       )}
 
       {/* Quantità, note e "Ordina" compaiono solo dopo il primo piatto: una

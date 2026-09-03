@@ -146,6 +146,16 @@ test("con una carta in corso l'incasso al banco viene rifiutato", async ({
 });
 
 test("con l'intervallo attivo il secondo ordine viene respinto", async ({ context }) => {
+  /*
+   * Locale suo, non quello condiviso del file.
+   *
+   * L'attesa si conta dall'ultima comanda della sessione, e i test
+   * precedenti ne hanno gia lasciate su quello stesso tavolo: con il locale
+   * condiviso il primo ordine di questo test veniva respinto prima ancora di
+   * cominciare, e il test falliva raccontando una cosa diversa da quella che
+   * verifica.
+   */
+  const suo = await createTestVenue();
   const sql = (await import("postgres")).default(process.env.DATABASE_URL!, {
     ssl: "require",
     prepare: false,
@@ -154,10 +164,10 @@ test("con l'intervallo attivo il secondo ordine viene respinto", async ({ contex
   try {
     // Formula a prezzo fisso: si ordina a ondate, non tutto in una volta.
     await sql`
-      update venues set ordine_intervallo_min = 5 where id = ${venue.venueId}`;
+      update venues set ordine_intervallo_min = 5 where id = ${suo.venueId}`;
 
     const guest = await context.newPage();
-    await guest.goto(`${GUEST_URL}/v/${venue.slug}/t/${venue.qrToken}`);
+    await guest.goto(`${GUEST_URL}/v/${suo.slug}/t/${suo.qrToken}`);
     await guest.getByRole("button", { name: /^Aggiungi / }).first().click();
     await guest.getByRole("button", { name: "Ordina" }).click();
     await expect(guest.getByText("Ordine inviato in cucina.")).toBeVisible({
@@ -180,11 +190,11 @@ test("con l'intervallo attivo il secondo ordine viene respinto", async ({ contex
     const [sessione] = await sql<{ id: string }[]>`
       select ts.id from table_sessions ts
         join tables t on t.id = ts.table_id
-       where t.qr_token = ${venue.qrToken} and ts.status = 'open'
+       where t.qr_token = ${suo.qrToken} and ts.status = 'open'
        order by ts.opened_at desc limit 1`;
 
     const [piatto] = await sql<{ id: string }[]>`
-      select id from menu_items where venue_id = ${venue.venueId} limit 1`;
+      select id from menu_items where venue_id = ${suo.venueId} limit 1`;
 
     const risposta = await guest.evaluate(
       async ([sessionId, menuItemId]) => {
@@ -212,7 +222,7 @@ test("con l'intervallo attivo il secondo ordine viene respinto", async ({ contex
 
     await guest.close();
   } finally {
-    await sql`update venues set ordine_intervallo_min = 0 where id = ${venue.venueId}`;
     await sql.end();
+    await deleteTestVenue(suo);
   }
 });
