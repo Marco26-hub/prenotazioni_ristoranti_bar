@@ -11,6 +11,7 @@ import { PrenotazioniForm } from "./prenotazioni-form";
 import { EmailForm } from "./email-form";
 import { CopertoForm } from "./coperto-form";
 import { TestiForm } from "./testi-form";
+import { SogliaForm } from "./soglia-form";
 import { OpenRouterForm } from "./openrouter-form";
 import { AssistenteForm } from "./assistente-form";
 import { emailConfigurata } from "@repo/shared/email";
@@ -42,6 +43,7 @@ export default async function SettingsPage() {
       cover_charge_cents: number;
       service_percent: string;
       cover_charge_label: string | null;
+      soglia_attesa_min: number;
       public_texts: Record<string, string> | null;
       openrouter_api_key: string | null;
       openrouter_model: string | null;
@@ -73,6 +75,7 @@ export default async function SettingsPage() {
            reservation_email, reservation_capacity, reservation_auto_confirm,
            resend_api_key, resend_from,
            cover_charge_cents, service_percent, cover_charge_label, public_texts,
+           soglia_attesa_min,
            openrouter_api_key, openrouter_model,
            opening_hours, practical_info, assistant_enabled, brand_color, public_phone, public_email,
            tilby_shop_name, tips_enabled, tip_percents, google_review_url,
@@ -193,6 +196,14 @@ export default async function SettingsPage() {
           testi={venueRow?.public_texts ?? {}}
           nomeLocale={venueRow?.name ?? "il tuo locale"}
         />
+      </section>
+
+      <section className="rounded-xl border border-border bg-surface p-4">
+        <h2 className="mb-1 font-semibold">Allarme ritardi</h2>
+        <p className="mb-3 text-sm text-muted">
+          Quanto può aspettare un tavolo prima che tu voglia accorgertene.
+        </p>
+        <SogliaForm minuti={venueRow?.soglia_attesa_min ?? 20} />
       </section>
 
       <section className="rounded-xl border border-border bg-surface p-4">

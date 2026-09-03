@@ -32,6 +32,7 @@ export type StatoTavolo =
   | "libero"
   | "incorso"
   | "parziale"
+  | "ritardo"
   | "pronto"
   | "saldato";
 
@@ -41,6 +42,9 @@ const COLORE: Record<StatoTavolo, string> = {
   // Alla romana con qualche quota già incassata: il tavolo sta chiudendo ma
   // non è chiuso, e chi passa deve sapere che manca ancora qualcuno.
   parziale: "border-amber-500 bg-amber-500/25 text-foreground",
+  // Il ritardo grida più forte del pronto: bordo spesso e lampeggio, perché
+  // qui c'è un tavolo con niente davanti che sta aspettando.
+  ritardo: "border-4 border-danger bg-danger text-white animate-pulse font-bold",
   // Rosso: è l'unica cosa in sala che peggiora da sola mentre la guardi.
   pronto: "border-danger bg-danger text-white animate-pulse",
   saldato: "border-success bg-success/25 text-foreground",
@@ -50,6 +54,7 @@ const VOCE: Record<StatoTavolo, string> = {
   libero: "libero",
   incorso: "in corso",
   parziale: "pagato in parte",
+  ritardo: "IN RITARDO — sta aspettando",
   pronto: "piatti pronti da portare",
   saldato: "saldato, da liberare",
 };
@@ -371,7 +376,7 @@ export function PiantaSala({
 
       {!disponi && tavoli.some((t) => t.stato !== "libero") && (
         <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
-          {(["incorso", "parziale", "pronto", "saldato"] as StatoTavolo[])
+          {(["incorso", "parziale", "ritardo", "pronto", "saldato"] as StatoTavolo[])
             .filter((k) => tavoli.some((t) => t.stato === k))
             .map((k) => (
               <li key={k} className="flex items-center gap-1.5">

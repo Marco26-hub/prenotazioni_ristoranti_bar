@@ -29,6 +29,7 @@ interface RigaComanda {
   stato: string;
   note: string | null;
   trattenuto: boolean;
+  ordinato_il: Date;
   scelte: Array<{ opzione: string }>;
 }
 
@@ -56,8 +57,10 @@ export default async function DashboardPage() {
       floor_plan_url: string | null;
       floor_plan_opacity: number;
       openrouter_api_key: string | null;
+      soglia_attesa_min: number;
     }[]
-  >`select floor_plan_url, floor_plan_opacity, openrouter_api_key
+  >`select floor_plan_url, floor_plan_opacity, openrouter_api_key,
+           soglia_attesa_min
       from venues where id = ${venue.venueId}`;
 
   // Ordinato e pagato in due sottoquery invece che con due join: incrociarli
@@ -82,6 +85,7 @@ export default async function DashboardPage() {
            oi.quantity * oi.unit_price_cents as prezzo_cents,
            oi.status as stato, oi.notes as note,
            (oi.held_at is not null) as trattenuto,
+           o.created_at as ordinato_il,
            oi.selected_options as scelte
       from order_items oi
       join orders o on o.id = oi.order_id
@@ -101,6 +105,7 @@ export default async function DashboardPage() {
       quantita: c.quantita,
       prezzoCents: Number(c.prezzo_cents),
       trattenuto: c.trattenuto,
+      ordinatoIl: c.ordinato_il.toISOString(),
       stato: c.stato,
       note: c.note,
     });
@@ -142,6 +147,7 @@ export default async function DashboardPage() {
         piantina={locale?.floor_plan_url ?? null}
         piantinaOpacita={locale?.floor_plan_opacity ?? 35}
         aiAttiva={Boolean(locale?.openrouter_api_key)}
+        sogliaMin={locale?.soglia_attesa_min ?? 20}
       />
 
 

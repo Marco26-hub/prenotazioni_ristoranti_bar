@@ -14,6 +14,7 @@ export interface RigaOrdine {
   stato: string;
   note: string | null;
   trattenuto: boolean;
+  ordinatoIl: string;
 }
 
 export interface TavoloSala {
@@ -46,8 +47,26 @@ const STATO_ETICHETTA: Record<string, string> = {
  * che peggiora da sola. Poi il tavolo già saldato, che è un coperto
  * recuperabile subito se qualcuno lo sparecchia.
  */
-function statoTavolo(t: TavoloSala): StatoTavolo {
+function statoTavolo(t: TavoloSala, sogliaMin: number, adesso: number): StatoTavolo {
   if (!t.sessionId) return "libero";
+
+  // Il ritardo viene prima del pronto: chi aspetta da mezz'ora senza niente
+  // davanti sta peggio di chi ha il piatto fermo al passe da due minuti.
+  // Contano solo le righe non ancora pronte: una comanda vecchia ma servita
+  // non è un ritardo, è una cena lunga.
+  if (sogliaMin > 0) {
+    const inAttesa = t.righe.filter(
+      (r) => !r.trattenuto && r.stato !== "ready" && r.stato !== "served"
+    );
+    const piuVecchia = inAttesa.reduce<number | null>((acc, r) => {
+      const q = new Date(r.ordinatoIl).getTime();
+      return acc === null || q < acc ? q : acc;
+    }, null);
+    if (piuVecchia !== null && adesso - piuVecchia >= sogliaMin * 60_000) {
+      return "ritardo";
+    }
+  }
+
   // Il cibo pronto batte tutto: si raffredda mentre si discute del conto.
   // Un piatto trattenuto è fermo per decisione della sala, non perché
   // nessuno lo porta: farlo lampeggiare rosso in cassa manderebbe qualcuno a
@@ -87,12 +106,14 @@ export function Sala({
   piantina,
   piantinaOpacita,
   aiAttiva,
+  sogliaMin,
 }: {
   tavoli: TavoloSala[];
   chiudiConto: (sessionId: string) => Promise<void>;
   piantina: string | null;
   piantinaOpacita: number;
   aiAttiva: boolean;
+  sogliaMin: number;
 }) {
   const router = useRouter();
   const [adesso, setAdesso] = useState(() => Date.now());
@@ -136,7 +157,7 @@ export function Sala({
           forma: t.forma,
           x: t.x,
           y: t.y,
-          stato: statoTavolo(t),
+          stato: statoTavolo(t, sogliaMin, adesso),
           residuoCents: t.sessionId ? t.ordinatoCents - t.pagatoCents : null,
         }))}
         piantina={piantina}

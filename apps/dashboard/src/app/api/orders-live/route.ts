@@ -43,5 +43,11 @@ export async function GET() {
     where o.venue_id = ${venue.venueId} and oi.status not in ('served', 'cancelled')
     order by o.created_at asc`;
 
-  return NextResponse.json({ items: rows });
+  const [locale] = await sql<{ soglia_attesa_min: number }[]>`
+    select soglia_attesa_min from venues where id = ${venue.venueId}`;
+
+  return NextResponse.json({
+    items: rows,
+    soglia: locale?.soglia_attesa_min ?? 20,
+  });
 }

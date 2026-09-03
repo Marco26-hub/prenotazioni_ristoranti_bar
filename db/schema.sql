@@ -123,7 +123,8 @@ create table venues (
   reservation_capacity integer,
   public_texts jsonb default '{}'::jsonb not null,
   floor_plan_url text,
-  floor_plan_opacity smallint default 35 not null
+  floor_plan_opacity smallint default 35 not null,
+  soglia_attesa_min smallint default 20 not null   -- minuti dopo cui la comanda è in ritardo; 0 = allarme spento
 );
 
 create table venue_staff (

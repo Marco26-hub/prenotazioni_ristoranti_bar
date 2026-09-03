@@ -93,8 +93,8 @@ const ETICHETTA: Record<string, string> = {
   served: "Servito",
 };
 
-/** Oltre questi minuti una comanda va guardata, non aspettata. */
-const SOGLIA_ATTESA_MIN = 20;
+/** Ripiego se il locale non ha ancora scelto la sua soglia. */
+const SOGLIA_PREDEFINITA = 20;
 
 export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
   const [items, setItems] = useState<LiveItem[]>([]);
@@ -104,6 +104,7 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
   const [erroreVocale, setErroreVocale] = useState<string | null>(null);
   const [soloMiei, setSoloMiei] = useState(true);
   const [negato, setNegato] = useState<string | null>(null);
+  const [soglia, setSoglia] = useState(SOGLIA_PREDEFINITA);
   // Letto dal dispositivo, non dallo stato: il server non sa cosa c'è nel
   // localStorage e leggerlo durante il render darebbe due HTML diversi. Con
   // useSyncExternalStore il primo render combacia col server e il valore vero
@@ -142,6 +143,7 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
     if (!res.ok) return;
     const data = await res.json();
     setItems(data.items);
+    if (typeof data.soglia === "number") setSoglia(data.soglia);
   }, []);
 
   useEffect(() => {
@@ -537,16 +539,18 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
             }, null);
             const attesaMin =
               piuVecchia === null ? null : Math.floor((adesso - piuVecchia) / 60000);
-            const inRitardo = attesaMin !== null && attesaMin >= SOGLIA_ATTESA_MIN;
+            // Zero spegne l'allarme: chi non lo vuole addosso tutta la sera
+            // non deve vederlo lampeggiare.
+            const inRitardo = soglia > 0 && attesaMin !== null && attesaMin >= soglia;
 
             return (
               <li
                 key={codice}
                 className={`rounded-xl border bg-surface p-4 ${
-                  pronti > 0 && pronti === righe.length
-                    ? "border-success"
-                    : inRitardo
-                      ? "border-danger"
+                  inRitardo
+                    ? "animate-pulse border-2 border-danger bg-danger/10"
+                    : pronti > 0 && pronti === righe.length
+                      ? "border-success"
                       : "border-border"
                 }`}
               >
@@ -554,9 +558,9 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
                   <p className="text-lg font-semibold">Tavolo {codice}</p>
                   {attesaMin !== null && (
                     <span
-                      className={`text-sm tabular-nums ${inRitardo ? "font-medium text-danger" : "text-muted"}`}
+                      className={`text-sm tabular-nums ${inRitardo ? "font-bold text-danger" : "text-muted"}`}
                     >
-                      {attesaMin} min
+                      {attesaMin} min{inRitardo ? " · in ritardo" : ""}
                     </span>
                   )}
                 </div>
