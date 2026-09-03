@@ -1,7 +1,11 @@
 import Link from "next/link";
+import { auth } from "@/auth";
 import { LiveBoard } from "./live-board";
 
-export default function OrdersPage() {
+export default async function OrdersPage() {
+  const session = await auth();
+  const ruolo = session?.venues[0]?.role ?? "waiter";
+
   return (
     <main className="mx-auto max-w-3xl px-4 py-5">
       <div className="flex items-center justify-between">
@@ -10,7 +14,7 @@ export default function OrdersPage() {
           Stampa comande
         </Link>
       </div>
-      <LiveBoard />
+      <LiveBoard ruolo={ruolo} />
     </main>
   );
 }

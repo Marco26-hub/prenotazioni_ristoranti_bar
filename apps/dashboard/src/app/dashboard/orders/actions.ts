@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { requireVenue } from "@/lib/authz";
-import type { OrderItemStatus } from "@repo/shared";
+import type { OrderItemStatus, StaffRole } from "@repo/shared";
 
 /**
  * Come si chiama chi ha agito, congelato al momento del gesto.
@@ -19,8 +19,48 @@ async function etichettaAddetto(userId: string): Promise<string> {
   return u?.name?.trim() || u?.email || "addetto sconosciuto";
 }
 
-export async function setOrderItemStatus(orderItemId: string, status: OrderItemStatus) {
+/**
+ * Chi può dichiarare cosa.
+ *
+ * "Pronto" è la parola della cucina: dice che il piatto esiste ed è al passe.
+ * "Servito" è la parola della sala: dice che è arrivato al tavolo. Farle dire
+ * a chiunque svuota entrambe — un cameriere che segna pronto sta indovinando,
+ * un cuoco che segna servito sta chiudendo una riga che non ha portato, e il
+ * registro di chi ha fatto cosa perde senso.
+ *
+ * Titolare e responsabile fanno tutto: in una trattoria piccola sono anche
+ * cuoco e anche sala, e bloccarli sarebbe una regola contro il lavoro.
+ */
+const PERMESSI: Record<StaffRole, OrderItemStatus[]> = {
+  owner: ["pending", "sent_to_kitchen", "preparing", "ready", "served", "cancelled"],
+  manager: ["pending", "sent_to_kitchen", "preparing", "ready", "served", "cancelled"],
+  // La sala manda la comanda in cucina e porta il piatto al tavolo.
+  waiter: ["sent_to_kitchen", "preparing", "served", "cancelled"],
+  // La cucina prende in carico e dichiara il pronto.
+  kitchen: ["preparing", "ready"],
+};
+
+const NEGATO: Record<string, string> = {
+  ready: "Solo la cucina può segnare un piatto pronto.",
+  served: "Solo chi è in sala può segnare un piatto servito.",
+};
+
+function puo(role: StaffRole, status: OrderItemStatus): string | null {
+  if (PERMESSI[role]?.includes(status)) return null;
+  return NEGATO[status] ?? "Il tuo ruolo non può fare questa modifica.";
+}
+
+export async function setOrderItemStatus(
+  orderItemId: string,
+  status: OrderItemStatus
+): Promise<{ error?: string }> {
   const { venue, userId } = await requireVenue();
+
+  // Riverificato qui e non solo nascondendo il bottone: ogni Server Action è
+  // un POST pubblico per chi conosce l'id.
+  const vietato = puo(venue.role, status);
+  if (vietato) return { error: vietato };
+
   const sql = db();
 
   // order_items non ha venue_id diretto — verifica ownership via join,
@@ -41,6 +81,7 @@ export async function setOrderItemStatus(orderItemId: string, status: OrderItemS
   }
 
   revalidatePath("/dashboard/orders");
+  return {};
 }
 
 /**
@@ -136,8 +177,12 @@ export async function advanceTableItems(
   tableCode: string,
   from: OrderItemStatus,
   to: OrderItemStatus
-): Promise<{ aggiornate: number }> {
+): Promise<{ aggiornate: number; error?: string }> {
   const { venue, userId } = await requireVenue();
+
+  const vietato = puo(venue.role, to);
+  if (vietato) return { aggiornate: 0, error: vietato };
+
   const sql = db();
 
   const righe = await sql<{ id: string }[]>`

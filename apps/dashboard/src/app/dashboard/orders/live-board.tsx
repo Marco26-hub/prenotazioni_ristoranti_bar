@@ -7,7 +7,7 @@ import {
   trattieniRiga,
   trattieniTavolo,
 } from "./actions";
-import type { OrderItemStatus } from "@repo/shared";
+import type { OrderItemStatus, StaffRole } from "@repo/shared";
 import { creaRiconoscimento, interpreta, type Riconoscimento } from "./comando-vocale";
 
 interface LiveItem {
@@ -30,6 +30,19 @@ const PROSSIMO: Partial<Record<OrderItemStatus, OrderItemStatus>> = {
   ready: "served",
 };
 
+/**
+ * Sul bottone va scritta la destinazione, non lo stato attuale.
+ *
+ * Prima diceva "Da preparare →" su un piatto che era da preparare, e si
+ * leggeva come "portalo a: da preparare". Con le mani occupate e dieci righe
+ * a schermo, un bottone deve dire cosa succede se lo premi.
+ */
+const DESTINAZIONE: Record<string, string> = {
+  sent_to_kitchen: "Metti in preparazione",
+  preparing: "Segna pronto",
+  ready: "Segna servito",
+};
+
 const ETICHETTA: Record<string, string> = {
   sent_to_kitchen: "Da preparare",
   preparing: "In preparazione",
@@ -40,13 +53,28 @@ const ETICHETTA: Record<string, string> = {
 /** Oltre questi minuti una comanda va guardata, non aspettata. */
 const SOGLIA_ATTESA_MIN = 20;
 
-export function LiveBoard() {
+export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
   const [items, setItems] = useState<LiveItem[]>([]);
   const [adesso, setAdesso] = useState(() => Date.now());
   const [vocale, setVocale] = useState(false);
   const [ultimoComando, setUltimoComando] = useState<string | null>(null);
   const [erroreVocale, setErroreVocale] = useState<string | null>(null);
   const [soloMiei, setSoloMiei] = useState(true);
+  const [negato, setNegato] = useState<string | null>(null);
+
+  // Stesso elenco che applica il server. Qui serve solo a non mostrare un
+  // bottone che risponderebbe "non puoi": il controllo vero sta nell'action.
+  const consentiti: OrderItemStatus[] =
+    ruolo === "kitchen"
+      ? ["preparing", "ready"]
+      : ruolo === "waiter"
+        ? ["sent_to_kitchen", "preparing", "served", "cancelled"]
+        : ["pending", "sent_to_kitchen", "preparing", "ready", "served", "cancelled"];
+
+  const puoPortare = (da: OrderItemStatus) => {
+    const a = PROSSIMO[da];
+    return a ? consentiti.includes(a) : false;
+  };
   const riconoscimentoRef = useRef<Riconoscimento | null>(null);
   const vocaleDisponibile = useSyncExternalStore(
     () => () => {},
@@ -80,7 +108,8 @@ export function LiveBoard() {
       if (!next) return;
       setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, status: next } : i)));
       try {
-        await setOrderItemStatus(item.id, next);
+        const r = await setOrderItemStatus(item.id, next);
+        if (r?.error) setNegato(r.error);
       } catch {
         // Azione fallita (sessione scaduta, permessi): non lasciare a schermo
         // uno stato che il database non ha mai registrato.
@@ -128,7 +157,8 @@ export function LiveBoard() {
         )
       );
       try {
-        await advanceTableItems(codice, da, a);
+        const r = await advanceTableItems(codice, da, a);
+        if (r.error) setNegato(r.error);
       } finally {
         await carica();
       }
@@ -288,6 +318,12 @@ export function LiveBoard() {
         </p>
       )}
 
+      {negato && (
+        <p role="alert" className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          {negato}
+        </p>
+      )}
+
       {ultimoComando && (
         <p role="status" className="mt-2 text-sm font-medium">
           {ultimoComando}
@@ -428,15 +464,22 @@ export function LiveBoard() {
                         >
                           {r.held_at ? "Manda ora" : "Ritarda"}
                         </button>
-                        {!r.held_at && (
-                          <button
-                            type="button"
-                            onClick={() => avanza(r)}
-                            className="flex min-h-11 items-center rounded-full border border-border px-3 text-xs"
-                          >
-                            {ETICHETTA[r.status]} →
-                          </button>
-                        )}
+                        {!r.held_at &&
+                          (puoPortare(r.status) ? (
+                            <button
+                              type="button"
+                              onClick={() => avanza(r)}
+                              className="flex min-h-11 items-center rounded-full border border-border px-3 text-xs"
+                            >
+                              {DESTINAZIONE[r.status] ?? ETICHETTA[r.status]} →
+                            </button>
+                          ) : (
+                            // Non un bottone spento: lo stato attuale, che è
+                            // l'informazione che serve a chi non deve agire.
+                            <span className="px-2 text-xs text-muted">
+                              {ETICHETTA[r.status]}
+                            </span>
+                          ))}
                       </span>
                     </li>
                   ))}
@@ -444,7 +487,7 @@ export function LiveBoard() {
 
                 {/* Un tocco per tutto il tavolo: è così che escono i piatti. */}
                 <div className="mt-3 flex flex-wrap gap-2 border-t border-border pt-3">
-                  {daPreparare > 0 && (
+                  {daPreparare > 0 && consentiti.includes("preparing") && (
                     <button
                       type="button"
                       onClick={() => avanzaTavolo(codice, "sent_to_kitchen", "preparing")}
@@ -453,7 +496,7 @@ export function LiveBoard() {
                       Tutto in preparazione ({daPreparare})
                     </button>
                   )}
-                  {inCorso > 0 && (
+                  {inCorso > 0 && consentiti.includes("ready") && (
                     <button
                       type="button"
                       onClick={() => avanzaTavolo(codice, "preparing", "ready")}
@@ -480,7 +523,7 @@ export function LiveBoard() {
                       Ritarda il tavolo
                     </button>
                   )}
-                  {pronti > 0 && (
+                  {pronti > 0 && consentiti.includes("served") && (
                     <button
                       type="button"
                       onClick={() => avanzaTavolo(codice, "ready", "served")}
