@@ -112,7 +112,7 @@ test("senza metodi di pagamento configurati il conto lo dice esplicitamente", as
   await page.goto(`${GUEST_URL}/v/${venue.slug}/t/${venue.qrToken}`);
 
   await expect(
-    page.getByText("Pagamento online non ancora attivo per questo locale")
+    page.getByText("Il pagamento con carta non è attivo in questo locale")
   ).toBeVisible({ timeout: 15000 });
 });
 

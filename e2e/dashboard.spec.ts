@@ -108,7 +108,11 @@ test("un ordine inviato dal tavolo compare nella board cucina", async ({ page, c
   await login(page);
   await page.getByRole("link", { name: "Ordini", exact: true }).click();
   await expect(page.getByText(`1× ${venue.menuItemName}`)).toBeVisible({ timeout: 15000 });
-  await expect(page.getByText("Da preparare")).toBeVisible();
+  // Il bottone dice dove porta, non dove sta: su una comanda ancora in coda
+  // l'azione disponibile è metterla in preparazione.
+  await expect(
+    page.getByRole("button", { name: /Metti in preparazione/ }).first()
+  ).toBeVisible();
 });
 
 test("lo stato di una comanda avanza e resta salvato", async ({ page, context }) => {
@@ -128,9 +132,15 @@ test("lo stato di una comanda avanza e resta salvato", async ({ page, context })
     .getByRole("button", { name: /Tutto in preparazione/ })
     .first()
     .click();
-  await expect(page.getByText("In preparazione").first()).toBeVisible({ timeout: 15000 });
+  // Portata in preparazione, l'azione successiva diventa "segna pronto":
+  // è così che si legge lo stato dalla board.
+  await expect(
+    page.getByRole("button", { name: /Segna pronto/ }).first()
+  ).toBeVisible({ timeout: 15000 });
 
   // Ricaricando, lo stato deve venire dal DB, non solo dallo state locale.
   await page.reload();
-  await expect(page.getByText("In preparazione").first()).toBeVisible({ timeout: 15000 });
+  await expect(
+    page.getByRole("button", { name: /Segna pronto/ }).first()
+  ).toBeVisible({ timeout: 15000 });
 });
