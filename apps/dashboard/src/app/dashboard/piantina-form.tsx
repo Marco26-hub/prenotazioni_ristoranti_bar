@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { salvaPiantina } from "./piantina-actions";
+import { riconosciTavoli, applicaProposte, type Proposta } from "./riconosci-actions";
 
 /** Lato lungo massimo del raster prodotto: oltre non si guadagna leggibilità. */
 const LATO_MAX = 1600;
@@ -83,12 +84,40 @@ async function immagineRidotta(file: File): Promise<string> {
 export function PiantinaForm({
   presente,
   opacita,
+  aiAttiva,
 }: {
   presente: boolean;
   opacita: number;
+  aiAttiva: boolean;
 }) {
   const [avviso, setAvviso] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [leggendo, setLeggendo] = useState(false);
+  const [proposte, setProposte] = useState<Proposta[] | null>(null);
+  const [scartate, setScartate] = useState<Set<number>>(() => new Set());
+
+  async function riconosci() {
+    setLeggendo(true);
+    setAvviso(null);
+    setProposte(null);
+    const r = await riconosciTavoli();
+    setAvviso(r.errore ?? r.avviso ?? null);
+    if (r.proposte?.length) {
+      setProposte(r.proposte);
+      setScartate(new Set());
+    }
+    setLeggendo(false);
+  }
+
+  async function applica() {
+    if (!proposte) return;
+    setLeggendo(true);
+    const scelte = proposte.filter((_, i) => !scartate.has(i));
+    const r = await applicaProposte(scelte);
+    setAvviso(r.error ?? r.ok ?? null);
+    if (!r.error) setProposte(null);
+    setLeggendo(false);
+  }
 
   async function carica(file: File) {
     setAvviso(null);
@@ -158,12 +187,27 @@ export function PiantinaForm({
 
             <button
               type="button"
+              disabled={pending || leggendo || !aiAttiva}
+              onClick={riconosci}
+              title={
+                aiAttiva
+                  ? undefined
+                  : "Serve la chiave OpenRouter, si imposta in Impostazioni"
+              }
+              className="min-h-11 rounded-full bg-accent px-4 text-sm font-medium text-accent-foreground disabled:opacity-50"
+            >
+              {leggendo ? "Leggo la pianta…" : "Riconosci i tavoli"}
+            </button>
+
+            <button
+              type="button"
               disabled={pending}
               onClick={async () => {
                 const fd = new FormData();
                 fd.set("rimuovi", "1");
                 const r = await salvaPiantina(fd);
                 setAvviso(r.error ?? r.ok ?? null);
+                setProposte(null);
               }}
               className="min-h-11 px-2 text-sm text-danger underline underline-offset-4"
             >
@@ -177,6 +221,68 @@ export function PiantinaForm({
         <p role="status" className="mt-2 text-sm font-medium">
           {avviso}
         </p>
+      )}
+
+      {proposte && proposte.length > 0 && (
+        <div className="mt-3 rounded-lg border border-accent p-3">
+          <p className="text-sm font-medium">
+            {proposte.length} tavoli riconosciuti
+          </p>
+          <p className="mt-0.5 text-xs text-muted">
+            Controlla prima di applicare: un tavolo creato per sbaglio finisce
+            sui QR e nei conti. Togli la spunta a quello che non è un tavolo.
+          </p>
+
+          <ul className="mt-2 grid gap-1 sm:grid-cols-2">
+            {proposte.map((p, i) => (
+              <li key={`${p.codice}-${i}`}>
+                <label className="flex min-h-11 items-center gap-2 rounded-lg border border-border px-3 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={!scartate.has(i)}
+                    onChange={() =>
+                      setScartate((s) => {
+                        const n = new Set(s);
+                        if (n.has(i)) n.delete(i);
+                        else n.add(i);
+                        return n;
+                      })
+                    }
+                    className="h-4 w-4"
+                  />
+                  <span>
+                    <strong>{p.codice}</strong> · {p.posti}p · {p.forma}
+                    {p.esistente && (
+                      <span className="ml-1 text-xs text-muted">
+                        (esiste: verrà spostato)
+                      </span>
+                    )}
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ul>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={applica}
+              disabled={leggendo || scartate.size === proposte.length}
+              className="min-h-11 rounded-full bg-accent px-5 text-sm font-medium text-accent-foreground disabled:opacity-50"
+            >
+              {leggendo
+                ? "Applico…"
+                : `Applica ${proposte.length - scartate.size} tavoli`}
+            </button>
+            <button
+              type="button"
+              onClick={() => setProposte(null)}
+              className="min-h-11 px-3 text-sm underline underline-offset-4"
+            >
+              Annulla
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

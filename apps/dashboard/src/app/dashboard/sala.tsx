@@ -64,11 +64,13 @@ export function Sala({
   chiudiConto,
   piantina,
   piantinaOpacita,
+  aiAttiva,
 }: {
   tavoli: TavoloSala[];
   chiudiConto: (sessionId: string) => Promise<void>;
   piantina: string | null;
   piantinaOpacita: number;
+  aiAttiva: boolean;
 }) {
   const router = useRouter();
   const [adesso, setAdesso] = useState(() => Date.now());
@@ -116,6 +118,7 @@ export function Sala({
         }))}
         piantina={piantina}
         piantinaOpacita={piantinaOpacita}
+        aiAttiva={aiAttiva}
         onApri={(id) => {
           const t = tavoli.find((x) => x.id === id);
           if (t?.sessionId) setApertoId(id);

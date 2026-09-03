@@ -50,8 +50,13 @@ export default async function DashboardPage() {
      order by code`;
 
   const [locale] = await sql<
-    { floor_plan_url: string | null; floor_plan_opacity: number }[]
-  >`select floor_plan_url, floor_plan_opacity from venues where id = ${venue.venueId}`;
+    {
+      floor_plan_url: string | null;
+      floor_plan_opacity: number;
+      openrouter_api_key: string | null;
+    }[]
+  >`select floor_plan_url, floor_plan_opacity, openrouter_api_key
+      from venues where id = ${venue.venueId}`;
 
   // Ordinato e pagato in due sottoquery invece che con due join: incrociarli
   // nella stessa join moltiplicherebbe le righe dei pagamenti per quelle
@@ -127,6 +132,7 @@ export default async function DashboardPage() {
         chiudiConto={chiudiConto}
         piantina={locale?.floor_plan_url ?? null}
         piantinaOpacita={locale?.floor_plan_opacity ?? 35}
+        aiAttiva={Boolean(locale?.openrouter_api_key)}
       />
 
 

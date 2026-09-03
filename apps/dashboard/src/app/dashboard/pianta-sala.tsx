@@ -64,11 +64,13 @@ export function PiantaSala({
   onApri,
   piantina,
   piantinaOpacita,
+  aiAttiva,
 }: {
   tavoli: TavoloPianta[];
   onApri: (id: string) => void;
   piantina: string | null;
   piantinaOpacita: number;
+  aiAttiva: boolean;
 }) {
   const [disponi, setDisponi] = useState(false);
   // In stato solo gli spostamenti fatti a mano in questa sessione. Il resto
@@ -230,7 +232,11 @@ export function PiantaSala({
       )}
 
       {disponi && (
-        <PiantinaForm presente={Boolean(piantina)} opacita={piantinaOpacita} />
+        <PiantinaForm
+          presente={Boolean(piantina)}
+          opacita={piantinaOpacita}
+          aiAttiva={aiAttiva}
+        />
       )}
 
       <div

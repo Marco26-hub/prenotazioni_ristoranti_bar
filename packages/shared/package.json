@@ -21,7 +21,8 @@
     "./openrouter": "./openrouter.ts",
     "./openrouter-tipi": "./openrouter-tipi.ts",
     "./allergeni": "./allergeni.ts",
-    "./testi": "./testi.ts"
+    "./testi": "./testi.ts",
+    "./piantina": "./piantina.ts"
   },
   "dependencies": {
     "postgres": "^3.4.5",
