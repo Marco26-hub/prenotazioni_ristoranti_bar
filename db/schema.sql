@@ -124,8 +124,10 @@ create table venues (
   public_texts jsonb default '{}'::jsonb not null,
   floor_plan_url text,
   floor_plan_opacity smallint default 35 not null,
-  soglia_attesa_min smallint default 20 not null   -- minuti dopo cui la comanda è in ritardo; 0 = allarme spento,
-  soglia_liberazione_min smallint default 15 not null  -- minuti dal saldo dopo cui il tavolo va recuperato; 0 = spento
+  -- Minuti dopo cui la comanda è in ritardo; 0 spegne l'allarme.
+  soglia_attesa_min smallint default 20 not null,
+  -- Minuti dal saldo dopo cui il tavolo va recuperato; 0 spegne l'avviso.
+  soglia_liberazione_min smallint default 15 not null
 );
 
 create table venue_staff (
