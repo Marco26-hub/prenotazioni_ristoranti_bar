@@ -3,6 +3,7 @@ import { db } from "@repo/shared/db";
 import { checkRateLimit, clientKey } from "@repo/shared/rate-limit";
 import { createSatispayPayment, getSatispayPayment } from "@repo/shared/satispay";
 import { decryptSecret } from "@repo/shared/crypto";
+import { hasModulo } from "@repo/shared";
 import { outstandingBalanceCents } from "@/lib/balance";
 
 interface CreateSatispayBody {
@@ -38,8 +39,33 @@ export async function POST(request: Request) {
   }
 
   const [venue] = await sql<
-    { satispay_key_id: string | null; satispay_private_key: string | null }[]
-  >`select satispay_key_id, satispay_private_key from venues where id = ${session.venue_id}`;
+    {
+      satispay_key_id: string | null;
+      satispay_private_key: string | null;
+      subscription_status: string;
+      subscription_period_end: Date | null;
+      modules: string[] | null;
+    }[]
+  >`select satispay_key_id, satispay_private_key, subscription_status,
+           subscription_period_end, modules
+      from venues where id = ${session.venue_id}`;
+
+  // Stesso controllo di create-intent: senza, un locale con abbonamento
+  // scaduto non poteva più incassare con carta ma continuava a incassare
+  // con Satispay, e il paywall valeva solo per metà dei pagamenti.
+  if (
+    !hasModulo(
+      "ordini",
+      venue?.subscription_status,
+      venue?.subscription_period_end,
+      venue?.modules
+    )
+  ) {
+    return NextResponse.json(
+      { error: "Pagamento dal tavolo non attivo per questo locale — chiedi al personale" },
+      { status: 402 }
+    );
+  }
 
   if (!venue?.satispay_key_id || !venue.satispay_private_key) {
     return NextResponse.json(

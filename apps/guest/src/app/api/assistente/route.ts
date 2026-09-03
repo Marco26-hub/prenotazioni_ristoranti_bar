@@ -3,7 +3,7 @@ import { db } from "@repo/shared/db";
 import { checkRateLimit, clientKey } from "@repo/shared/rate-limit";
 import { decryptSecret } from "@repo/shared/crypto";
 import { MODELLO_PREDEFINITO } from "@repo/shared/openrouter-tipi";
-import { formatPriceCents } from "@repo/shared";
+import { formatPriceCents, isEntitled } from "@repo/shared";
 
 /**
  * Assistente sulle pagine pubbliche del locale.
@@ -44,6 +44,8 @@ interface VenueRow {
   announcement_title: string | null;
   announcement_body: string | null;
   announcement_enabled: boolean;
+  subscription_status: string;
+  subscription_period_end: Date | null;
 }
 
 export async function POST(request: Request) {
@@ -69,12 +71,19 @@ export async function POST(request: Request) {
            public_phone, opening_hours, practical_info, cover_charge_cents,
            service_percent, assistant_enabled, openrouter_api_key,
            openrouter_model, languages, announcement_title, announcement_body,
-           announcement_enabled
+           announcement_enabled, subscription_status, subscription_period_end
       from venues where slug = ${body.slug}`;
 
   if (!venue) return NextResponse.json({ error: "Locale non trovato" }, { status: 404 });
 
-  if (!venue.assistant_enabled || !venue.openrouter_api_key) {
+  // L'assistente è un servizio a pagamento come gli altri: senza questo
+  // controllo restava acceso dopo la scadenza, continuando a consumare la
+  // chiave OpenRouter del locale per un abbonamento che non paga più.
+  if (
+    !venue.assistant_enabled ||
+    !venue.openrouter_api_key ||
+    !isEntitled(venue.subscription_status, venue.subscription_period_end)
+  ) {
     return NextResponse.json({ error: "Assistente non attivo" }, { status: 404 });
   }
 
