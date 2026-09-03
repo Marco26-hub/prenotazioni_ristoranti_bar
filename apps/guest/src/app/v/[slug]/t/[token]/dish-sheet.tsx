@@ -60,7 +60,7 @@ export function DishSheet({
   dish,
   currency,
   pairing,
-  inCartQuantity,
+  quantitaPerOpzioni,
   onAdd,
   onAddPairing,
   onClose,
@@ -68,7 +68,8 @@ export function DishSheet({
   dish: DishDetail;
   currency: string;
   pairing: DishDetail | null;
-  inCartQuantity: number;
+  /** Quante ce ne sono già nel carrello con ESATTAMENTE queste opzioni. */
+  quantitaPerOpzioni: (opzioni: string[]) => number;
   onAdd: (opzioni: string[], prezzoUnitario: number, etichetta: string | null) => void;
   onAddPairing: () => void;
   onClose: () => void;
@@ -95,6 +96,7 @@ export function DishSheet({
   }
 
   const idScelti = Object.values(scelte).flat();
+  const giaNelCarrello = quantitaPerOpzioni(idScelti);
   const supplementi = gruppi
     .flatMap((g) => g.opzioni)
     .filter((o) => idScelti.includes(o.id))
@@ -126,6 +128,10 @@ export function DishSheet({
       }
     }
     onAdd(idScelti, prezzoUnitario, etichetta);
+    // Si chiude: restando aperta, la scheda copre il carrello e la barra del
+    // totale, quindi premere "aggiungi" non produceva nulla di visibile ed
+    // era indistinguibile da un bottone rotto.
+    onClose();
   }
 
   // Con la scheda aperta la pagina sotto non deve scorrere.
@@ -334,8 +340,8 @@ export function DishSheet({
             className="flex min-h-12 w-full items-center justify-between rounded-full bg-accent px-5 font-medium text-accent-foreground active:scale-95"
           >
             <span>
-              {inCartQuantity > 0
-                ? `Aggiungi ancora (${inCartQuantity} nel carrello)`
+              {giaNelCarrello > 0
+                ? `Aggiungi ancora (${giaNelCarrello} nel carrello)`
                 : "Aggiungi al carrello"}
             </span>
             <span className="tabular-nums">

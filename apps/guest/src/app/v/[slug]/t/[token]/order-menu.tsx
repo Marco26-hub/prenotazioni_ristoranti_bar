@@ -50,6 +50,7 @@ export function OrderMenu({
   const [cart, setCart] = useState<Record<string, CartLine>>({});
   const [noteFor, setNoteFor] = useState<string | null>(null);
   const [openDish, setOpenDish] = useState<MenuItem | null>(null);
+  const [riepilogoAperto, setRiepilogoAperto] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +66,7 @@ export function OrderMenu({
   }, [items]);
 
   const addItem = (
-    item: MenuItem,
+    item: { id: string; name: string; price_cents: number },
     optionIds: string[] = [],
     unitPriceCents?: number,
     optionsLabel: string | null = null
@@ -102,7 +103,9 @@ export function OrderMenu({
     });
   };
 
-  const lines = Object.values(cart);
+  // La chiave viaggia con la riga: il pannello deve poter togliere e
+  // annotare proprio quella combinazione, non il piatto in generale.
+  const lines = Object.entries(cart).map(([chiave, riga]) => ({ ...riga, chiave }));
   const totalCents = lines.reduce((sum, l) => sum + l.unitPriceCents * l.quantity, 0);
 
   const submitOrder = async () => {
@@ -143,11 +146,11 @@ export function OrderMenu({
   };
 
   const renderItem = (item: MenuItem) => {
-    // Il "+" in lista e i comandi rapidi agiscono sulla riga senza varianti:
-    // le combinazioni si gestiscono dalla scheda, dove si vedono.
     const chiaveSemplice = chiaveRiga(item.id, []);
     const inCart = cart[chiaveSemplice];
     const haVarianti = (item.gruppi?.length ?? 0) > 0;
+
+
     return (
       <li
         key={item.id}
@@ -289,18 +292,128 @@ export function OrderMenu({
         </p>
       )}
 
+      {/*
+        Il riepilogo dell'ordine, come sul tavolo di un sushi.
+
+        Prima non esisteva: le righe con varianti finivano nel carrello e nel
+        totale senza comparire da nessuna parte, quindi non si potevano
+        vedere, ridurre, togliere né annotare — e chi sbagliava porzione
+        doveva ricaricare la pagina perdendo tutto. Qui ogni riga ha le sue
+        scelte scritte, il suo meno, la sua nota.
+
+        Su schermo largo sta di lato e resta fermo mentre si scorre il menu;
+        su telefono si apre dalla barra in fondo, perché lo spazio è del
+        menu.
+      */}
+      {lines.length > 0 && (
+        <aside
+          className={`fixed z-30 border-border bg-surface lg:right-4 lg:top-24 lg:block lg:max-h-[70vh] lg:w-80 lg:overflow-y-auto lg:rounded-2xl lg:border lg:shadow-xl ${
+            riepilogoAperto
+              ? "inset-x-0 bottom-0 max-h-[72vh] overflow-y-auto rounded-t-2xl border-t shadow-2xl"
+              : "hidden"
+          }`}
+          aria-label="Il tuo ordine"
+        >
+          <div className="sticky top-0 flex items-baseline justify-between gap-3 border-b border-border bg-surface px-4 py-3">
+            <p className="font-semibold">Il tuo ordine</p>
+            <button
+              type="button"
+              onClick={() => setRiepilogoAperto(false)}
+              className="min-h-11 px-2 text-sm underline underline-offset-4 lg:hidden"
+            >
+              Chiudi
+            </button>
+          </div>
+
+          <ul className="divide-y divide-border">
+            {lines.map((l) => (
+              <li key={l.chiave} className="px-4 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-medium text-pretty">{l.name}</p>
+                    {l.optionsLabel && (
+                      <p className="mt-0.5 text-sm font-medium text-accent">
+                        {l.optionsLabel}
+                      </p>
+                    )}
+                    <p className="mt-0.5 text-sm text-muted tabular-nums">
+                      {formatPriceCents(l.unitPriceCents, currency)} ciascuno
+                    </p>
+                  </div>
+                  <span className="shrink-0 font-semibold tabular-nums">
+                    {formatPriceCents(l.unitPriceCents * l.quantity, currency)}
+                  </span>
+                </div>
+
+                <div className="mt-2 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => removeItem(l.chiave)}
+                    aria-label={`Togli ${l.name}${l.optionsLabel ? " " + l.optionsLabel : ""}`}
+                    className="h-11 w-11 rounded-full border border-border text-xl leading-none active:scale-95"
+                  >
+                    −
+                  </button>
+                  <span className="w-6 text-center font-semibold tabular-nums">
+                    {l.quantity}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      addItem(
+                        { id: l.menuItemId, name: l.name, price_cents: l.unitPriceCents },
+                        l.optionIds,
+                        l.unitPriceCents,
+                        l.optionsLabel
+                      )
+                    }
+                    aria-label={`Aggiungi ${l.name}${l.optionsLabel ? " " + l.optionsLabel : ""}`}
+                    className="h-11 w-11 rounded-full bg-accent text-xl leading-none text-accent-foreground active:scale-95"
+                  >
+                    +
+                  </button>
+                </div>
+
+                <input
+                  value={l.notes ?? ""}
+                  onChange={(e) => setNote(l.chiave, e.target.value)}
+                  placeholder="Nota per la cucina"
+                  maxLength={140}
+                  aria-label={`Nota per ${l.name}`}
+                  className="mt-2 min-h-11 w-full rounded-lg border border-border bg-background px-3 text-sm"
+                />
+              </li>
+            ))}
+          </ul>
+
+          <p className="flex items-baseline justify-between gap-3 border-t border-border px-4 py-3 font-semibold">
+            <span>Totale</span>
+            <span className="tabular-nums">{formatPriceCents(totalCents, currency)}</span>
+          </p>
+        </aside>
+      )}
+
       {lines.length > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-surface/95 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
           <div className="mx-auto flex max-w-2xl items-center justify-between gap-3">
-            <span className="text-sm">
-              <strong className="tabular-nums">
-                {lines.reduce((n, l) => n + l.quantity, 0)}
-              </strong>{" "}
-              articoli
-              <span className="block font-semibold tabular-nums">
-                {formatPriceCents(totalCents, currency)}
+            <button
+              type="button"
+              onClick={() => setRiepilogoAperto((v) => !v)}
+              className="flex min-h-11 items-center text-left text-sm lg:pointer-events-none"
+            >
+              <span>
+                <strong className="tabular-nums">
+                  {lines.reduce((n, l) => n + l.quantity, 0)}
+                </strong>{" "}
+                articoli{" "}
+                <span className="underline underline-offset-4 lg:hidden">
+                  vedi
+                </span>
+                <span className="block font-semibold tabular-nums">
+                  {formatPriceCents(totalCents, currency)}
+                </span>
               </span>
-            </span>
+            </button>
             <button
               type="button"
               onClick={submitOrder}
@@ -319,7 +432,9 @@ export function OrderMenu({
           dish={openDish}
           currency={currency}
           pairing={items.find((i) => i.id === openDish.pairing_item_id) ?? null}
-          inCartQuantity={cart[chiaveRiga(openDish.id, [])]?.quantity ?? 0}
+          quantitaPerOpzioni={(opzioni) =>
+            cart[chiaveRiga(openDish.id, opzioni)]?.quantity ?? 0
+          }
           onAdd={(opzioni, prezzo, etichetta) =>
             addItem(openDish, opzioni, prezzo, etichetta)
           }

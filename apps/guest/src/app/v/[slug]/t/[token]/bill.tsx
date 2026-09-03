@@ -84,7 +84,12 @@ export function Bill({
     if (!res.ok) return;
     const data = (await res.json()) as BillState & { sessionStatus: string };
     setBill(data);
-    if (data.sessionStatus === "closed") setPaid(true);
+    // "Saldato" lo decide il saldo, non il fatto che un pagamento sia
+    // riuscito: pagando solo i propri piatti alla romana, il tavolo deve
+    // ancora il resto. Dichiararlo chiuso su quel telefono faceva credere di
+    // aver pagato tutto, e la ricevuta scaricata era quella dell'intera
+    // sessione.
+    setPaid(data.sessionStatus === "closed" || data.balanceCents <= 0);
   }, [sessionId]);
 
   useEffect(() => {
@@ -409,7 +414,9 @@ export function Bill({
           accountId={bill.stripeAccountId}
           clientSecret={clientSecret}
           onSuccess={() => {
-            setPaid(true);
+            // Nessuna scorciatoia: si ricarica il conto e il saldo dice se è
+            // finita davvero.
+            setClientSecret(null);
             refreshBill();
           }}
         />

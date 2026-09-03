@@ -32,13 +32,15 @@ export default async function PrintOrdersPage({
     notes: string | null;
     created_at: string;
     reparto: string;
+    scelte: Array<{ opzione: string }>;
   }
 
   const sql = db();
   const rows = await sql<ComandaRow[]>`
     select o.id as order_id, t.code as table_code, mi.name as item_name,
            oi.quantity, oi.notes, o.created_at,
-           coalesce(mc.reparto, 'cucina') as reparto
+           coalesce(mc.reparto, 'cucina') as reparto,
+           oi.selected_options as scelte
     from order_items oi
     join orders o on o.id = oi.order_id
     join table_sessions ts on ts.id = o.table_session_id
@@ -116,6 +118,16 @@ export default async function PrintOrdersPage({
             {items.map((item, i) => (
               <li key={i} className="text-lg">
                 <strong>{item.quantity}×</strong> {item.item_name}
+                {/* Le varianti sulla carta, e in evidenza. Senza, chi lavora
+                    sulla comanda stampata — il caso previsto per una cucina
+                    senza schermo — prepara il piatto con l'ingrediente che il
+                    cliente ha tolto. Se quell'ingrediente è un allergene non
+                    è un fastidio, è un rischio. */}
+                {item.scelte?.length > 0 && (
+                  <div className="text-lg font-bold uppercase">
+                    → {item.scelte.map((s) => s.opzione).join(" · ")}
+                  </div>
+                )}
                 {item.notes && <div className="text-base italic">— {item.notes}</div>}
               </li>
             ))}

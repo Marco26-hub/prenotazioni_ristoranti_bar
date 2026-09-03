@@ -5,12 +5,15 @@
   "scripts": {
     "cattura": "node cattura.mjs",
     "anteprima": "remotion studio src/index.ts",
-    "video": "remotion render src/index.ts guida guida-ordina-e-paga.mp4"
+    "video": "remotion render src/index.ts guida guida-ordina-e-paga.mp4",
+    "qr": "node qr-tavoli.mjs"
   },
   "dependencies": {
     "@remotion/cli": "4.0.443",
     "remotion": "4.0.443",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "qrcode": "^1.5.4",
+    "postgres": "^3.4.9"
   }
 }
