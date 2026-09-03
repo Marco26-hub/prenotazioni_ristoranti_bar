@@ -1,62 +1,142 @@
 [
   {
-    "immagine": "passi/01-menu.png",
-    "didascalia": "Inquadra il QR sul tavolo: si apre il menu, senza scaricare niente",
-    "larghezza": 1170,
-    "altezza": 2532
+    "immagine": "passi/01-personale.jpg",
+    "capitolo": "Preparare il locale",
+    "titolo": "Chi lavora e cosa può fare",
+    "dettaglio": "Ruolo, tavoli assegnati, reparti su cui può agire e un codice operatore per entrare in fretta dal tablet condiviso. Qui si vedono anche gli schermi accesi in questo momento.",
+    "telefono": false
   },
   {
-    "immagine": "passi/02-scheda.png",
-    "didascalia": "Ogni piatto apre ingredienti, allergeni e conservazione",
-    "larghezza": 1170,
-    "altezza": 2532
+    "immagine": "passi/02-menu-admin.jpg",
+    "capitolo": "Preparare il locale",
+    "titolo": "Il menu, con quello che la legge richiede",
+    "dettaglio": "Allergeni a caselle secondo l'Allegato II, ingredienti, conservazione. Il gestionale conta da solo i piatti ancora scoperti e te lo dice in cima.",
+    "telefono": false
   },
   {
-    "immagine": "passi/03-carrello.png",
-    "didascalia": "Tocca + per aggiungere: il totale si aggiorna mentre scegli",
-    "larghezza": 1170,
-    "altezza": 2532
+    "immagine": "passi/03-qr.jpg",
+    "capitolo": "Preparare il locale",
+    "titolo": "I QR dei tavoli, pronti per la tipografia",
+    "dettaglio": "Un PDF con tutti i cavalierini, A6 con 3 mm di abbondanza e crocini di taglio: è il file da mandare allo stampatore.",
+    "telefono": false
   },
   {
-    "immagine": "passi/04-inviato.png",
-    "didascalia": "Ordina: la comanda parte in cucina, nessuno deve venire a prenderla",
-    "larghezza": 1170,
-    "altezza": 2532
+    "immagine": "passi/04-impostazioni.jpg",
+    "capitolo": "Preparare il locale",
+    "titolo": "Marchio, tempi, testi e pagamenti",
+    "dettaglio": "Logo e colori, dopo quanti minuti una comanda è in ritardo, le frasi che il cliente legge, coperto e servizio, Stripe e Satispay.",
+    "telefono": false
   },
   {
-    "immagine": "passi/05-conto.png",
-    "didascalia": "Il conto è sempre aggiornato: si paga quando si vuole",
-    "larghezza": 1170,
-    "altezza": 2532
+    "immagine": "passi/05-menu.jpg",
+    "capitolo": "Il cliente ordina",
+    "titolo": "Inquadra il QR sul tavolo",
+    "dettaglio": "Si apre il menu del locale. Nessuna app da scaricare, nessun account da creare, nessuna attesa.",
+    "telefono": true
   },
   {
-    "immagine": "passi/06-contanti.png",
-    "didascalia": "Chi paga in contanti sceglie scontrino o fattura",
-    "larghezza": 1170,
-    "altezza": 2532
+    "immagine": "passi/06-scheda.jpg",
+    "capitolo": "Il cliente ordina",
+    "titolo": "Tocca un piatto e sa cosa contiene",
+    "dettaglio": "Ingredienti, allergeni e conservazione: quello che il Reg. UE 1169/2011 impone e che su una carta stampata non ci starebbe mai.",
+    "telefono": true
   },
   {
-    "immagine": "passi/07-chiamato.png",
-    "didascalia": "Il tavolo compare in sala: il cameriere sa già cosa portare",
-    "larghezza": 1170,
-    "altezza": 2532
+    "immagine": "passi/07-carrello.jpg",
+    "capitolo": "Il cliente ordina",
+    "titolo": "Aggiunge con +, il totale si aggiorna",
+    "dettaglio": "Cambia le quantità e lascia una nota per la cucina: senza cipolla, senza glutine, cottura al sangue.",
+    "telefono": true
   },
   {
-    "immagine": "passi/08-sala.png",
-    "didascalia": "In sala ogni tavolo ha un colore: chi aspetta, chi deve pagare, chi può alzarsi",
-    "larghezza": 2560,
-    "altezza": 1800
+    "immagine": "passi/08-inviato.jpg",
+    "capitolo": "Il cliente ordina",
+    "titolo": "Ordina, e la comanda parte subito",
+    "dettaglio": "Arriva in cucina già scritta. Nessuno deve venire a prenderla e nessuno la ricopia a mano.",
+    "telefono": true
   },
   {
-    "immagine": "passi/09-cucina.png",
-    "didascalia": "In cucina la comanda arriva già scritta: niente fogli, niente voce",
-    "larghezza": 2560,
-    "altezza": 1800
+    "immagine": "passi/09-cucina.jpg",
+    "capitolo": "Il servizio",
+    "titolo": "In cucina niente fogli e niente voce",
+    "dettaglio": "Un tocco manda avanti il piatto, un altro lo trattiene se il tavolo è ancora sugli antipasti. Ogni riga porta il nome di chi l'ha mossa.",
+    "telefono": false
   },
   {
-    "immagine": "passi/10-analisi.png",
-    "didascalia": "A fine servizio i conti tornano da soli: coperti, scontrino medio, rotazione",
-    "larghezza": 2560,
-    "altezza": 1800
+    "immagine": "passi/10-sala.jpg",
+    "capitolo": "Il servizio",
+    "titolo": "La sala si legge a colpo d'occhio",
+    "dettaglio": "Un colore per stato: chi aspetta da troppo, chi ha i piatti al passe, chi ha pagato solo in parte, chi può alzarsi. La pianta si dispone trascinando i tavoli.",
+    "telefono": false
+  },
+  {
+    "immagine": "passi/11-storico.jpg",
+    "capitolo": "Il servizio",
+    "titolo": "Lo storico della giornata",
+    "dettaglio": "Ordinato, incassato e ogni tavolo con le sue righe. Ordinato e incassato non coincidono quando un conto è in contanti o ancora aperto, e la pagina lo dice.",
+    "telefono": false
+  },
+  {
+    "immagine": "passi/12-conto.jpg",
+    "capitolo": "Pagare e chiudere",
+    "titolo": "Il conto è sempre aggiornato",
+    "dettaglio": "Si paga quando si vuole, tutto insieme o alla romana, senza aspettare che passi il cameriere.",
+    "telefono": true
+  },
+  {
+    "immagine": "passi/13-contanti.jpg",
+    "capitolo": "Pagare e chiudere",
+    "titolo": "Paga in contanti? Sceglie il documento",
+    "dettaglio": "Scontrino o fattura. Il contante non passa da nessun circuito: qui il software può solo far arrivare qualcuno al tavolo con il documento giusto.",
+    "telefono": true
+  },
+  {
+    "immagine": "passi/14-chiamato.jpg",
+    "capitolo": "Pagare e chiudere",
+    "titolo": "La chiamata è partita",
+    "dettaglio": "In sala compare in rosso, con il numero del tavolo e cosa portare. Premere più volte non accumula richieste.",
+    "telefono": true
+  },
+  {
+    "immagine": "passi/15-fatture.jpg",
+    "capitolo": "Pagare e chiudere",
+    "titolo": "La fattura elettronica",
+    "dettaglio": "Chi la chiede dal tavolo lascia i suoi dati e il documento va allo SDI, con lo stato di consegna sempre visibile.",
+    "telefono": false
+  },
+  {
+    "immagine": "passi/16-prenota-pubblica.jpg",
+    "capitolo": "Prenotazioni",
+    "titolo": "La pagina che metti sul tuo sito",
+    "dettaglio": "Calendario, capienza reale e conferma. Funziona anche da sola, senza il gestionale di sala.",
+    "telefono": true
+  },
+  {
+    "immagine": "passi/17-prenotazioni.jpg",
+    "capitolo": "Prenotazioni",
+    "titolo": "Il calendario del ristoratore",
+    "dettaglio": "Richieste da confermare in evidenza, coperti per giorno, conferma o rifiuto con gli orari alternativi calcolati sulle prenotazioni già prese.",
+    "telefono": false
+  },
+  {
+    "immagine": "passi/18-analisi.jpg",
+    "capitolo": "Capire come va",
+    "titolo": "A fine servizio i conti tornano da soli",
+    "dettaglio": "Coperti, spesa media, permanenza al tavolo, rotazione, cosa vende davvero e come pagano. Con la stampa in PDF per il commercialista.",
+    "telefono": false
+  },
+  {
+    "immagine": "passi/19-abbonamento.jpg",
+    "capitolo": "Capire come va",
+    "titolo": "L'abbonamento",
+    "dettaglio": "Ordini, solo prenotazioni o tutto insieme, mensile o annuale. Nessuna percentuale trattenuta sugli incassi del locale.",
+    "telefono": false
+  },
+  {
+    "immagine": "passi/20-menu-pubblico.jpg",
+    "capitolo": "Capire come va",
+    "titolo": "Il menu pubblico, da mettere ovunque",
+    "dettaglio": "Lo stesso menu senza ordinazione, per il sito, i social e Google. Con allergeni, orari e contatti.",
+    "telefono": true
   }
 ]
