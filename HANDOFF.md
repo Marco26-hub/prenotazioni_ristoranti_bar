@@ -7,7 +7,7 @@ Per chi prende in mano il progetto. Descrive cosa fa il sistema, cosa è
 stato verificato, e — soprattutto — **cosa manca ancora**, perché è quella
 la parte che serve davvero a chi arriva dopo.
 
-Ultimo aggiornamento: 3 settembre 2026.
+Ultimo aggiornamento: 4 settembre 2026.
 
 ---
 
@@ -16,113 +16,128 @@ Ultimo aggiornamento: 3 settembre 2026.
 Elencato qui perché è la parte che cambia il lavoro di chi riprende in mano
 il progetto. Il resto del documento è già aggiornato di conseguenza.
 
-### Sala e servizio
+### Formule di vendita nuove
 
-- **Pianta della sala trascinabile.** I tavoli si dispongono come stanno
-  davvero in sala, con forma (rettangolo, tondo, bancone) e dimensione
-  proporzionata ai posti. Coordinate su griglia astratta 16×12, non pixel:
-  la pianta si adatta agli schermi senza che le posizioni perdano senso.
-  Si può caricare **la piantina del locale** come sfondo (PDF, SVG, PNG,
-  JPG) e farne **riconoscere i tavoli dall'AI**, che li propone senza mai
-  crearli da sola. Migrazioni 027, 028.
-- **Un colore per ogni stato del tavolo**, uguale su pianta e monitor
-  comande: viola in corso, ambra pagato in parte, blu piatti al passe,
-  rosso lampeggiante in ritardo, verde saldato, fucsia saldato da troppo.
-  Con legenda, perché sei colori senza legenda sono sei indovinelli.
-- **Soglie configurabili** (Impostazioni → Tempi e allarmi): dopo quanti
-  minuti una comanda è in ritardo, e dopo quanti minuti dal saldo un tavolo
-  va recuperato. Zero spegne l'avviso. Migrazioni 032, 034.
-- **Trattenere un piatto** («ritarda i secondi»): non è uno stato del flusso
-  ma una condizione sopra di esso, quindi il piatto riparte dal punto in cui
-  era. Escluso dalle azioni in blocco e dai conteggi. Migrazione 029.
-- **I piatti serviti non spariscono più** dal monitor: restano col loro
-  colore, e quando il tavolo ha ricevuto tutto la card diventa verde.
+- **Formula a prezzo fisso (all you can eat).** Il conto si paga a persona e
+  i piatti compresi valgono zero. Due prezzi, pranzo e cena, con la fascia
+  decisa dall'ora in cui il tavolo **si è seduto**, non da quando chiede il
+  conto. Bambini gratis, ridotti o pieni, con l'età dichiarabile per
+  scriverla sul menu. Supplemento per l'avanzato aggiunto da una persona che
+  guarda il tavolo. Le voci che restano a pagamento — dolci, caffè, amari,
+  bevande, premium — si spuntano una a una nel menu con **Fuori formula** e
+  il cliente le vede segnate mentre ordina. Formula o carta si decide **per
+  tavolo**, non per locale. Migrazioni 046, 047.
+- **Attesa fra un'ordinazione e la successiva**, il metodo degli
+  all-you-can-eat: applicata nell'endpoint e non solo nel bottone, col conto
+  alla rovescia che arriva dal server. Legata alla formula, non al formato.
+  Migrazione 045.
+- **Numero di ritiro al banco**, per chi consegna al bancone e non al tavolo.
+  Riparte da uno a ogni **giornata di servizio** — non a mezzanotte, o un
+  locale che chiude alle due avrebbe due numeri 7 nella stessa serata.
+  Assegnato dentro la transazione dell'ordine. Tre modi di avvisare, anche
+  più d'uno insieme: **segnaposto numerato**, **cercapersone**, **avviso sul
+  telefono** di chi ha ordinato dal QR. Nuova pagina **Banco** coi numeri
+  grandi, che si aggiorna da sola e compare solo a chi l'ha accesa.
+  Migrazioni 044, 049.
+- **Formato «Sushi / All you can eat»**, dodicesimo modello di menu, coi
+  promemoria che contano: l'abbattimento a −20 °C per 24 ore **va dichiarato
+  in carta** (Reg. CE 853/2004), e su una carta sushi gli allergeni toccano
+  quasi ogni riga.
 
-### Chi fa cosa
+### Prenotazioni
 
-- **Ruoli con permessi veri sugli stati.** «Pronto» è la parola della
-  cucina, «servito» quella della sala. Titolare e responsabile fanno tutto.
-  Verificato nell'action, non solo nascondendo il bottone.
-- **Reparti come permesso** (cucina, bar, pizzeria, pasticceria), non più
-  solo come filtro dello schermo: un barista non può mandare avanti i primi,
-  nemmeno con le azioni in blocco. Nessuna spunta = tutti. Migrazioni 031, 035.
-- **Rango**: i tavoli assegnati al singolo cameriere. È una vista, non un
-  divieto: un tocco passa a tutta la sala. Migrazione 030.
-- **Codice operatore** da 4 a 6 cifre per entrare in fretta dal tablet
-  condiviso. Salvato con lo stesso hash della password, unico nel locale,
-  rifiuta le sequenze ovvie. Solo sala e cucina: titolare e responsabile
-  vedono incassi e dati fiscali e continuano con la password. Migrazione 037.
-- **Registro di chi ha mosso cosa.** Ogni cambio di stato e ogni trattenuta
-  porta il nome dell'addetto, congelato al momento del gesto: resta
-  corretto anche se la persona cambia nome o lascia il locale.
-- **Registro dei dispositivi.** Gli schermi si presentano da soli: dalla
-  pagina *Personale e dispositivi* si vede quali sono accesi, su che reparto
-  sono impostati e quando sono stati visti l'ultima volta. Migrazione 036.
-- **Zone della sala** (Sala 1, Dehors, Veranda). La colonna `tables.zone`
-  esisteva nello schema **e non era letta da nessuna parte**: ora si imposta
-  dalla pianta e la mappa filtra per sala.
+- **Promemoria automatico il giorno prima.** Gira ogni ora su Vercel Cron e
+  prende le prenotazioni fra 23 e 25 ore. Si prende le righe **scrivendo**,
+  non leggendo: un'esecuzione interrotta non rimanda tutto una seconda volta.
+  Richiede `CRON_SECRET` (già impostata in produzione sul progetto guest).
+- **Disdetta dal cliente**, con un link segreto nell'email che apre quella
+  prenotazione e nient'altro. **Chiede conferma invece di agire
+  all'apertura**: un link che disdice da solo verrebbe attivato dalle
+  anteprime di WhatsApp e dagli antivirus delle caselle aziendali. Disdire
+  libera davvero il tavolo e avvisa subito il locale. La disdetta del cliente
+  è registrata **separatamente** dal rifiuto del locale. Migrazione 048.
+- **La mail di richiesta ricevuta parte anche con l'approvazione manuale.**
+  Prima chi finiva in un locale che approva a mano non riceveva niente,
+  anche per ore.
 
-### Cliente
+### Recensioni
 
-- **Pagamento in contanti con chiamata al cameriere.** Il cliente sceglie
-  scontrino o fattura e la richiesta arriva in sala in rosso, col numero del
-  tavolo e cosa portare. Premere più volte aggiorna la stessa chiamata.
-  Migrazione 033.
-- **Ogni piatto apre ingredienti, allergeni e conservazione**, con
-  l'asterisco di legge sul nome per le voci non fresche.
-- **Allergeni a caselle** in admin: i quattordici dell'Allegato II al posto
-  del campo libero, che accettava «latticini» e «frutta secca» — diciture
-  che a un controllo non valgono.
-- **Testi delle pagine pubbliche riscrivibili** dal locale (Impostazioni):
-  titolo della pagina prenotazioni, presentazione, nota in fondo alla carta.
-  Migrazione 026.
-- **Sezione Informazioni** sul menu pubblico: la linguetta *Info* portava al
-  piè di pagina e sembrava vuota.
+- **Chieste al tavolo**, appena finito di mangiare. Il voto resta al locale,
+  in una pagina che mette in cima i voti bassi non ancora letti. Il **link
+  pubblico è proposto solo a chi dà cinque stelle**; sotto le cinque si
+  chiede cosa non è andato. *Scelta del committente, presa sapendo il
+  rischio: le regole di Google non permettono di indirizzare alla loro
+  piattaforma i soli clienti soddisfatti, e le recensioni raccolte così
+  possono essere rimosse.* Sta scritto anche nel codice, in
+  `apps/guest/src/app/api/recensioni/route.ts`, perché non venga «sistemato»
+  da chi lo prende per una svista. Migrazione 043.
 
-### Stampa e documenti
+### Piattaforma e assistenza
 
-- **PDF per la tipografia** dei cavalierini: A6 con 3 mm di abbondanza per
-  lato e crocini di taglio, singolo o **tutti i tavoli in un file**.
-- **Stampa comande divisa per reparto**: il foglio del bar non contiene più
-  i primi.
-- **Stampa del report Analisi** dal dialogo del browser, così si sceglie la
-  stampante oppure il PDF, e il testo resta selezionabile.
+- **Pannello super amministratore** con CRM: scheda cliente (referente, come
+  è arrivato, quando risentirlo, perché ha lasciato) e note non modificabili
+  né cancellabili. Scadenze piani, moduli, creazione del titolare.
+  Migrazioni 039, 040.
+- **Assistenza dentro il gestionale.** Il locale scrive da lì e ritrova la
+  risposta lì. Una richiesta ripetuta sullo stesso oggetto **si accoda** a
+  quella aperta e ne alza l'urgenza, invece di rispondere in verde senza
+  scrivere niente. Migrazione 041.
 
-### Guida
+### Difetti chiusi, e vale la pena leggerli
 
-- `guida/` contiene lo script che cattura **venti schermate dalla
-  produzione** e ne costruisce una **guida interattiva** in una pagina sola,
-  con capitoli, indice, avanti/indietro e ingrandimento. Si rifà con
-  `node guida/cattura.mjs && node guida/costruisci.mjs`. C'è anche una
-  composizione Remotion per il video verticale.
-- `db/servizio-prova.mjs` popola la sala come una sera vera — cinque tavoli
-  in momenti diversi del servizio, trenta servizi chiusi, prenotazioni — e
-  `--pulisci` rimuove esattamente quello che ha creato.
+Erano tutti *silenziosi*: nessun errore, un numero plausibile e sbagliato.
 
-### Rotture trovate e corrette
+- **Doppio addebito su Stripe.** Un `catch` nudo attorno a una lettura
+  Stripe prendeva anche i timeout: archiviava il pagamento come fallito
+  mentre l'intent restava confermabile, il saldo tornava pieno e nasceva un
+  secondo intent sull'intero conto. Il ciclo di scadenza aveva la stessa
+  forma al contrario. Ora si annulla **prima** e si archivia dopo.
+- **Doppio incasso su Satispay.** Al webhook mancava la guardia
+  `status = 'pending'`. E l'endpoint carta scadeva anche le righe Satispay,
+  che non sa annullare.
+- **Incasso al banco con una carta in corso.** Il totale pagato contava solo
+  i pagamenti riusciti, quindi uno in volo valeva zero: si registrava tutto
+  in contanti e la carta andava a buon fine pochi secondi dopo. Ora è
+  rifiutato, e un tavolo che ha pagato in più lo dice.
+- **Abbonamento concesso a mano che non scadeva mai**: la data si leggeva
+  solo per le prove.
+- **Il campo «Giorni» del pannello riscriveva la scadenza vera**: partiva
+  sempre da 30, e cambiare solo lo stato azzerava un anno pagato per
+  bonifico. Vuoto significa «non toccarla».
+- **Price Stripe senza metadata `moduli`**: l'abbonamento risultava «Attivo»
+  con zero moduli. Il locale paga e non ha niente. Ora i moduli restano
+  quelli che erano e l'anomalia va nei log — **ma il metadata va messo su
+  ogni Price**.
+- **Fattura elettronica senza coperto e servizio**: dichiarava meno di
+  quanto incassato. Ora sono righe di fattura, con l'aliquota impostabile dal
+  locale (migrazione 042) perché la decide il commercialista.
+- **QR che puntavano a `localhost`** quando mancava `GUEST_APP_URL`: quella
+  pagina produce il file per la tipografia.
+- **La board di cucina taceva.** Tre gesti su quattro senza `catch`, e il
+  polling che falliva in silenzio lasciando l'ultimo dato buono: un monitor
+  che ha smesso di parlare col server risponde «non manca niente».
+- **Import Tilby che sovrascriveva al buio**: IVA assente → 10% sopra il 22%
+  messo a mano, e descrizione vuota in cassa che cancellava quella scritta
+  nel gestionale.
+- **`requireModulo` scritta e mai chiamata**: chi paga solo le prenotazioni
+  usava tutto. Ora il modulo si chiede insieme al ruolo su menu, tavoli e QR
+  — non sulle azioni che chiudono lavoro già cominciato.
+- **Rate limit contati per solo indirizzo**: prenotare cinque volte bruciava
+  il diritto di prenotare *ovunque*, e cinque colleghi dietro lo stesso wifi
+  si bloccavano a vicenda. Ora contano per locale, o per tavolo.
+- **Analisi falsate dai tavoli mai usati**: un QR inquadrato per curiosità
+  si chiudeva da solo dopo sei ore ed entrava come servizio a incasso zero.
 
-- **Il contante era dentro la condizione che richiede Stripe o Satispay**:
-  un locale che incassa solo in cassa non vedeva il bottone che gli serve
-  di più.
-- **`create-satispay` non controllava l'abbonamento**: un locale scaduto non
-  poteva incassare con carta ma incassava con Satispay.
-- **L'assistente restava acceso dopo la scadenza**, consumando il credito
-  OpenRouter del locale.
-- **Le chiamate dei tavoli chiusi continuavano a suonare** per sempre.
-- **Le barre del grafico Analisi uscivano dal riquadro** fin sopra la
-  navigazione: il picco era calcolato sulle righe singole, le barre sui
-  giorni aggregati.
-- **`schema.sql` non compilava**: una virgola era finita dentro un commento
-  `--`. Un'installazione nuova sarebbe fallita del tutto. Verificato
-  applicandolo a un Postgres vuoto — 265 colonne, zero differenze con la
-  produzione.
-- **Il modello OpenRouter non si poteva cambiare** senza reinserire la
-  chiave, che non viene mai ripopolata perché è un segreto.
-- **Con due palmari si poteva far saltare uno stato**: ora l'aggiornamento
-  dichiara da quale stato parte e si ferma se è cambiato.
+### Test
+
+**46 test end-to-end contro la produzione**, e ora dicono la verità: prima
+ogni file condivideva un locale e i test si passavano tavoli aperti, quindi
+fallivano in fila e passavano da soli. Adesso **un locale per test**. Coperti:
+formula, intervallo fra ordini, disdetta, promemoria, permessi di ruolo e
+reparto, rifiuto dell'incasso con carta in volo, giro completo
+dell'assistenza.
 
 ---
-
 
 ## 1. Cos'è
 
@@ -166,6 +181,27 @@ un utente si aggiorna `users.password_hash` con un hash bcrypt.
 L'account amministratore e il locale dimostrativo *Trattoria da Luca* sono
 già configurati in produzione: chiedi le credenziali a chi ti passa il
 progetto.
+
+Esiste anche un **super amministratore di piattaforma**, separato dai
+gestionali dei locali: entra dalla stessa maschera di accesso e viene
+portato su `/admin`, dove vede tutti i clienti, i moduli, le scadenze e le
+richieste di assistenza. Al primo accesso **la password va cambiata per
+forza**: quella iniziale è stata comunicata a voce, quindi da quel momento
+non è più un segreto. Anche queste credenziali si chiedono a voce.
+
+### Variabili d'ambiente da non dimenticare
+
+Impostate su Vercel, non nei file. Quelle che, mancando, non danno errore
+ma spengono qualcosa in silenzio:
+
+| Variabile | Progetto | Se manca |
+|---|---|---|
+| `CRON_SECRET` | guest | Il promemoria del giorno prima non parte. **Impostata il 4 settembre 2026.** L'endpoint rifiuta e lo scrive nei log. |
+| `NEXT_PUBLIC_APP_URL` | guest | I link di disdetta nelle email puntano altrove. Impostata. |
+| `GUEST_APP_URL` | dashboard | I QR per la tipografia punterebbero a `localhost`. Da settembre 2026 la pagina si rifiuta di generarli e lo dice. |
+| `RESEND_API_KEY`, `RESEND_FROM` | entrambi | Nessuna email parte. **Ancora da impostare.** |
+| `INVOICETRONIC_WEBHOOK_SECRET` | guest | Le fatture restano su «Inviata a SDI» per sempre. La lista ora segnala quelle ferme da oltre due giorni. |
+| `ENCRYPTION_KEY` | entrambi | I rate limit diventano globali invece che per chiamante, e lo scrive nei log. |
 
 ---
 
@@ -377,7 +413,8 @@ La parte importante di questo documento.
 | Cosa | Chi lo sblocca |
 |---|---|
 | **Sandbox Stripe da rivendicare.** Finché non lo è, Connect non funziona e nessun pagamento reale è possibile: verificato il 3 settembre 2026, gli account collegati sono **zero**. Prodotti, prezzi e webhook invece **sono già a posto** (vedi 6.1). | Titolare dell'account Stripe |
-| **Chiave Resend** (`RESEND_API_KEY`, `RESEND_FROM`). Senza, **nessuna email parte**: le prenotazioni restano visibili in gestionale ma il cliente non riceve conferme, e la pagina lo dice da sola in giallo. Serve creare l'account, **verificare il dominio** con i record DKIM/SPF — senza, Gmail manda le conferme in spam — e generare la chiave. Il codice è già collegato: `inviaEmail` è usata da conferme, rifiuti, fatture e dal bottone di prova in Impostazioni, e c'è la sovrascrittura per singolo locale. | Chi vende |
+| **Chiave Resend** (`RESEND_API_KEY`, `RESEND_FROM`). Senza, **nessuna email parte**, e adesso pesa di più di prima: oltre a conferme, rifiuti e fatture restano a terra anche la **richiesta ricevuta**, il **promemoria del giorno prima** e l'**avviso di disdetta al locale**. Il promemoria è l'unico che fallisce in silenzio dal punto di vista del cliente — l'errore finisce sulla riga della prenotazione, non a schermo. Serve creare l'account, **verificare il dominio** con i record DKIM/SPF — senza, Gmail manda le conferme in spam — e generare la chiave. Il codice è già collegato. | Chi vende |
+| **Metadata `moduli` su ogni Price Stripe** (`ordini`, `prenotazioni`, o entrambi separati da virgola). Senza, il locale risulta «Attivo» e non ha nessun modulo: paga e al primo QR inquadrato legge che l'ordine al tavolo non è disponibile. Da settembre 2026 i moduli **non vengono più azzerati** in quel caso e l'anomalia va nei log, ma il metadata va messo lo stesso. | Chi vende |
 | **Foto autentiche del locale.** La demo ha ora immagini fotografiche locali coerenti; per la produzione servono gli scatti reali dei piatti e delle bevande. | Il locale |
 | **Account intermediario SDI** per la fatturazione | Il locale |
 | **Developer Program Tilby** per il collegamento cassa | Chi vende |
@@ -396,8 +433,11 @@ In ordine di quanto bloccano una vendita in Italia:
 3. **Comanda presa dal cameriere.** Oggi ordina solo il cliente. Non tutti
    scansionano il QR.
 4. **Asporto e delivery.** Richiesta frequentissima.
-5. **Caparra anti no-show** sulle prenotazioni. È l'argomento di punta di
-   TheFork. La colonna esiste in `reservations`, la logica no.
+5. **Caparra anti no-show** sulle prenotazioni. La colonna esiste in
+   `reservations`, la logica no. Da settembre 2026 il no-show è però
+   attaccato da due lati che prima mancavano: il **promemoria il giorno
+   prima** e il **link per disdire** senza telefonare. Restano il pezzo di
+   TheFork che non abbiamo.
 6. **Stampa comande su termica ESC/POS.** La cucina vuole la carta.
 7. **Fidelity e gift card.** Fidelizzazione.
 8. **Multi-locale.** Chiude i gruppi e le catene.
@@ -429,13 +469,34 @@ In ordine di quanto bloccano una vendita in Italia:
   **Finché è pubblico vale la regola di sempre: nessuna password, nessuna
   chiave, nessun segreto nei file committati.** Un segreto finito qui per
   sbaglio va considerato bruciato e ruotato, non solo rimosso.
-- **Nessun test automatico sulle nuove aree.** Trattenute, permessi di
-  reparto, codice operatore e chiamate dal tavolo sono stati verificati a
-  mano contro la produzione, non da una suite. Gli E2E esistenti coprono il
-  giro ordine/pagamento di prima.
+- **Suite E2E: 46 test contro la produzione**, con un locale per test. Coprono
+  ordine e pagamento, permessi di ruolo e di reparto, trattenute, chiamate dal
+  tavolo, formula a prezzo fisso, intervallo fra le ordinazioni, rifiuto
+  dell'incasso con carta in volo, disdetta, promemoria, assistenza andata e
+  ritorno. **Non** coprono: numeri di ritiro al banco, recensioni, pannello di
+  piattaforma oltre le guardie di accesso.
+- **La suite ha bisogno di rete stabile verso Neon.** Su una linea che perde
+  colpi i fallimenti si presentano come difetti dell'applicazione
+  (`getaddrinfo ENOTFOUND`, o un'asserzione che scade): prima di indagare un
+  rosso, rilanciare il test da solo.
 - **Le soglie di ritardo e recupero tavolo non generano storico.** Si vede
   che un tavolo è in ritardo adesso, non quante volte lo è stato: non c'è
   ancora un dato su cui ragionare a fine mese.
+- **Il numero di ritiro non ha un display pubblico.** La pagina Banco è dentro
+  il gestionale e vuole un accesso: per metterla su uno schermo rivolto ai
+  clienti serve una pagina pubblica in sola lettura, che oggi non c'è.
+- **Le recensioni non si possono rispondere né esportare**, e il link
+  pubblico è proposto ai soli cinque stelle per scelta del committente (vedi
+  sezione 0): è una posizione da rivedere se Google dovesse contestarla.
+- **`pickup_metodi` non ha effetto sul cercapersone.** Il software dice quale
+  numero far vibrare; non parla con l'hardware dei cercapersone, e non
+  esiste uno standard per farlo.
+- **La formula a prezzo fisso è scritta due volte**: una nel conto del
+  cliente (`apps/guest/src/lib/balance.ts`), una dentro la transazione che
+  chiude il tavolo (`close-table-actions.ts`). Devono restare allineate: se
+  la seconda calcola meno, il tavolo non si chiude mai; se calcola di più, si
+  incassa più di quanto mostrato. Tre test E2E le tengono insieme, ma chi
+  tocca una deve toccare l'altra.
 
 ---
 
@@ -529,8 +590,22 @@ serve toccare il codice, ma un prezzo senza metadata non concede niente.
    di proposito.
 7. **Orari**, sempre: compaiono sulle pagine pubbliche e sono la prima cosa
    che le persone cercano.
-8. Facoltativi e a consumo, su chiave OpenRouter del locale: **schede vino
-   da foto** e **assistente**. Entrambi spenti finché non li accende lui.
+8. **Formula a prezzo fisso**, se il locale lavora ad all you can eat:
+   *Impostazioni → Formula a prezzo fisso*. Prezzo di pranzo e di cena, da
+   che ora vale la cena, tariffa bambini, supplemento per l'avanzato. Poi
+   spunta **Fuori formula** sulle voci che restano a pagamento — dolci,
+   caffè, amari, bevande, premium — o finiranno comprese. Con la formula
+   accesa compare anche l'**attesa fra le ordinazioni**: senza, un tavolo da
+   sei manda ottanta piatti in tre minuti.
+9. **Numeri di ritiro**, se consegna al bancone e non al tavolo:
+   *Impostazioni → Numeri di ritiro*. Accendili e scegli come avvisi —
+   segnaposto, cercapersone, telefono, anche più d'uno. Compare la pagina
+   **Banco** per lo schermo dietro al bancone. Accenderli senza scegliere un
+   modo viene rifiutato: il cliente avrebbe un numero che nessuno chiama.
+10. **Link recensioni**: *Impostazioni → Marchio*, il campo del profilo
+    pubblico. Viene proposto a fine pasto a chi lascia cinque stelle.
+11. Facoltativi e a consumo, su chiave OpenRouter del locale: **schede vino
+    da foto** e **assistente**. Entrambi spenti finché non li accende lui.
 
 ---
 
