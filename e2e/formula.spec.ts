@@ -156,3 +156,46 @@ test("alla carta la formula non tocca il conto", async ({ page }) => {
     await sql.end();
   }
 });
+
+test("a formula il servizio si calcola su quello che si paga, non sui piatti compresi", async ({
+  page,
+}) => {
+  const sql = db();
+
+  try {
+    // 30 € a persona, 10% di servizio, e un extra fuori formula.
+    await sql`
+      update venues set formula_attiva = true, formula_predefinita = true,
+                        formula_cena_cents = 3000, formula_pranzo_cents = 3000,
+                        service_percent = 10, cover_charge_cents = 0
+       where id = ${venue.venueId}`;
+
+    await page.goto(`${GUEST_URL}/v/${venue.slug}/t/${venue.qrToken}`);
+    await page.getByRole("button", { name: /^Aggiungi / }).first().click();
+    await page.getByRole("button", { name: "Ordina" }).click();
+    await expect(page.getByText("Ordine inviato in cucina.")).toBeVisible({
+      timeout: 20_000,
+    });
+
+    const [s] = await sql<{ id: string }[]>`
+      select ts.id from table_sessions ts
+        join tables t on t.id = ts.table_id
+       where t.qr_token = ${venue.qrToken} and ts.status = 'open'
+       order by ts.opened_at desc limit 1`;
+
+    const conto = await page.evaluate(async (sessionId) => {
+      const r = await fetch(`/api/bill?sessionId=${sessionId}`);
+      return r.json();
+    }, s.id);
+
+    /*
+     * Il piatto ordinato è compreso, quindi la base del servizio è la sola
+     * formula: 30 € + 10% = 33 €. Calcolandolo sull'ordinato pieno darebbe
+     * una percentuale su un piatto che nessuno paga.
+     */
+    expect(conto.balanceCents).toBe(3300);
+    expect(conto.servizio?.totaleCents).toBe(300);
+  } finally {
+    await sql.end();
+  }
+});

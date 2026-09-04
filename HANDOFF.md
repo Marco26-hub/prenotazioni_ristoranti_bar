@@ -634,3 +634,73 @@ farà. Va detta in fase di vendita, non scoperta dopo.
 Stripe Connect resta necessario solo per il pagamento *dal telefono del
 cliente*. Un locale che non lo vuole compra comunque menu, ordine e
 prenotazioni.
+
+---
+
+## 4 settembre 2026 — formula a prezzo fisso, banco, prenotazioni complete
+
+### Il conto si calcola in un posto solo
+
+`packages/shared/conto.ts` → `contoSessione(sql, sessionId)`. Prende il gestore
+SQL invece di aprirselo, così la transazione che chiude il tavolo lo chiama e
+legge gli stessi dati che sta per scrivere.
+
+**Perché è nato**: l'aritmetica viveva in quattro punti — conto sul telefono,
+chiusura in cassa, residuo in sala, righe della fattura. Finché il conto era
+"somma dei piatti" le quattro copie davano lo stesso numero per caso. Con la
+formula hanno smesso: la sala diceva 168 € e la cassa ne registrava 64; il
+servizio si calcolava su basi diverse a seconda di come si pagava; la fattura
+dichiarava allo SDI un imponibile che il cliente non aveva mai pagato.
+
+**Se tocchi il conto, tocca solo quel file.** Chi lo chiama:
+`apps/guest/src/lib/balance.ts` (che ora delega), `close-table-actions.ts`,
+`dashboard/page.tsx`, `api/invoices/route.ts`.
+
+Regole che ci stanno dentro e che non sono ovvie:
+- il servizio si calcola su **formula + fuori formula**, non sull'ordinato
+  pieno: a formula sarebbe una percentuale su piatti che nessuno paga
+- coperto e servizio solo **se il tavolo ha ordinato**: un QR inquadrato per
+  curiosità apre una sessione e non deve risultare a debito
+- la formula vale solo se **la fascia in corso ha un prezzo**: senza, si torna
+  alla carta invece di incassare zero
+
+### Formula a prezzo fisso (all you can eat)
+
+Prezzo a persona, fasce pranzo/cena decise dall'**ora in cui il tavolo si è
+seduto** (non da quando chiede il conto). Formula o carta **per tavolo**, non
+per locale. Bambini gratis / ridotti / pieni, con la soglia d'età dichiarabile
+al cliente. Supplemento avanzo aggiunto da una persona alla chiusura.
+`menu_items.fuori_formula` marca dolci, caffè, amari, bevande e premium.
+
+### Numeri di ritiro al banco
+
+Numero per ordine, riparte da uno a ogni **giornata di servizio** (stacco a
+-5 ore: un locale che chiude alle due avrebbe altrimenti due numeri 7 nella
+stessa serata). Tre metodi cumulabili: segnaposto, cercapersone, telefono.
+Pagina `/dashboard/banco`, visibile solo a chi li ha accesi.
+
+### Prenotazioni: giro completo
+
+- mail al cliente **anche con approvazione manuale** (prima non riceveva nulla)
+- promemoria il giorno prima, cron orario su `vercel.json`, `CRON_SECRET`
+  già impostato in produzione — prende **50 righe per giro** perché la funzione
+  ha 60 secondi
+- link di disdetta in tutte le mail; chiede conferma invece di agire
+  all'apertura (le anteprime dei messaggi aprono i link)
+- disdetta del cliente registrata **separatamente** dal rifiuto del locale
+
+### Recensioni dal tavolo
+
+Voto e commento restano al locale. Link pubblico proposto **a chi dà cinque
+stelle**; sotto si chiede cosa non è andato. Scelta del committente, presa
+sapendo che Google può rimuovere le recensioni raccolte così — sta scritto in
+`api/recensioni/route.ts` perché non venga "sistemato" per svista.
+
+### Cosa manca
+
+- **Resend**: nessuna email parte finché non ci sono `RESEND_API_KEY` e
+  `RESEND_FROM` su entrambi i progetti Vercel. Serve un dominio verificato.
+- **Stripe live**: chiavi di produzione e i due webhook con i due signing
+  secret distinti. Ogni Price deve avere il metadata `moduli`.
+- I test E2E girano contro la produzione: `pnpm test:e2e` con
+  `E2E_DASHBOARD_URL` / `E2E_GUEST_URL`. Un locale per test, sempre.
