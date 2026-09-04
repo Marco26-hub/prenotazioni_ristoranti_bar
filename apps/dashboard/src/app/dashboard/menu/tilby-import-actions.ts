@@ -76,6 +76,9 @@ export async function importMenuFromTilby(): Promise<TilbyImportResult> {
   const skipped: string[] = [];
   let created = 0;
   let updated = 0;
+  // Voci per cui la cassa non ha dichiarato l'aliquota: vanno dette, o il
+  // ristoratore scopre la differenza dal commercialista.
+  let ivaMancante = 0;
 
   for (const [index, item] of tilbyItems.entries()) {
     const name = item.name?.trim();
@@ -89,7 +92,19 @@ export async function importMenuFromTilby(): Promise<TilbyImportResult> {
     }
 
     const priceCents = Math.round(item.price1 * 100);
-    const vatRate = typeof item.vat_perc === "number" ? item.vat_perc : 10;
+
+    /*
+     * Quello che la cassa non dice, non si inventa.
+     *
+     * L'aliquota assente diventava 10% e sovrascriveva il 22% che il
+     * ristoratore aveva messo a mano sui vini: nessun errore, solo una
+     * fattura sbagliata da lì in avanti. Allo stesso modo una descrizione
+     * vuota in cassa cancellava quella scritta nel gestionale, dove stanno
+     * ingredienti e conservazione. Su un aggiornamento i campi che la cassa
+     * non porta restano quelli che c'erano.
+     */
+    const vatRate = typeof item.vat_perc === "number" ? item.vat_perc : null;
+    const descrizione = item.description?.trim() || null;
     const categoryId = item.category_id
       ? (localCategoryByTilbyId.get(item.category_id) ?? null)
       : null;
@@ -98,21 +113,38 @@ export async function importMenuFromTilby(): Promise<TilbyImportResult> {
 
     if (existingId) {
       await sql`
-        update menu_items set price_cents = ${priceCents}, vat_rate = ${vatRate},
-          description = ${item.description?.trim() || null},
+        update menu_items set
+          price_cents = ${priceCents},
+          vat_rate = ${vatRate === null ? sql`vat_rate` : vatRate},
+          description = ${descrizione === null ? sql`description` : descrizione},
           category_id = ${categoryId}, available = true
         where id = ${existingId} and venue_id = ${venue.venueId}`;
       updated++;
+      if (vatRate === null) ivaMancante++;
     } else {
+      // Voce nuova: senza aliquota dalla cassa vale il default della
+      // colonna, e il conteggio qui sotto lo dice al ristoratore.
       await sql`
         insert into menu_items (venue_id, category_id, name, description,
                                 price_cents, vat_rate, sort_order)
         values (${venue.venueId}, ${categoryId}, ${name},
-                ${item.description?.trim() || null}, ${priceCents}, ${vatRate}, ${index})`;
+                ${descrizione}, ${priceCents},
+                ${vatRate ?? 10}, ${index})`;
       created++;
+      if (vatRate === null) ivaMancante++;
     }
   }
 
   revalidatePath("/dashboard/menu");
+
+  if (ivaMancante > 0) {
+    skipped.push(
+      `${ivaMancante} ${ivaMancante === 1 ? "voce" : "voci"}: la cassa non ha ` +
+        "dichiarato l'IVA. Su quelle già presenti è rimasta l'aliquota che " +
+        "avevi impostato, sulle nuove vale il 10% — controllale se vendi anche " +
+        "alcolici."
+    );
+  }
+
   return { created, updated, skipped };
 }

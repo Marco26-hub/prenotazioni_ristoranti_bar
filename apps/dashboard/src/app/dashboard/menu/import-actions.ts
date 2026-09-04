@@ -151,6 +151,8 @@ export async function importMenuCsv(formData: FormData): Promise<ImportResult> {
 
   const skipped: string[] = [];
   let imported = 0;
+  // Righe senza colonna IVA: al 10% per default, ma va detto.
+  let ivaAssunta = 0;
 
   const col = (cols: string[], name: string, fallback: number) => {
     const index = headers?.get(name);
@@ -163,8 +165,18 @@ export async function importMenuCsv(formData: FormData): Promise<ImportResult> {
     const name = col(cols, "nome", 1);
     const priceCents = parsePrice(col(cols, "prezzo", 2));
     const description = col(cols, "descrizione", 3) || null;
+    /*
+     * L'IVA assente vale 10%, ma il ristoratore deve saperlo.
+     *
+     * È l'aliquota della somministrazione ed è il default giusto per la
+     * cucina, ma su vini e alcolici è 22: un listino importato senza la
+     * colonna finiva tutto al 10 senza che nessuno lo dicesse, e la
+     * differenza si scopre dal commercialista. Il conteggio finisce nel
+     * resoconto dell'importazione.
+     */
     const vatRaw = col(cols, "iva", 4);
     const vatRate = vatRaw ? Number.parseFloat(vatRaw.replace(",", ".")) : 10;
+    if (!vatRaw) ivaAssunta++;
     const kindRaw = col(cols, "tipo", 5).toLowerCase();
     const kind = ["food", "wine", "beer", "drink"].includes(kindRaw) ? kindRaw : "food";
     const number = (column: string, fallback: number, min: number, max: number) => {
@@ -225,5 +237,13 @@ export async function importMenuCsv(formData: FormData): Promise<ImportResult> {
   }
 
   revalidatePath("/dashboard/menu");
+  if (ivaAssunta > 0) {
+    skipped.push(
+      `${ivaAssunta} ${ivaAssunta === 1 ? "riga" : "righe"} senza IVA nel file: ` +
+        "importate al 10%, l'aliquota della somministrazione. Se ci sono vini o " +
+        "alcolici correggili a 22% prima di emettere fatture."
+    );
+  }
+
   return { imported, skipped };
 }

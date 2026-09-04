@@ -51,9 +51,14 @@ export async function saveDishPhoto(formData: FormData): Promise<PhotoResult> {
 
   const base64 = Buffer.from(await photo.arrayBuffer()).toString("base64");
 
-  await sql`
+  // Nessuna riga toccata vuol dire che il piatto non è di questo locale, o
+  // non esiste più: dire "salvata" manderebbe a cercare la foto in giro.
+  const righe = await sql`
     update menu_items set image_url = ${`data:${photo.type};base64,${base64}`}
-    where id = ${itemId} and venue_id = ${venue.venueId}`;
+    where id = ${itemId} and venue_id = ${venue.venueId}
+    returning id`;
+
+  if (righe.length === 0) return { error: "Piatto non trovato" };
 
   revalidatePath("/dashboard/menu");
   return { success: true };
