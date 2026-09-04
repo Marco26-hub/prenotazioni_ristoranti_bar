@@ -22,6 +22,7 @@ import { hasModulo, type Modulo } from "@repo/shared";
 const NAV = [
   { href: "/dashboard", label: "Tavoli", modulo: "ordini", fila: "servizio" },
   { href: "/dashboard/orders", label: "Ordini", modulo: "ordini", fila: "servizio" },
+  { href: "/dashboard/banco", label: "Banco", modulo: "ordini", fila: "servizio" },
   {
     href: "/dashboard/reservations",
     label: "Prenotazioni",
@@ -73,6 +74,9 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
   let serveDpa = false;
   let datiMancanti: string[] = [];
   let moduliAttivi = new Set<Modulo>();
+  // Il banco compare solo a chi consegna al bancone: per una trattoria
+  // sarebbe una voce in più che non apre niente.
+  let banco = false;
 
   if (venue) {
     const sql = db();
@@ -87,8 +91,10 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
         subscription_status: string;
         subscription_period_end: Date | null;
         modules: string[] | null;
+        pickup_numbering_enabled: boolean;
       }[]
     >`select dpa_version, vat_number, fiscal_code, address_city, public_email, pec,
+           pickup_numbering_enabled,
              subscription_status, subscription_period_end, modules
         from venues where id = ${venue.venueId}`;
 
@@ -107,6 +113,8 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
         hasModulo(modulo, row?.subscription_status, row?.subscription_period_end, row?.modules)
       )
     );
+
+    banco = Boolean(row?.pickup_numbering_enabled);
   }
 
   return (
@@ -133,7 +141,11 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
         </div>
 
         <MenuNavigazione
-          voci={NAV.filter((item) => !item.modulo || moduliAttivi.has(item.modulo)).map(
+          voci={NAV.filter(
+            (item) =>
+              (!item.modulo || moduliAttivi.has(item.modulo)) &&
+              (item.href !== "/dashboard/banco" || banco)
+          ).map(
             (item) => ({ href: item.href, label: item.label, fila: item.fila })
           )}
         />

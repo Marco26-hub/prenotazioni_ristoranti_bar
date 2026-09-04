@@ -11,6 +11,7 @@ import { PrenotazioniForm } from "./prenotazioni-form";
 import { EmailForm } from "./email-form";
 import { CopertoForm } from "./coperto-form";
 import { FormulaForm } from "./formula-form";
+import { RitiroForm } from "./ritiro-form";
 import { TestiForm } from "./testi-form";
 import { SogliaForm } from "./soglia-form";
 import { OpenRouterForm } from "./openrouter-form";
@@ -56,6 +57,8 @@ export default async function SettingsPage() {
       formula_bambino_eta_max: number | null;
       formula_supplemento_cents: number;
       formula_nota: string | null;
+      pickup_numbering_enabled: boolean;
+      pickup_metodi: string[] | null;
       cover_charge_label: string | null;
       soglia_attesa_min: number;
       soglia_liberazione_min: number;
@@ -95,6 +98,7 @@ export default async function SettingsPage() {
            formula_cena_cents, formula_ora_cena::text as formula_ora_cena,
            formula_bambino_cents, formula_bambino_eta_max,
            formula_supplemento_cents, formula_nota,
+           pickup_numbering_enabled, pickup_metodi,
            cover_charge_label, public_texts,
            soglia_attesa_min, soglia_liberazione_min,
            openrouter_api_key, openrouter_model,
@@ -272,6 +276,20 @@ export default async function SettingsPage() {
           etaMax={venueRow?.formula_bambino_eta_max ?? null}
           supplementoCents={venueRow?.formula_supplemento_cents ?? 0}
           nota={venueRow?.formula_nota ?? ""}
+        />
+      </section>
+
+      <section className="rounded-xl border border-border bg-surface p-4">
+        <h2 className="mb-1 font-semibold">Numeri di ritiro</h2>
+        <p className="mb-3 text-sm text-muted">
+          Per chi consegna al bancone e non al tavolo: piadineria, pizza al
+          taglio, gastronomia. Ogni ordine prende un numero che riparte da uno
+          a ogni giornata di servizio, e lo schermo del banco dice quale
+          chiamare.
+        </p>
+        <RitiroForm
+          attivo={venueRow?.pickup_numbering_enabled ?? false}
+          metodi={venueRow?.pickup_metodi ?? []}
         />
       </section>
 

@@ -22,6 +22,8 @@ export interface ResolvedVenue {
   /** Ore dopo cui una sessione lasciata aperta scade. 0 = mai. */
   sessione_max_ore: number;
   ordine_intervallo_min: number;
+  pickup_numbering_enabled: boolean;
+  pickup_metodi: string[] | null;
 }
 
 export interface ResolvedTable {
@@ -46,7 +48,8 @@ export async function resolveTableFromQr(
            public_phone, public_email, vat_number,
            address, address_zip, address_city, address_province,
            subscription_status, subscription_period_end, modules,
-           sessione_max_ore, ordine_intervallo_min
+           sessione_max_ore, ordine_intervallo_min,
+           pickup_numbering_enabled, pickup_metodi
     from venues where slug = ${slug}`;
   if (
     !venue ||

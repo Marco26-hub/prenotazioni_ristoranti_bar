@@ -89,6 +89,12 @@ const FUNZIONI = [
       "Appena finito di mangiare, col telefono già in mano. Chi è contento lo scrive anche pubblicamente; chi non lo è ti dice cosa non è andato, e lo leggi stasera invece che su Google fra una settimana.",
   },
   {
+    titolo: "Numero di ritiro al banco",
+    testo:
+      "Piadineria, pizza al taglio, gastronomia: chi ordina prende un numero che riparte da uno ogni giorno. Avvisi come preferisci — segnaposto sul tavolo, cercapersone, o il numero che diventa «pronto» da solo sul telefono di chi ha ordinato. Sullo schermo del banco vedi cosa chiamare.",
+    ampio: true,
+  },
+  {
     titolo: "All you can eat",
     testo:
       "Prezzo a persona, pranzo e cena separati, bambini a tariffa ridotta o gratis. Le ordinazioni a ondate, con l'attesa che decidi tu: senza, un tavolo da sei manda ottanta piatti in tre minuti e metà restano nel piatto.",
@@ -136,6 +142,7 @@ const CONFRONTO: Array<[string, string, string]> = [
   ["Compri solo il modulo che ti serve", "Sì", "Quasi mai"],
   ["Promemoria e disdetta al cliente", "Inclusi", "Solo sui portali, con commissione"],
   ["Formula a prezzo fisso (all you can eat)", "Inclusa", "Rara"],
+  ["Numero di ritiro al banco", "Incluso", "Di solito un sistema a parte"],
 ];
 
 const SERVE = [

@@ -81,6 +81,9 @@ create table venues (
   service_vat_rate numeric(4,2) not null default 10.00,
   -- Banco senza tavoli: si chiama un numero invece di servire al tavolo.
   pickup_numbering_enabled boolean not null default false,
+  -- Come si avvisa chi aspetta: segnaposto, cercapersone, telefono. Anche
+  -- più d'uno. Vuoto: nessun avviso.
+  pickup_metodi text[] not null default '{}',
   -- Minuti fra due ordini dello stesso tavolo, come negli all-you-can-eat:
   -- senza, un tavolo da sei manda ottanta piatti in tre minuti. 0 = libero.
   ordine_intervallo_min smallint not null default 0
@@ -384,6 +387,8 @@ create table orders (
   -- stessa serata.
   pickup_number int,
   pickup_service_date date,
+  pickup_chiamato_at timestamptz,
+  pickup_ritirato_at timestamptz,
   created_at timestamptz default now()
 );
 

@@ -171,10 +171,35 @@ export async function POST(request: Request) {
     });
   }
 
-  const orderId = await sql.begin(async (tx) => {
+  const esitoOrdine = await sql.begin(async (tx) => {
+    /*
+     * Numero di ritiro, dove si serve al banco.
+     *
+     * Riparte da uno a ogni giornata di servizio — non a mezzanotte: un
+     * locale che chiude alle due avrebbe altrimenti due serie nella stessa
+     * serata, e due clienti col numero 7 davanti allo stesso bancone.
+     *
+     * Il contatore è una riga sola per locale e per giornata, aggiornata in
+     * transazione: due ordini arrivati nello stesso istante prendono due
+     * numeri diversi perché il secondo aspetta il primo.
+     */
+    const [conta] = await tx<{ numero: number; giornata: string }[]>`
+      insert into order_number_counters (venue_id, service_date, last_number)
+      select ${session.venue_id},
+             ((now() at time zone coalesce(v.timezone, 'Europe/Rome'))
+               - interval '5 hours')::date,
+             1
+        from venues v
+       where v.id = ${session.venue_id} and v.pickup_numbering_enabled
+      on conflict (venue_id, service_date)
+      do update set last_number = order_number_counters.last_number + 1
+      returning last_number as numero, service_date::text as giornata`;
+
     const [order] = await tx<{ id: string }[]>`
-      insert into orders (venue_id, table_session_id, status)
-      values (${session.venue_id}, ${session.id}, 'confirmed')
+      insert into orders (venue_id, table_session_id, status,
+                          pickup_number, pickup_service_date)
+      values (${session.venue_id}, ${session.id}, 'confirmed',
+              ${conta?.numero ?? null}, ${conta?.giornata ?? null})
       returning id`;
 
     for (const r of righe) {
@@ -192,8 +217,11 @@ export async function POST(request: Request) {
         )`;
     }
 
-    return order.id;
+    return { id: order.id, numero: conta?.numero ?? null };
   });
 
-  return NextResponse.json({ orderId }, { status: 201 });
+  return NextResponse.json(
+    { orderId: esitoOrdine.id, numeroRitiro: esitoOrdine.numero },
+    { status: 201 }
+  );
 }

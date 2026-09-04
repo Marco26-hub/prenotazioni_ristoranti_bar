@@ -10,6 +10,7 @@ import { gruppiPerPiatti } from "@repo/shared/varianti";
 import { notaConservazione, type Conservazione } from "@repo/shared/bevande";
 import { Bill } from "./bill";
 import { Recensione } from "./recensione";
+import { NumeroRitiro } from "./numero-ritiro";
 
 /**
  * Mai nei motori di ricerca: l'URL contiene il token stampato sul QR, e
@@ -79,6 +80,13 @@ export default async function TablePage({
    * all you can eat, senza che il menu l'avesse detto, è la discussione che
    * il cameriere si trova a fare al momento di pagare.
    */
+  // Il numero sul telefono lo mostra solo chi ha scelto quel metodo: chi
+  // consegna un segnaposto non vuole un secondo canale che dica cose
+  // leggermente diverse.
+  const avvisaSulTelefono =
+    (venue.pickup_metodi ?? []).includes("telefono") &&
+    Boolean(venue.pickup_numbering_enabled);
+
   const [statoFormula] = await sql<{ a_formula: boolean }[]>`
     select (ts.formula and v.formula_attiva) as a_formula
       from table_sessions ts
@@ -151,6 +159,8 @@ export default async function TablePage({
       {annuncio && <AnnuncioLocale annuncio={annuncio} venueSlug={slug} />}
 
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-5">
+        {avvisaSulTelefono && <NumeroRitiro sessionId={resolved.sessionId} />}
+
         <section id="ordine" aria-label="Ordina dal tavolo">
           <OrderMenu
             sessionId={resolved.sessionId}
