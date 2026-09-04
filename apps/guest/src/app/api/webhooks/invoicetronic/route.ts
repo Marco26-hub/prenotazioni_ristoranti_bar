@@ -29,7 +29,24 @@ function signatureValid(header: string | null, payload: string, secret: string) 
 export async function POST(request: Request) {
   const secret = process.env.INVOICETRONIC_WEBHOOK_SECRET;
   const payload = await request.text();
-  if (!secret || !signatureValid(request.headers.get("Invoicetronic-Signature"), payload, secret)) {
+
+  /*
+   * Non configurato e firma sbagliata non sono la stessa cosa.
+   *
+   * Rispondevano entrambi 401 senza dire niente. Ma la prima è una cosa
+   * nostra: senza il segreto nessuna notifica viene mai accettata, e ogni
+   * fattura resta "Inviata a SDI" per sempre — mentre magari lo SDI l'ha
+   * scartata giorni prima. Va scritto nei log, o non lo scopre nessuno.
+   */
+  if (!secret) {
+    console.error(
+      "[invoicetronic] INVOICETRONIC_WEBHOOK_SECRET mancante: gli aggiornamenti " +
+        "di stato delle fatture non vengono accettati e restano ferme su 'inviata'."
+    );
+    return NextResponse.json({ error: "Webhook non configurato" }, { status: 503 });
+  }
+
+  if (!signatureValid(request.headers.get("Invoicetronic-Signature"), payload, secret)) {
     return NextResponse.json({ error: "Firma webhook non valida" }, { status: 401 });
   }
 

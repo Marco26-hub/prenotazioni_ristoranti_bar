@@ -37,11 +37,15 @@ export default async function InvoicesPage() {
       created_at: Date;
       amount_cents: number;
       payment_provider: string;
+      ferma: boolean;
     }[]
   >`
     select i.id, i.invoice_number, i.status, i.provider_invoice_id,
            i.sdi_identifier, i.xml_url, i.customer_email, i.emailed_at, i.created_at,
-           p.amount_cents, p.provider as payment_provider
+           p.amount_cents, p.provider as payment_provider,
+           -- Il confronto lo fa il database: leggere l'ora nel render darebbe
+           -- due HTML diversi fra server e browser.
+           (i.status = 'sent' and i.created_at < now() - interval '48 hours') as ferma
       from invoices i
       join payments p on p.id = i.payment_id
      where i.venue_id = ${venue.venueId}
@@ -93,6 +97,19 @@ export default async function InvoicesPage() {
                     <span className={`rounded-full border px-2.5 py-1 text-xs ${invoice.status === "rejected" ? "border-danger text-danger" : invoice.status === "delivered" ? "border-success text-success" : "border-border"}`}>
                       {STATUS[invoice.status] ?? invoice.status}
                     </span>
+                    {/*
+                      Lo SDI risponde in ore, non in giorni: una fattura ferma
+                      su "inviata" da due giorni non è lenta, è una notifica
+                      che non è mai arrivata — di solito perché il webhook non
+                      è configurato. Senza questo avviso restava così per
+                      sempre e nessuno la guardava più.
+                    */}
+                    {invoice.ferma && (
+                      <span className="mt-1 block text-xs text-danger">
+                        Ferma da oltre due giorni: controlla lo stato, o chiedi
+                        assistenza.
+                      </span>
+                    )}
                   </td>
                   <td className="max-w-48 truncate px-4 py-4 font-mono text-xs text-muted">
                     {invoice.sdi_identifier ?? invoice.provider_invoice_id ?? "In attesa"}
