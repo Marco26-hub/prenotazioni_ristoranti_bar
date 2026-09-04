@@ -9,14 +9,28 @@ import {
 } from "@/lib/balance";
 
 export async function GET(request: Request) {
-  const { allowed } = await checkRateLimit(clientKey(request, "bill"), 60, 60);
-  if (!allowed) {
-    return NextResponse.json({ error: "Troppe richieste" }, { status: 429 });
-  }
-
   const sessionId = new URL(request.url).searchParams.get("sessionId");
   if (!sessionId) {
     return NextResponse.json({ error: "sessionId mancante" }, { status: 400 });
+  }
+
+  /*
+   * Il limite è per sessione, non per solo indirizzo.
+   *
+   * Il conto si aggiorna ogni cinque secondi, cioè dodici volte al minuto per
+   * telefono: cinque commensali allo stesso tavolo, dietro lo stesso wifi,
+   * arrivavano esatti a sessanta e il sesto veniva respinto — e il suo conto
+   * si fermava sull'ultimo importo buono senza dirglielo. Contato per
+   * sessione il tetto è più alto di quanto un tavolo possa consumare, e
+   * l'abuso da fermare, qualcuno che martella una sessione, resta fermato.
+   */
+  const { allowed } = await checkRateLimit(
+    clientKey(request, `bill:${sessionId.slice(0, 60)}`),
+    180,
+    60
+  );
+  if (!allowed) {
+    return NextResponse.json({ error: "Troppe richieste" }, { status: 429 });
   }
 
   const sql = db();

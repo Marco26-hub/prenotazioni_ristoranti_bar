@@ -61,6 +61,9 @@ export function Bill({
   token: string;
 }) {
   const [bill, setBill] = useState<BillState | null>(null);
+  // L'ultimo aggiornamento non è riuscito: l'importo a schermo può non
+  // essere più quello vero.
+  const [fermo, setFermo] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [tipCents, setTipCents] = useState(0);
   const [paid, setPaid] = useState(false);
@@ -92,9 +95,24 @@ export function Bill({
   };
 
   const refreshBill = useCallback(async () => {
-    const res = await fetch(`/api/bill?sessionId=${sessionId}`);
-    if (!res.ok) return;
-    const data = (await res.json()) as BillState & { sessionStatus: string };
+    /*
+     * Un conto fermo non deve sembrare un conto aggiornato.
+     *
+     * Prima un fetch fallito usciva in silenzio e restava a schermo l'ultimo
+     * importo buono: chi ordinava ancora vedeva il vecchio totale e lo
+     * prendeva per quello da pagare. È il numero su cui la gente decide
+     * quanto mettere sul tavolo, quindi se non è più fresco va detto.
+     */
+    let data: BillState & { sessionStatus: string };
+    try {
+      const res = await fetch(`/api/bill?sessionId=${sessionId}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      data = (await res.json()) as BillState & { sessionStatus: string };
+    } catch {
+      setFermo(true);
+      return;
+    }
+    setFermo(false);
     setBill(data);
     /*
      * "Saldato" lo decide il saldo, non il fatto che un pagamento sia
@@ -231,6 +249,17 @@ export function Bill({
         così: qui si dice da dove viene. Un conto che non si spiega è il
         primo motivo per chiamare il cameriere.
       */}
+      {fermo && (
+        <p
+          role="alert"
+          className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900"
+        >
+          Il conto non si sta aggiornando: quello che vedi potrebbe non essere
+          l&apos;importo corrente. Controlla la connessione, o chiedi al
+          personale.
+        </p>
+      )}
+
       {bill.formula && (
         <dl className="mb-4 space-y-1 rounded-lg bg-background p-3 text-sm">
           <div className="flex justify-between gap-3">
