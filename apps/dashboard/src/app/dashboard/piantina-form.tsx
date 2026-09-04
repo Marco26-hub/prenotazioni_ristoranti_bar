@@ -83,13 +83,15 @@ async function immagineRidotta(file: File): Promise<string> {
 
 export function PiantinaForm({
   presente,
-  opacita,
+  opacita: opacitaIniziale,
   aiAttiva,
 }: {
   presente: boolean;
   opacita: number;
   aiAttiva: boolean;
 }) {
+  // Locale, per poterla riportare indietro se il salvataggio non riesce.
+  const [opacita, setOpacita] = useState(opacitaIniziale);
   const [avviso, setAvviso] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [leggendo, setLeggendo] = useState(false);
@@ -122,20 +124,40 @@ export function PiantinaForm({
   async function carica(file: File) {
     setAvviso(null);
     setPending(true);
-    try {
-      const dataUrl =
-        file.type === "application/pdf" ? await pdfInPng(file) : await immagineRidotta(file);
 
-      const fd = new FormData();
-      fd.set("dataUrl", dataUrl);
-      fd.set("opacita", String(opacita));
-      const r = await salvaPiantina(fd);
-      setAvviso(r.error ?? r.ok ?? null);
+    /*
+     * Leggere il file e salvarlo sono due passi distinti, e vanno raccontati
+     * come tali.
+     *
+     * Con un try solo attorno a entrambi, un salvataggio rifiutato — capita
+     * a chi non è titolare o responsabile — usciva come "non riesco a
+     * leggere il file": si finiva a riconvertire il PDF, a provarne un
+     * altro, a dare la colpa allo scanner, mentre il file era perfetto e il
+     * problema era il permesso.
+     */
+    let dataUrl: string;
+    try {
+      dataUrl =
+        file.type === "application/pdf" ? await pdfInPng(file) : await immagineRidotta(file);
     } catch (e) {
       setAvviso(
         e instanceof Error && e.message
           ? `Non riesco a leggere il file: ${e.message}`
           : "Non riesco a leggere il file."
+      );
+      setPending(false);
+      return;
+    }
+
+    try {
+      const fd = new FormData();
+      fd.set("dataUrl", dataUrl);
+      fd.set("opacita", String(opacita));
+      const r = await salvaPiantina(fd);
+      setAvviso(r.error ?? r.ok ?? null);
+    } catch {
+      setAvviso(
+        "Il file va bene, ma non è stato salvato: serve il ruolo di titolare o responsabile."
       );
     } finally {
       setPending(false);
@@ -174,12 +196,34 @@ export function PiantinaForm({
                 type="range"
                 min="0"
                 max="100"
-                defaultValue={opacita}
+                value={opacita}
                 disabled={pending}
                 onChange={async (e) => {
-                  const fd = new FormData();
-                  fd.set("opacita", e.target.value);
-                  await salvaPiantina(fd);
+                  /*
+                   * L'esito non si butta via.
+                   *
+                   * Prima il cursore si spostava, il salvataggio poteva
+                   * fallire — permessi, rete — e non lo diceva nessuno: la
+                   * trasparenza sembrava impostata e al ricarico della
+                   * pagina tornava com'era, senza che si capisse perché.
+                   */
+                  const valore = e.target.value;
+                  const precedente = opacita;
+                  setOpacita(Number(valore));
+                  try {
+                    const fd = new FormData();
+                    fd.set("opacita", valore);
+                    const r = await salvaPiantina(fd);
+                    if (r.error) {
+                      setAvviso(r.error);
+                      setOpacita(precedente);
+                    }
+                  } catch {
+                    setAvviso(
+                      "Trasparenza non salvata: serve il ruolo di titolare o responsabile."
+                    );
+                    setOpacita(precedente);
+                  }
                 }}
                 className="w-32"
               />
