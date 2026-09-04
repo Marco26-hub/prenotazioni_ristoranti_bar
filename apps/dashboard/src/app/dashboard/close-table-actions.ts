@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { requireVenue } from "@/lib/authz";
+import { contoSessione } from "@repo/shared/conto";
 
 /**
  * Chiusura del conto da parte dello staff, per il pagamento al banco o in
@@ -60,98 +61,17 @@ export async function closeTableInPerson(
     }
 
     /*
-     * Stessa aritmetica del conto mostrato al cliente.
+     * Lo stesso conto che vede il cliente, calcolato dalla stessa funzione.
      *
-     * Sta scritta due volte perché qui vive dentro la transazione che chiude
-     * il tavolo, ma i due numeri devono coincidere: se il conto allo staff
-     * fosse più basso, il tavolo non si chiuderebbe mai per una differenza
-     * di due euro, e se fosse più alto si incasserebbe di più di quanto
-     * dichiarato al cliente.
-     *
-     * A formula i piatti compresi valgono zero: si pagano solo dolci,
-     * caffè, amari, bevande e piatti premium.
+     * Prima l'aritmetica era riscritta qui dentro, e con la formula le due
+     * copie hanno smesso di coincidere: il servizio si calcolava su basi
+     * diverse a seconda che si pagasse dall'app o in contanti, e sullo
+     * stesso ordine ballavano diciotto euro. Ora la transazione chiama la
+     * funzione condivisa passandole il proprio gestore, così legge gli
+     * stessi dati che sta per scrivere.
      */
-    const [f] = await tx<
-      {
-        formula: boolean;
-        guest_count: number;
-        bambini: number;
-        supplemento_cents: number;
-        formula_attiva: boolean;
-        unitario: number;
-        bambino: number | null;
-      }[]
-    >`select ts.formula, ts.guest_count, ts.bambini, ts.supplemento_cents,
-             v.formula_attiva,
-             case
-               when (ts.opened_at at time zone coalesce(v.timezone, 'Europe/Rome'))::time
-                    >= v.formula_ora_cena
-               then v.formula_cena_cents else v.formula_pranzo_cents
-             end as unitario,
-             v.formula_bambino_cents as bambino
-        from table_sessions ts
-        join venues v on v.id = ts.venue_id
-       where ts.id = ${session.id}`;
-
-    const aFormula = Boolean(f?.formula && f.formula_attiva && (f.unitario ?? 0) > 0);
-
-    const [ordered] = await tx<{ total: string | null }[]>`
-      select sum(oi.quantity * oi.unit_price_cents) as total
-      from order_items oi
-      join orders o on o.id = oi.order_id
-      join menu_items mi on mi.id = oi.menu_item_id
-      where o.table_session_id = ${session.id}
-        and o.status != 'cancelled' and oi.status != 'cancelled'
-        and (${!aFormula} or mi.fuori_formula)`;
-
-    const [paid] = await tx<{ total: string | null }[]>`
-      select sum(amount_cents) as total from payments
-      where table_session_id = ${session.id} and status = 'succeeded'`;
-
-    const ordinato = Number(ordered?.total ?? 0);
-
-    const coperti = Math.max(f?.guest_count ?? 1, 0);
-    const bambini = Math.min(Math.max(f?.bambini ?? 0, 0), coperti);
-    const formulaCents = aFormula
-      ? (coperti - bambini) * f.unitario +
-        bambini * (f.bambino ?? f.unitario) +
-        (f.supplemento_cents ?? 0)
-      : 0;
-
-    // Il tavolo deve aver ordinato qualcosa: un QR inquadrato per curiosità
-    // non apre un debito di quaranta euro.
-    const [quante] = await tx<{ n: string }[]>`
-      select count(*)::text as n
-        from order_items oi
-        join orders o on o.id = oi.order_id
-       where o.table_session_id = ${session.id}
-         and o.status != 'cancelled' and oi.status != 'cancelled'`;
-    const haOrdinato = Number(quante?.n ?? 0) > 0;
-
-    // Coperto e servizio come li calcola l'app cliente: se qui mancassero,
-    // il conto chiuso allo staff sarebbe più basso di quello mostrato al
-    // tavolo e la cassa non tornerebbe.
-    const [supp] = await tx<
-      {
-        guest_count: number;
-        cover_charge_cents: number;
-        service_percent: string;
-      }[]
-    >`select ts.guest_count, v.cover_charge_cents, v.service_percent
-        from table_sessions ts
-        join venues v on v.id = ts.venue_id
-       where ts.id = ${session.id}`;
-
-    const supplementi = haOrdinato
-      ? (supp?.cover_charge_cents ?? 0) * (supp?.guest_count ?? 1) +
-        Math.round((ordinato * Number(supp?.service_percent ?? 0)) / 100)
-      : 0;
-
-    const remaining =
-      ordinato +
-      (haOrdinato ? formulaCents : 0) +
-      supplementi -
-      Number(paid?.total ?? 0);
+    const conto = await contoSessione(tx, session.id);
+    const remaining = conto.residuoCents > 0 ? conto.residuoCents : -conto.eccedenzaCents;
 
     if (remaining < 0) {
       // Il tavolo ha versato più del dovuto. Chiudere in silenzio lo

@@ -4,6 +4,7 @@ import { checkRateLimit, clientKey } from "@repo/shared/rate-limit";
 import { inviaEmail } from "@repo/shared/email";
 import { formattaOrario } from "@repo/shared/prenotazioni";
 import { messaggioErrore } from "@repo/shared/errori";
+import { decryptSecret } from "@repo/shared/crypto";
 
 /**
  * Disdetta della prenotazione da parte del cliente.
@@ -54,7 +55,10 @@ export async function POST(request: Request) {
            disdetta_dal_cliente_at = now(),
            decline_reason = 'Disdetta dal cliente'
      where cancel_token = ${token}
-       and status not in ('cancelled', 'seated', 'no_show')
+       -- 'declined' compreso: disdire una richiesta che il locale ha già
+       -- rifiutato cancellava il motivo del rifiuto e mandava al locale
+       -- l'avviso che si era liberato un tavolo che non aveva mai dato.
+       and status not in ('cancelled', 'declined', 'seated', 'no_show')
        and reserved_at > now()
     returning id, customer_name, party_size, reserved_at, venue_id`;
 
@@ -88,10 +92,17 @@ export async function POST(request: Request) {
     const quando = formattaOrario(r.reserved_at, venue?.timezone ?? "Europe/Rome");
     const esito = await inviaEmail({
       a: destinatario,
-      mittenteLocale:
-        venue?.resend_api_key && venue?.resend_from
-          ? { apiKey: venue.resend_api_key, from: venue.resend_from }
-          : undefined,
+      mittenteLocale: (() => {
+        // Cifrata nel database: passandola così com'è Resend rifiuta
+        // l'autenticazione e l'avviso al locale non parte mai.
+        if (!venue?.resend_api_key || !venue?.resend_from) return undefined;
+        try {
+          return { apiKey: decryptSecret(venue.resend_api_key), from: venue.resend_from };
+        } catch {
+          console.error("[disdici] chiave email del locale illeggibile");
+          return undefined;
+        }
+      })(),
       oggetto: `Disdetta — ${r.customer_name}, ${r.party_size}p, ${quando}`,
       testo: [
         "Una prenotazione è stata disdetta dal cliente.",

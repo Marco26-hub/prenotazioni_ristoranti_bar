@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { requireVenue } from "@/lib/authz";
 import { inviaEmail } from "@repo/shared/email";
-import { linkDisdetta } from "@repo/shared/prenotazioni-token";
+import { linkDisdetta, nuovoTokenDisdetta } from "@repo/shared/prenotazioni-token";
 import { decryptSecret } from "@repo/shared/crypto";
 import {
   assegnaTavoliPrenotazione,
@@ -64,6 +64,7 @@ async function caricaContesto(venueId: string, reservationId: string) {
       from reservations
      where id = ${reservationId} and venue_id = ${venueId}`;
 
+
   const [locale] = await sql<RigaLocale[]>`
     select name, slug, timezone, reservation_email, public_email, public_phone,
            resend_api_key, resend_from
@@ -98,6 +99,23 @@ export async function confermaPrenotazione(
   const { sql, prenotazione, locale } = await caricaContesto(venue.venueId, reservationId);
 
   if (!prenotazione) return { error: "Prenotazione non trovata" };
+
+  /*
+   * Una richiesta già chiusa non si riapre confermandola.
+   *
+   * Il cliente può aver disdetto dal link mentre la pagina era aperta:
+   * confermare senza guardare lo stato la resuscitava, gli mandava la
+   * conferma di un tavolo che aveva annullato, e da quel momento il suo
+   * link non funzionava più — restava solo il telefono.
+   */
+  if (["cancelled", "declined", "seated", "no_show"].includes(prenotazione.status)) {
+    return {
+      error:
+        prenotazione.status === "cancelled"
+          ? "Il cliente ha disdetto questa prenotazione: non si può confermare."
+          : "Questa richiesta è già stata chiusa.",
+    };
+  }
 
   const tavoli = await sql.begin(async (tx) => {
     await tx`select pg_advisory_xact_lock(hashtext(${venue.venueId}))`;
@@ -281,10 +299,14 @@ export async function addReservation(formData: FormData) {
   await sql.begin(async (tx) => {
     await tx`select pg_advisory_xact_lock(hashtext(${venue.venueId}))`;
     const [prenotazione] = await tx<{ id: string }[]>`
+      -- Anche le prenotazioni prese al telefono hanno il loro link di
+      -- disdetta: senza, chi ha lasciato l'email non può disdire da solo e
+      -- il tavolo resta bloccato fino a quando qualcuno richiama.
       insert into reservations (venue_id, customer_name, customer_phone, customer_email,
-                                party_size, reserved_at, notes, status, confirmed_at)
+                                party_size, reserved_at, notes, status, confirmed_at,
+                                cancel_token)
       values (${venue.venueId}, ${customerName}, ${phone}, ${email}, ${partySize},
-              ${quando}, ${notes}, 'confirmed', now())
+              ${quando}, ${notes}, 'confirmed', now(), ${nuovoTokenDisdetta()})
       returning id`;
     const tavoli = await assegnaTavoliPrenotazione(
       tx,

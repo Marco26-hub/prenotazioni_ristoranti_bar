@@ -74,6 +74,23 @@ export async function salvaFormula(formData: FormData): Promise<EsitoFormula> {
   }
 
   const sql = db();
+
+  /*
+   * Spegnere la formula non cancella come era configurata.
+   *
+   * I campi si smontano dall'interfaccia quando la spunta si toglie, quindi
+   * il modulo non li manda più e arrivavano vuoti: prezzi, tariffa bambino,
+   * ora della cena e nota sparivano. Chi la spegneva a gennaio e la
+   * riaccendeva a giugno ricominciava da zero, e nel frattempo un tavolo
+   * riacceso per sbaglio avrebbe pagato zero.
+   */
+  if (!attiva) {
+    await sql`update venues set formula_attiva = false where id = ${venue.venueId}`;
+    revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard");
+    return { success: "Formula spenta: i tavoli pagano i piatti a prezzo di carta." };
+  }
+
   await sql`
     update venues set
       formula_attiva = ${attiva},
@@ -90,9 +107,6 @@ export async function salvaFormula(formData: FormData): Promise<EsitoFormula> {
   revalidatePath("/dashboard/settings");
   revalidatePath("/dashboard");
 
-  if (!attiva) {
-    return { success: "Formula spenta: i tavoli pagano i piatti a prezzo di carta." };
-  }
   return {
     success: predefinita
       ? "Salvato. I nuovi tavoli partono a formula; lo staff può passarli alla carta."

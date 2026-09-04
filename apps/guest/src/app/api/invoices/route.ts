@@ -6,7 +6,7 @@ import { buildFatturaPaJson, type CustomerData } from "@/lib/invoice/fatturapa";
 import { invoicetronicClient } from "@/lib/invoice/invoicetronic-client";
 import { inviaEmail } from "@repo/shared/email";
 import { messaggioErrore } from "@repo/shared/errori";
-import { supplementiCents } from "@/lib/balance";
+import { contoSessione } from "@repo/shared/conto";
 
 interface InvoiceRequestBody {
   sessionId: string;
@@ -128,19 +128,21 @@ export async function POST(request: Request) {
     );
   }
 
-  const orderItems = await sql<
-    { name: string; quantity: number; unit_price_cents: number; vat_rate: number }[]
-  >`
-    select mi.name, oi.quantity, oi.unit_price_cents, mi.vat_rate
-    from order_items oi
-    join orders o on o.id = oi.order_id
-    join menu_items mi on mi.id = oi.menu_item_id
-    where o.table_session_id = ${session.id}
-      and o.status != 'cancelled' and oi.status != 'cancelled'`;
+  /*
+   * Le righe della fattura sono quelle del conto, non la somma dei piatti.
+   *
+   * Su un tavolo a prezzo fisso la query di prima prendeva tutte le voci a
+   * listino: una formula da quattro persone a trenta euro produceva una
+   * fattura da duecentottanta euro di piatti — un imponibile trasmesso allo
+   * SDI che il cliente non ha mai pagato, mentre i centoventi realmente
+   * incassati non comparivano da nessuna parte.
+   */
+  const conto = await contoSessione(sql, session.id);
 
-  if (orderItems.length === 0) {
+  if (!conto.haOrdinato) {
     return NextResponse.json({ error: "Nessuna riga da fatturare" }, { status: 409 });
   }
+
 
   // La riga invoices va scritta PRIMA di chiamare il provider esterno: se
   // la trasmissione riesce ma qualcosa fallisce dopo, resta comunque
@@ -186,34 +188,71 @@ export async function POST(request: Request) {
    * spetta al programma: il coperto segue di norma l'aliquota della
    * somministrazione, ma il caso concreto lo stabilisce il commercialista.
    */
-  const supplementi = await supplementiCents(session.id);
   const ivaSupplementi = Number(venue.service_vat_rate ?? 10);
 
-  const righeFattura = [
-    ...orderItems.map((i) => ({
-      description: i.name,
-      quantity: i.quantity,
-      unitPriceCents: i.unit_price_cents,
-      vatRate: Number(i.vat_rate),
-    })),
-  ];
+  const righeFattura = conto.righe.map((r) => ({
+    description: r.nome,
+    quantity: r.quantita,
+    unitPriceCents: r.prezzoUnitarioCents,
+    vatRate: r.ivaPercent,
+  }));
 
-  if (supplementi.copertoTotaleCents > 0) {
+  /*
+   * La formula è una riga come le altre, con la sua aliquota.
+   *
+   * Senza, il documento dichiarava meno di quanto incassato — e con la
+   * formula la differenza è l'intero pasto, non un arrotondamento.
+   */
+  if (conto.aFormula) {
+    if (conto.adulti > 0) {
+      righeFattura.push({
+        description: `Formula ${conto.fascia}`,
+        quantity: conto.adulti,
+        unitPriceCents: conto.formulaUnitarioCents,
+        vatRate: ivaSupplementi,
+      });
+    }
+    if (conto.bambini > 0) {
+      const prezzo = conto.formulaBambinoCents ?? conto.formulaUnitarioCents;
+      if (prezzo > 0) {
+        righeFattura.push({
+          description: `Formula ${conto.fascia} — bambini`,
+          quantity: conto.bambini,
+          unitPriceCents: prezzo,
+          vatRate: ivaSupplementi,
+        });
+      }
+    }
+    if (conto.supplementoCents > 0) {
+      righeFattura.push({
+        description: "Supplemento per l'avanzato",
+        quantity: 1,
+        unitPriceCents: conto.supplementoCents,
+        vatRate: ivaSupplementi,
+      });
+    }
+  }
+
+  if (conto.copertoTotaleCents > 0) {
     righeFattura.push({
-      description: supplementi.etichettaCoperto,
-      quantity: supplementi.coperti,
-      unitPriceCents: supplementi.copertoUnitarioCents,
+      description: conto.etichettaCoperto,
+      quantity: conto.coperti,
+      unitPriceCents: conto.copertoUnitarioCents,
       vatRate: ivaSupplementi,
     });
   }
 
-  if (supplementi.servizioCents > 0) {
+  if (conto.servizioCents > 0) {
     righeFattura.push({
-      description: `Servizio ${supplementi.servizioPercent}%`,
+      description: `Servizio ${conto.servizioPercent}%`,
       quantity: 1,
-      unitPriceCents: supplementi.servizioCents,
+      unitPriceCents: conto.servizioCents,
       vatRate: ivaSupplementi,
     });
+  }
+
+  if (righeFattura.length === 0) {
+    return NextResponse.json({ error: "Nessuna riga da fatturare" }, { status: 409 });
   }
 
   const invoiceJson = buildFatturaPaJson({

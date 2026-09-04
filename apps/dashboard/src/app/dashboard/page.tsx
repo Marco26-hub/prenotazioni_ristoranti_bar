@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { db } from "@repo/shared/db";
 import { closeTableInPerson } from "./close-table-actions";
+import { contoSessione } from "@repo/shared/conto";
 import { setOrderItemStatus } from "./orders/actions";
 import type { OrderItemStatus } from "@repo/shared";
 import { Sala, type TavoloSala, type RigaOrdine } from "./sala";
@@ -132,6 +133,22 @@ export default async function DashboardPage() {
      order by o.created_at, mi.name`,
   ]);
 
+  /*
+   * Un conto per ogni tavolo aperto, tutti insieme.
+   *
+   * Sono poche query per tavolo e i tavoli aperti sono decine, non migliaia:
+   * costa meno di un numero sbagliato letto dal cameriere.
+   */
+  const contiPerSessione = new Map<
+    string,
+    Awaited<ReturnType<typeof contoSessione>>
+  >();
+  await Promise.all(
+    sessioni.map(async (s) => {
+      contiPerSessione.set(s.session_id, await contoSessione(sql, s.session_id));
+    })
+  );
+
   const righePerSessione = new Map<string, RigaOrdine[]>();
   for (const c of comande) {
     const lista = righePerSessione.get(c.table_session_id) ?? [];
@@ -170,8 +187,20 @@ export default async function DashboardPage() {
       formula: s?.formula ?? false,
       bambini: s?.bambini ?? 0,
       supplementoCents: Number(s?.supplemento_cents ?? 0),
-      ordinatoCents: Number(s?.ordinato ?? 0),
-      pagatoCents: Number(s?.pagato ?? 0),
+      /*
+       * Il dovuto lo calcola la funzione condivisa, non la somma dei piatti.
+       *
+       * "Da incassare" in sala usciva da una somma nuda delle righe: niente
+       * formula, niente coperto, niente servizio. Su un tavolo a prezzo
+       * fisso il cameriere leggeva centosessantotto euro e la cassa ne
+       * registrava sessantaquattro — cento euro incassati che non
+       * risultavano da nessuna parte. All'inverso, con quattro coperti a
+       * formula che avevano ordinato poco, chiedeva ventiquattro euro e il
+       * gestionale ne scriveva centoventotto, e a fine turno mancavano nel
+       * cassetto.
+       */
+      ordinatoCents: contiPerSessione.get(s?.session_id ?? "")?.dovutoCents ?? 0,
+      pagatoCents: contiPerSessione.get(s?.session_id ?? "")?.pagatoCents ?? 0,
       nPagamenti: s?.n_pagamenti ?? 0,
       ultimoPagamento: s?.ultimo_pagamento ? s.ultimo_pagamento.toISOString() : null,
       righe: s ? (righePerSessione.get(s.session_id) ?? []) : [],

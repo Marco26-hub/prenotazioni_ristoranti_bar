@@ -32,6 +32,7 @@ export default async function DisdiciPage({
       party_size: number;
       reserved_at: Date;
       status: string;
+      decline_reason: string | null;
       disdetta_dal_cliente_at: Date | null;
       venue_name: string;
       venue_phone: string | null;
@@ -40,6 +41,7 @@ export default async function DisdiciPage({
     }[]
   >`
     select r.id, r.customer_name, r.party_size, r.reserved_at, r.status,
+           r.decline_reason,
            r.disdetta_dal_cliente_at,
            v.name as venue_name, v.public_phone as venue_phone, v.timezone,
            r.reserved_at < now() as passata
@@ -67,6 +69,25 @@ export default async function DisdiciPage({
               La prenotazione da {r.venue_name} del{" "}
               {formattaOrario(r.reserved_at, fuso)} risulta disdetta. Non devi
               fare altro.
+            </p>
+          </>
+        ) : r.status === "declined" ? (
+          <>
+            <h1 className="text-lg font-semibold">Richiesta non accolta</h1>
+            <p className="mt-2 text-sm text-muted">
+              {r.venue_name} non ha potuto accogliere questa richiesta
+              {r.decline_reason ? `: ${r.decline_reason}` : "."} Non c&apos;è
+              niente da disdire.
+              {r.venue_phone && ` Per riprovare: ${r.venue_phone}.`}
+            </p>
+          </>
+        ) : r.status === "seated" || r.status === "no_show" ? (
+          <>
+            <h1 className="text-lg font-semibold">Prenotazione già chiusa</h1>
+            <p className="mt-2 text-sm text-muted">
+              Risulta che la serata sia già passata da {r.venue_name}: non si
+              può più disdire.
+              {r.venue_phone && ` Per qualsiasi cosa: ${r.venue_phone}.`}
             </p>
           </>
         ) : r.passata ? (

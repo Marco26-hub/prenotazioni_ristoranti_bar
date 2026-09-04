@@ -58,7 +58,7 @@ export function DettaglioTavolo({
   // multiplo pulito della quota: se hanno pagato per piatto il numero non
   // significherebbe niente e sarebbe peggio mostrarlo.
   const quota =
-    tavolo.coperti > 0 ? Math.round(tavolo.ordinatoCents / tavolo.coperti) : 0;
+    tavolo.coperti > 0 ? Math.round(tavolo./* comprende formula, coperto e servizio */ ordinatoCents / tavolo.coperti) : 0;
   const quoteResidue =
     quota > 0 && daPagare > 0 && Math.abs(daPagare % quota) <= tavolo.coperti
       ? Math.round(daPagare / quota)
@@ -177,7 +177,7 @@ export function DettaglioTavolo({
               <p className="flex justify-between text-xs text-muted">
                 <span>Per persona</span>
                 <span>
-                  {formatPriceCents(Math.round(tavolo.ordinatoCents / tavolo.coperti))}
+                  {formatPriceCents(Math.round(tavolo./* comprende formula, coperto e servizio */ ordinatoCents / tavolo.coperti))}
                 </span>
               </p>
             )}
@@ -204,7 +204,7 @@ export function DettaglioTavolo({
                   <span className="mt-0.5 block text-xs">
                     Restano {formatPriceCents(daPagare)}: sono {quoteResidue}{" "}
                     {quoteResidue === 1 ? "quota" : "quote"} da{" "}
-                    {formatPriceCents(Math.round(tavolo.ordinatoCents / tavolo.coperti))},
+                    {formatPriceCents(Math.round(tavolo./* comprende formula, coperto e servizio */ ordinatoCents / tavolo.coperti))},
                     se dividono in parti uguali.
                   </span>
                 )}

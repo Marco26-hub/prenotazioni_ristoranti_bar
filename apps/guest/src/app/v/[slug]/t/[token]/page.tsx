@@ -87,8 +87,21 @@ export default async function TablePage({
     (venue.pickup_metodi ?? []).includes("telefono") &&
     Boolean(venue.pickup_numbering_enabled);
 
+  /*
+   * "Compreso nella formula" solo se la fascia in corso ha davvero un prezzo.
+   *
+   * Un locale che ha impostato la cena e lasciato il pranzo a zero, con un
+   * tavolo seduto a mezzogiorno, faceva leggere "compreso" su ogni piatto e
+   * poi mandava un conto alla carta: il conto arriva giusto, ma dopo aver
+   * detto per un'ora che era compreso. La condizione è la stessa del conto.
+   */
   const [statoFormula] = await sql<{ a_formula: boolean }[]>`
-    select (ts.formula and v.formula_attiva) as a_formula
+    select (ts.formula and v.formula_attiva and
+            case
+              when (ts.opened_at at time zone coalesce(v.timezone, 'Europe/Rome'))::time
+                   >= v.formula_ora_cena
+              then v.formula_cena_cents else v.formula_pranzo_cents
+            end > 0) as a_formula
       from table_sessions ts
       join venues v on v.id = ts.venue_id
      where ts.id = ${resolved.sessionId}`;

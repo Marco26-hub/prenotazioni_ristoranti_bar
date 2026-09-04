@@ -34,6 +34,7 @@ export interface TavoloSala {
   formula: boolean;
   bambini: number;
   supplementoCents: number;
+  /** Il dovuto per intero: piatti, formula, coperto e servizio. */
   ordinatoCents: number;
   pagatoCents: number;
   nPagamenti: number;
@@ -374,7 +375,10 @@ export function Sala({
 
                   <div className="mt-3 space-y-0.5 border-t border-border/60 pt-2 text-sm tabular-nums">
                     <p className="flex justify-between">
-                      <span className="text-muted">Ordinato</span>
+                      {/* Non "ordinato": il totale comprende formula,
+                          coperto e servizio, ed è quello che il cliente
+                          vede sul telefono. */}
+                      <span className="text-muted">Totale conto</span>
                       <span>{formatPriceCents(t.ordinatoCents)}</span>
                     </p>
                     {t.pagatoCents > 0 && (

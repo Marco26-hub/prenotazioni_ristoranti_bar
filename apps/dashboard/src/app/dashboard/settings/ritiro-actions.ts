@@ -34,11 +34,20 @@ export async function salvaRitiro(formData: FormData): Promise<EsitoRitiro> {
   }
 
   const sql = db();
-  await sql`
-    update venues set
-      pickup_numbering_enabled = ${attivo},
-      pickup_metodi = ${metodi}
-    where id = ${venue.venueId}`;
+
+  // Spegnendoli, i metodi scelti restano: la sezione si chiude e il modulo
+  // non li manda più, ma riaccendendo si ritrovava tutto da rifare.
+  if (!attivo) {
+    await sql`
+      update venues set pickup_numbering_enabled = false
+       where id = ${venue.venueId}`;
+  } else {
+    await sql`
+      update venues set
+        pickup_numbering_enabled = true,
+        pickup_metodi = ${metodi}
+      where id = ${venue.venueId}`;
+  }
 
   revalidatePath("/dashboard/settings");
   revalidatePath("/dashboard/banco");

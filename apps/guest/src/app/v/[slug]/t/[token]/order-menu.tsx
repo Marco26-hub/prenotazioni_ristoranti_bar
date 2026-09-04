@@ -129,7 +129,21 @@ export function OrderMenu({
   // La chiave viaggia con la riga: il pannello deve poter togliere e
   // annotare proprio quella combinazione, non il piatto in generale.
   const lines = Object.entries(cart).map(([chiave, riga]) => ({ ...riga, chiave }));
-  const totalCents = lines.reduce((sum, l) => sum + l.unitPriceCents * l.quantity, 0);
+  /*
+   * A formula il totale del carrello conta solo quello che si paga.
+   *
+   * Sommando anche le voci comprese diceva centottanta euro a un tavolo che
+   * ne deve sessanta: il cliente lo legge mentre ordina e smette di ordinare.
+   */
+  const fuoriFormula = new Set(
+    items.filter((i) => i.fuori_formula).map((i) => i.id)
+  );
+  const siPaga = (menuItemId: string) => !aFormula || fuoriFormula.has(menuItemId);
+
+  const totalCents = lines.reduce(
+    (sum, l) => sum + (siPaga(l.menuItemId) ? l.unitPriceCents * l.quantity : 0),
+    0
+  );
 
   /*
    * La conferma se ne va da sola dopo qualche secondo.
@@ -675,6 +689,7 @@ export function OrderMenu({
       {openDish && (
         <DishSheet
           dish={openDish}
+          aFormula={aFormula && !openDish.fuori_formula}
           currency={currency}
           pairing={items.find((i) => i.id === openDish.pairing_item_id) ?? null}
           quantitaPerOpzioni={(opzioni) =>

@@ -4,6 +4,7 @@ import { inviaEmail } from "@repo/shared/email";
 import { formattaOrario } from "@repo/shared/prenotazioni";
 import { linkDisdetta } from "@repo/shared/prenotazioni-token";
 import { messaggioErrore } from "@repo/shared/errori";
+import { decryptSecret } from "@repo/shared/crypto";
 
 /**
  * Promemoria alle prenotazioni del giorno dopo.
@@ -17,6 +18,28 @@ import { messaggioErrore } from "@repo/shared/errori";
  * sola: non serve che l'esecuzione sia puntuale, serve che non mandi due
  * volte la stessa email.
  */
+/**
+ * Il mittente del locale, decifrato.
+ *
+ * La chiave sta nel database cifrata: passandola così com'è, Resend rifiuta
+ * l'autenticazione e l'email non parte — mentre la riga risulta "inviata".
+ * Se la chiave è illeggibile si prosegue col mittente della piattaforma,
+ * che è meglio di nessuna email.
+ */
+function mittenteDelLocale(
+  apiKey: string | null,
+  from: string | null,
+  dove: string
+): { apiKey: string; from: string } | undefined {
+  if (!apiKey || !from) return undefined;
+  try {
+    return { apiKey: decryptSecret(apiKey), from };
+  } catch {
+    console.error(`[${dove}] chiave email del locale illeggibile`);
+    return undefined;
+  }
+}
+
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
@@ -48,6 +71,14 @@ export async function GET(request: Request) {
    * mancato e un promemoria doppio, il primo si nota molto meno — e l'errore
    * resta scritto sulla riga, così il locale può vederlo.
    */
+  /*
+   * Un lotto per volta.
+   *
+   * La funzione ha sessanta secondi: prendendo tutte le righe in una volta,
+   * oltre quel limite le rimanenti restavano marcate come inviate senza che
+   * l'email fosse partita. Cinquanta per giro, e il giro successivo prende le
+   * altre — la finestra di due ore è larga abbastanza.
+   */
   const righe = await sql<
     {
       id: string;
@@ -70,8 +101,22 @@ export async function GET(request: Request) {
        set promemoria_inviato_at = now()
       from venues v
      where v.id = r.venue_id
+       and r.id in (
+         select r2.id from reservations r2
+          where r2.promemoria_inviato_at is null
+            and r2.status = 'confirmed'
+            and r2.customer_email is not null
+            and r2.reserved_at between now() + interval '23 hours'
+                                   and now() + interval '25 hours'
+          order by r2.reserved_at
+          limit 50
+          for update skip locked
+       )
        and r.promemoria_inviato_at is null
-       and r.status in ('confirmed', 'pending')
+       -- Solo le confermate: a chi ha una richiesta ancora da accettare il
+       -- promemoria direbbe "domani hai un tavolo", che il locale non ha mai
+       -- promesso. Si presenterebbe, e non ci sarebbe posto.
+       and r.status = 'confirmed'
        and r.customer_email is not null
        -- Fra 23 e 25 ore: il giro è orario, quindi ogni prenotazione cade
        -- in una finestra sola e nessuna resta scoperta fra un giro e l'altro.
@@ -96,10 +141,7 @@ export async function GET(request: Request) {
     const esito = await inviaEmail({
       a: r.customer_email,
       rispondiA: r.reservation_email ?? r.public_email ?? undefined,
-      mittenteLocale:
-        r.resend_api_key && r.resend_from
-          ? { apiKey: r.resend_api_key, from: r.resend_from }
-          : undefined,
+      mittenteLocale: mittenteDelLocale(r.resend_api_key, r.resend_from, "promemoria"),
       oggetto: `Domani ti aspettiamo — ${r.venue_name}`,
       testo: [
         `Ciao ${r.customer_name},`,

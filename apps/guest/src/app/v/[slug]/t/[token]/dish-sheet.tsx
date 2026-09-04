@@ -65,6 +65,7 @@ export function DishSheet({
   onAdd,
   onAddPairing,
   onClose,
+  aFormula = false,
 }: {
   dish: DishDetail;
   currency: string;
@@ -74,6 +75,8 @@ export function DishSheet({
   onAdd: (opzioni: string[], prezzoUnitario: number, etichetta: string | null) => void;
   onAddPairing: () => void;
   onClose: () => void;
+  /** Voce compresa in una formula a prezzo fisso: il prezzo non si paga. */
+  aFormula?: boolean;
 }) {
   const gruppi = dish.gruppi ?? [];
   const [scelte, setScelte] = useState<Record<string, string[]>>({});
@@ -222,9 +225,17 @@ export function DishSheet({
                   })}
                 </p>
               )}
-            <p className="mt-1 text-lg font-semibold tabular-nums">
-              {formatPriceCents(dish.price_cents, currency)}
-            </p>
+            {/* A formula il prezzo di una voce compresa non si paga:
+                mostrarlo contraddice il menu, che dice "compreso". */}
+            {aFormula ? (
+              <p className="mt-1 text-sm font-medium text-success">
+                Compreso nella formula
+              </p>
+            ) : (
+              <p className="mt-1 text-lg font-semibold tabular-nums">
+                {formatPriceCents(dish.price_cents, currency)}
+              </p>
+            )}
             {dish.conservation && dish.conservation !== "fresco" && (
               <p className="mt-1 text-sm text-muted">
                 * {CONSERVAZIONE_ETICHETTA[dish.conservation].toLowerCase()}
@@ -365,7 +376,7 @@ export function DishSheet({
                   ? `Aggiungi ancora (${giaNelCarrello} nel carrello)`
                   : "Aggiungi al carrello"}
             </span>
-            {!gruppoMancante && (
+            {!gruppoMancante && !aFormula && (
               <span className="tabular-nums">
                 {formatPriceCents(prezzoUnitario, currency)}
               </span>

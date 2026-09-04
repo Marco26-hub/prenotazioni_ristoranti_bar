@@ -18,9 +18,19 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "sessionId mancante" }, { status: 400 });
   }
 
-  // Interrogato ogni pochi secondi da chi aspetta: il limite è alto perché
-  // un tavolo che guarda il proprio numero non è un abuso.
-  const { allowed } = await checkRateLimit(clientKey(request, "ritiro"), 120, 60);
+  /*
+   * Contato per sessione, non per indirizzo.
+   *
+   * Sul wi-fi del locale l'indirizzo è uno solo per tutti: dieci persone che
+   * aspettano il proprio numero, ognuna con la pagina aperta che chiede ogni
+   * cinque secondi, arrivavano al tetto e il numero si fermava — in
+   * silenzio, mentre stavano guardando proprio quello.
+   */
+  const { allowed } = await checkRateLimit(
+    clientKey(request, `ritiro:${sessionId.slice(0, 60)}`),
+    60,
+    60
+  );
   if (!allowed) {
     return NextResponse.json({ error: "Troppe richieste" }, { status: 429 });
   }
