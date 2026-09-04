@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { requireVenue } from "@/lib/authz";
 import { inviaEmail } from "@repo/shared/email";
+import { linkDisdetta } from "@repo/shared/prenotazioni-token";
 import { decryptSecret } from "@repo/shared/crypto";
 import {
   assegnaTavoliPrenotazione,
@@ -29,6 +30,8 @@ interface RigaPrenotazione {
   reserved_at: Date;
   notes: string | null;
   status: Stato;
+  /** Null sulle prenotazioni nate prima della disdetta autonoma. */
+  cancel_token: string | null;
 }
 
 interface RigaLocale {
@@ -57,7 +60,7 @@ async function caricaContesto(venueId: string, reservationId: string) {
   const sql = db();
   const [prenotazione] = await sql<RigaPrenotazione[]>`
     select id, customer_name, customer_email, customer_phone, party_size,
-           reserved_at, notes, status
+           reserved_at, notes, status, cancel_token
       from reservations
      where id = ${reservationId} and venue_id = ${venueId}`;
 
@@ -142,6 +145,20 @@ export async function confermaPrenotazione(
         locale?.public_phone
           ? `Per qualsiasi cambiamento chiamaci al ${locale.public_phone}.`
           : "Per qualsiasi cambiamento rispondi a questa email.",
+        // Il link c'è solo sulle prenotazioni nate dopo che la disdetta
+        // esiste: alle vecchie non si può mandare un token che non hanno.
+        ...(prenotazione.cancel_token
+          ? [
+              "",
+              "Se non riesci a venire, disdici da qui: ci vuole un momento e",
+              "il tavolo torna disponibile per qualcun altro.",
+              linkDisdetta(
+                process.env.GUEST_APP_URL ?? "https://ristoranti-guest.vercel.app",
+                locale?.slug ?? "",
+                prenotazione.cancel_token
+              ),
+            ]
+          : []),
       ]
         .filter((r) => r !== null)
         .join("\n"),

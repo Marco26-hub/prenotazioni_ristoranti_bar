@@ -447,8 +447,17 @@ create table reservations (
   guest_notified_at timestamptz,
   guest_notify_error text,
   venue_notified_at timestamptz,
-  venue_notify_error text
+  venue_notify_error text,
+  -- Promemoria il giorno prima e disdetta dal cliente: le due cose che
+  -- trasformano un tavolo dimenticato in un tavolo che si libera in tempo.
+  cancel_token text,
+  promemoria_inviato_at timestamptz,
+  promemoria_errore text,
+  disdetta_dal_cliente_at timestamptz
 );
+
+create unique index uq_reservation_cancel_token
+  on reservations (cancel_token) where cancel_token is not null;
 
 -- Una prenotazione puo occupare piu tavoli accostati. table_id sopra resta
 -- il tavolo principale per compatibilita con le installazioni precedenti.

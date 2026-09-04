@@ -24,7 +24,8 @@
     "./testi": "./testi.ts",
     "./piantina": "./piantina.ts",
     "./json-ld": "./json-ld.ts",
-    "./errori": "./errori.ts"
+    "./errori": "./errori.ts",
+    "./prenotazioni-token": "./prenotazioni-token.ts"
   },
   "dependencies": {
     "postgres": "^3.4.5",

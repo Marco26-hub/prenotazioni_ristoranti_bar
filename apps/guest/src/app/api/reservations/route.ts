@@ -3,6 +3,7 @@ import { db } from "@repo/shared/db";
 import { checkRateLimit, clientKey } from "@repo/shared/rate-limit";
 import { hasModulo } from "@repo/shared";
 import { inviaEmail } from "@repo/shared/email";
+import { nuovoTokenDisdetta, linkDisdetta } from "@repo/shared/prenotazioni-token";
 import { decryptSecret } from "@repo/shared/crypto";
 import {
   disponibilita,
@@ -183,7 +184,7 @@ export async function POST(request: Request) {
   const stato = automatica ? "confirmed" : "pending";
 
   let assegnazione: {
-    prenotazione: { id: string };
+    prenotazione: { id: string; cancel_token: string };
     tavoli: Awaited<ReturnType<typeof assegnaTavoliPrenotazione>>;
     occupati: number;
   };
@@ -195,13 +196,14 @@ export async function POST(request: Request) {
       const disponibilitaAggiornata = await disponibilita(tx, venue.id, when, partySize);
       if (!disponibilitaAggiornata.bastano) throw new Error("NESSUN_TAVOLO");
 
-      const [prenotazione] = await tx<{ id: string }[]>`
+      const [prenotazione] = await tx<{ id: string; cancel_token: string }[]>`
         insert into reservations
           (venue_id, customer_name, customer_phone, customer_email, party_size,
-           reserved_at, notes, status, confirmed_at)
+           reserved_at, notes, status, confirmed_at, cancel_token)
         values (${venue.id}, ${nome}, ${phone}, ${email}, ${partySize},
-                ${when}, ${notes}, ${stato}, ${automatica ? tx`now()` : null})
-        returning id`;
+                ${when}, ${notes}, ${stato}, ${automatica ? tx`now()` : null},
+                ${nuovoTokenDisdetta()})
+        returning id, cancel_token`;
 
       const tavoli = await assegnaTavoliPrenotazione(
         tx,
@@ -224,6 +226,17 @@ export async function POST(request: Request) {
   }
 
   const { prenotazione, tavoli } = assegnazione;
+
+  /*
+   * Il link per disdire va in tutte le email al cliente.
+   *
+   * Senza, disdire vuol dire telefonare in orario di servizio: molti non lo
+   * fanno, e il locale scopre alle nove che quel tavolo non arriva. Un
+   * tavolo liberato la mattina si riempie ancora.
+   */
+  const baseGuest =
+    process.env.NEXT_PUBLIC_APP_URL ?? "https://ristoranti-guest.vercel.app";
+  const urlDisdetta = linkDisdetta(baseGuest, venue.slug, prenotazione.cancel_token);
   const tavoliTesto = tavoli.map((t) => t.code).join(" + ");
 
   // --- Avvisi ------------------------------------------------------------
@@ -309,6 +322,10 @@ export async function POST(request: Request) {
         venue.public_phone
           ? `Se qualcosa cambia, chiamaci al ${venue.public_phone}.`
           : "Se qualcosa cambia, faccelo sapere rispondendo a questa email.",
+        "",
+        "Se non puoi più venire, disdici da qui — ci vuole un momento e il",
+        "tavolo torna disponibile per qualcun altro:",
+        urlDisdetta,
       ]
         .filter((r) => r !== null)
         .join("\n"),
