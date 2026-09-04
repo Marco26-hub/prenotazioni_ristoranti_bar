@@ -9,6 +9,8 @@ export interface OrdineBanco {
   numero: number;
   stato: "in_preparazione" | "pronto" | "chiamato" | "ritirato";
   da: string;
+  /** Rimasto da una giornata di servizio precedente. */
+  diIeri: boolean;
 }
 
 const ISTRUZIONE: Record<string, string> = {
@@ -99,6 +101,11 @@ export function BancoVivo({
                 <p className="mt-1 text-center text-sm font-medium">
                   {o.stato === "chiamato" ? "Chiamato" : "Da chiamare"}
                 </p>
+                {o.diIeri && (
+                  <p className="text-center text-xs text-danger">
+                    Rimasto da ieri
+                  </p>
+                )}
                 <div className="mt-3 flex gap-2">
                   {o.stato === "pronto" ? (
                     <button

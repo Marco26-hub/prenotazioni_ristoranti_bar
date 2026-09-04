@@ -33,11 +33,16 @@ export default async function BancoPage() {
   }
 
   /*
-   * Solo la giornata di servizio in corso.
+   * La giornata in corso, più tutto quello che non è ancora stato consegnato.
    *
-   * I numeri ripartono da uno a ogni giornata: mostrare anche ieri metterebbe
-   * due volte lo stesso numero sullo stesso schermo, che è il modo più
-   * veloce di consegnare il panino alla persona sbagliata.
+   * I numeri ripartono da uno a ogni giornata, e mostrare anche ieri
+   * metterebbe due volte lo stesso numero sullo stesso schermo — il modo più
+   * veloce di dare il panino alla persona sbagliata. Ma filtrare sulla sola
+   * giornata di oggi faceva sparire, allo scoccare dell'ora di stacco, i
+   * numeri ancora in mano a qualcuno: chi stava aspettando spariva dallo
+   * schermo e la serie ripartiva sopra di lui. Quello che non è stato
+   * ritirato resta finché non lo si chiude, con la sua giornata accanto se
+   * è di ieri.
    */
   const ordini = await sql<
     {
@@ -48,6 +53,8 @@ export default async function BancoPage() {
       pronte: number;
       totali: number;
       creato: Date;
+      giornata: string;
+      oggi: boolean;
     }[]
   >`
     select o.id, o.pickup_number as numero,
@@ -55,7 +62,11 @@ export default async function BancoPage() {
            o.pickup_ritirato_at as ritirato,
            count(*) filter (where oi.status in ('ready', 'served'))::int as pronte,
            count(*)::int as totali,
-           o.created_at as creato
+           o.created_at as creato,
+           o.pickup_service_date::text as giornata,
+           (o.pickup_service_date =
+             ((now() at time zone coalesce(v.timezone, 'Europe/Rome'))
+               - interval '5 hours')::date) as oggi
       from orders o
       join order_items oi on oi.order_id = o.id
       join venues v on v.id = o.venue_id
@@ -63,11 +74,14 @@ export default async function BancoPage() {
        and o.pickup_number is not null
        and o.status <> 'cancelled'
        and oi.status <> 'cancelled'
-       and o.pickup_service_date =
+       and (
+         o.pickup_service_date =
            ((now() at time zone coalesce(v.timezone, 'Europe/Rome'))
              - interval '5 hours')::date
+         or o.pickup_ritirato_at is null
+       )
      group by o.id, o.pickup_number, o.pickup_chiamato_at,
-              o.pickup_ritirato_at, o.created_at
+              o.pickup_ritirato_at, o.created_at, o.pickup_service_date, v.timezone
      order by o.pickup_number`;
 
   const righe: OrdineBanco[] = ordini.map((o) => ({
@@ -81,6 +95,8 @@ export default async function BancoPage() {
           ? "pronto"
           : "in_preparazione",
     da: o.creato.toISOString(),
+    // Rimasto da ieri: va detto, o si legge come un numero di stasera.
+    diIeri: !o.oggi,
   }));
 
   return (
