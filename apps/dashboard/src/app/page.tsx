@@ -80,7 +80,18 @@ const FUNZIONI = [
   {
     titolo: "Prenotazioni online",
     testo:
-      "Una pagina da mettere sul tuo sito e sui social. Le richieste arrivano dritte in gestionale.",
+      "Una pagina da mettere sul tuo sito e sui social. Le richieste arrivano dritte in gestionale, con il promemoria automatico il giorno prima e un link per disdire: il tavolo dimenticato si libera in tempo per darlo a qualcun altro.",
+    ampio: true,
+  },
+  {
+    titolo: "Recensioni chieste al tavolo",
+    testo:
+      "Appena finito di mangiare, col telefono già in mano. Chi è contento lo scrive anche pubblicamente; chi non lo è ti dice cosa non è andato, e lo leggi stasera invece che su Google fra una settimana.",
+  },
+  {
+    titolo: "All you can eat",
+    testo:
+      "Prezzo a persona, pranzo e cena separati, bambini a tariffa ridotta o gratis. Le ordinazioni a ondate, con l'attesa che decidi tu: senza, un tavolo da sei manda ottanta piatti in tre minuti e metà restano nel piatto.",
   },
   {
     titolo: "Il tuo marchio",
@@ -107,6 +118,11 @@ const FUNZIONI = [
     titolo: "Importazione del menu",
     testo: "Da file CSV o TSV, oppure dalla cassa Tilby. Non si ribatte tutto a mano.",
   },
+  {
+    titolo: "Assistenza dentro il gestionale",
+    testo:
+      "Scrivi da qui, non su WhatsApp: la richiesta non vive nel telefono di chi l'ha ricevuta, e la risposta la ritrovi una settimana dopo dov'era.",
+  },
 ];
 
 const CONFRONTO: Array<[string, string, string]> = [
@@ -118,6 +134,8 @@ const CONFRONTO: Array<[string, string, string]> = [
   ["Prenotazioni online incluse", "Sì", "Spesso a parte"],
   ["Scegli tu il fornitore di pagamento", "Sì", "Quasi mai"],
   ["Compri solo il modulo che ti serve", "Sì", "Quasi mai"],
+  ["Promemoria e disdetta al cliente", "Inclusi", "Solo sui portali, con commissione"],
+  ["Formula a prezzo fisso (all you can eat)", "Inclusa", "Rara"],
 ];
 
 const SERVE = [

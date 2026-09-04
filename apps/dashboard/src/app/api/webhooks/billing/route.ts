@@ -95,7 +95,29 @@ export async function POST(request: Request) {
 
   // Un abbonamento chiuso non dà accesso a nulla: azzerare qui evita di
   // dover ricordare altrove che 'canceled' vale come nessun modulo.
-  const moduliFinali = status === "canceled" ? [] : moduli;
+  let moduliFinali: string[] | null = status === "canceled" ? [] : moduli;
+
+  /*
+   * Metadata assente non vuol dire "nessun modulo".
+   *
+   * Se il Price su Stripe non porta `moduli` — un listino nuovo creato in
+   * fretta, un campo dimenticato — la lista risultava vuota e il locale si
+   * ritrovava l'abbonamento "Attivo" con niente attivo: paga, e al primo
+   * cliente che inquadra il QR legge che l'ordine al tavolo non è
+   * disponibile. Nessun errore da nessuna parte, perché formalmente è tutto
+   * a posto.
+   *
+   * In quel caso i moduli restano quelli che c'erano, e l'anomalia va nei
+   * log: è una configurazione da correggere su Stripe, non una scelta del
+   * cliente. Una disdetta vera passa da `canceled`, che sopra azzera davvero.
+   */
+  if (moduliFinali.length === 0 && status !== "canceled" && !moduliGrezzi.trim()) {
+    console.error(
+      `[billing] Price ${sub.items?.data?.[0]?.price?.id ?? "?"} senza metadata "moduli": ` +
+        `moduli lasciati invariati per la subscription ${sub.id}. Va corretto su Stripe.`
+    );
+    moduliFinali = null;
+  }
 
   // Stripe non garantisce l'ordine di consegna. Senza questo confronto un
   // "updated" consegnato in ritardo potrebbe sovrascrivere il "deleted" che
@@ -105,7 +127,9 @@ export async function POST(request: Request) {
       subscription_id = ${sub.id},
       subscription_status = ${status},
       subscription_plan = ${sub.metadata?.plan ?? null},
-      modules = ${moduliFinali},
+      -- null: la configurazione su Stripe è incompleta e i moduli restano
+      -- quelli che c'erano. Azzerarli spegnerebbe un locale che ha pagato.
+      modules = ${moduliFinali === null ? sql`modules` : moduliFinali},
       subscription_period_end = ${periodEnd},
       subscription_updated_at = ${eventAt},
       billing_customer_id = coalesce(billing_customer_id, ${customerId})
