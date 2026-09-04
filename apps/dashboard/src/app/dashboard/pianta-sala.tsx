@@ -215,10 +215,27 @@ export function PiantaSala({
     setSalvando(true);
     setAvviso(null);
     const elenco: Posizione[] = [...pos].map(([id, p]) => ({ id, x: p.x, y: p.y }));
-    const r = await salvaPianta(elenco);
-    setAvviso(r.error ?? r.ok ?? null);
-    if (!r.error) setSporco(false);
-    setSalvando(false);
+    try {
+      const r = await salvaPianta(elenco);
+      setAvviso(r.error ?? r.ok ?? null);
+      if (!r.error) setSporco(false);
+    } catch {
+      /*
+       * Disporre la sala si può fare in due; salvarla no.
+       *
+       * Il salvataggio vuole titolare o responsabile e l'azione rifiuta
+       * lanciando: senza questo blocco la promessa restava appesa, il bottone
+       * diceva "Salvo…" per sempre e non compariva nessun messaggio. Chi era
+       * in sala aveva appena trascinato venti tavoli ed era convinto di
+       * averli salvati — li ritrovava dov'erano prima e non capiva perché.
+       */
+      setAvviso(
+        "Disposizione non salvata: serve il ruolo di titolare o responsabile. " +
+          "I tavoli restano dov'erano."
+      );
+    } finally {
+      setSalvando(false);
+    }
   }
 
   const selezione = tavoli.find((t) => t.id === selezionato) ?? null;
