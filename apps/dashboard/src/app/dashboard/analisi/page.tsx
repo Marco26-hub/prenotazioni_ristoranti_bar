@@ -138,7 +138,21 @@ export default async function AnalisiPage({
                and o.status != 'cancelled' and oi.status != 'cancelled') as piatti,
            avg(extract(epoch from (ts.closed_at - ts.opened_at)) / 60) as durata_media_min
       from table_sessions ts
+     /*
+      * Solo i tavoli che hanno davvero ordinato.
+      *
+      * Una sessione si apre inquadrando il QR, anche per curiosità, e dopo
+      * sei ore si chiude da sola: entrava nelle analisi come un servizio a
+      * incasso zero. Bastavano pochi QR inquadrati e non usati per abbassare
+      * lo scontrino medio e i coperti, e la permanenza media diventava la
+      * media fra un pranzo e una scansione durata dieci secondi.
+      *
+      * Un tavolo che ha ordinato e se n'è andato senza pagare resta contato:
+      * quello è un servizio vero, ed è una perdita che si deve vedere.
+      */
      where ts.venue_id = ${venue.venueId} and ts.status = 'closed'
+       and exists (select 1 from orders o
+                    where o.table_session_id = ts.id and o.status <> 'cancelled')
        and ts.closed_at >= ${da}`;
 
   const perGiorno = await sql<PerGiorno[]>`
@@ -149,6 +163,8 @@ export default async function AnalisiPage({
                       where p.table_session_id = ts.id and p.status = 'succeeded'), 0) as incasso
       from table_sessions ts
      where ts.venue_id = ${venue.venueId} and ts.status = 'closed'
+       and exists (select 1 from orders o
+                    where o.table_session_id = ts.id and o.status <> 'cancelled')
        and ts.closed_at >= ${da}
      group by 1, ts.id
      order by 1 desc`;
@@ -171,6 +187,8 @@ export default async function AnalisiPage({
       join table_sessions ts on ts.id = o.table_session_id
       join menu_items mi on mi.id = oi.menu_item_id
      where ts.venue_id = ${venue.venueId} and ts.status = 'closed'
+       and exists (select 1 from orders o
+                    where o.table_session_id = ts.id and o.status <> 'cancelled')
        and ts.closed_at >= ${da}
        and o.status != 'cancelled' and oi.status != 'cancelled'
      group by mi.name
