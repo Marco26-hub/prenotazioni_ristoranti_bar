@@ -109,7 +109,7 @@ async function readXlsx(file: File): Promise<string[][]> {
 }
 
 export async function importMenuCsv(formData: FormData): Promise<ImportResult> {
-  const { venue } = await requireRole(["owner", "manager"]);
+  const { venue } = await requireRole(["owner", "manager"], "ordini");
   const file = formData.get("file");
 
   if (!(file instanceof File) || file.size === 0) {

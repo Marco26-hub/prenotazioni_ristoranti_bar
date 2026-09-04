@@ -8,7 +8,7 @@ import { db } from "@repo/shared/db";
 import { requireVenue, requireRole } from "@/lib/authz";
 
 export async function addCategory(formData: FormData) {
-  const { venue } = await requireRole(["owner", "manager"]);
+  const { venue } = await requireRole(["owner", "manager"], "ordini");
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return;
 
@@ -23,7 +23,7 @@ export async function addCategory(formData: FormData) {
 }
 
 export async function addMenuItem(formData: FormData) {
-  const { venue } = await requireRole(["owner", "manager"]);
+  const { venue } = await requireRole(["owner", "manager"], "ordini");
   const name = String(formData.get("name") ?? "").trim();
   const categoryId = String(formData.get("categoryId") ?? "") || null;
   const priceEuro = Number.parseFloat(String(formData.get("price") ?? "0"));
@@ -49,7 +49,7 @@ export async function addMenuItem(formData: FormData) {
 }
 
 export async function updateMenuItemPrice(formData: FormData) {
-  const { venue } = await requireRole(["owner", "manager"]);
+  const { venue } = await requireRole(["owner", "manager"], "ordini");
   const itemId = String(formData.get("itemId") ?? "");
   const priceEuro = Number.parseFloat(String(formData.get("price") ?? ""));
   if (!itemId || !Number.isFinite(priceEuro) || priceEuro < 0) return;
@@ -68,7 +68,7 @@ export async function updateMenuItemPrice(formData: FormData) {
  * che distinguono la nuova voce.
  */
 export async function duplicateMenuItem(itemId: string) {
-  const { venue } = await requireRole(["owner", "manager"]);
+  const { venue } = await requireRole(["owner", "manager"], "ordini");
   const sql = db();
 
   let nuovoId: string | null = null;
@@ -168,7 +168,7 @@ export async function duplicateMenuItem(itemId: string) {
  * senza un bottone "cancella campo" per ognuno.
  */
 export async function updateMenuItem(formData: FormData): Promise<{ error?: string }> {
-  const { venue } = await requireRole(["owner", "manager"]);
+  const { venue } = await requireRole(["owner", "manager"], "ordini");
   const itemId = String(formData.get("itemId") ?? "");
   const name = String(formData.get("name") ?? "").trim();
   const priceEuro = Number.parseFloat(String(formData.get("price") ?? ""));
@@ -278,7 +278,7 @@ export async function updateMenuItem(formData: FormData): Promise<{ error?: stri
 }
 
 export async function updateCategory(formData: FormData): Promise<{ error?: string }> {
-  const { venue } = await requireRole(["owner", "manager"]);
+  const { venue } = await requireRole(["owner", "manager"], "ordini");
   const categoryId = String(formData.get("categoryId") ?? "");
   const name = String(formData.get("name") ?? "").trim();
   if (!categoryId || !name) return { error: "Nome categoria mancante" };
@@ -300,7 +300,7 @@ export async function updateCategory(formData: FormData): Promise<{ error?: stri
  * e il ristoratore decide dove rimetterli.
  */
 export async function deleteCategory(categoryId: string): Promise<{ error?: string }> {
-  const { venue } = await requireRole(["owner", "manager"]);
+  const { venue } = await requireRole(["owner", "manager"], "ordini");
   const sql = db();
 
   const [cat] = await sql<{ id: string }[]>`
@@ -323,7 +323,7 @@ export async function deleteCategory(categoryId: string): Promise<{ error?: stri
  * vendita — gli antipasti prima dei dolci — e finora non era modificabile.
  */
 export async function moveMenuItem(itemId: string, direction: "up" | "down") {
-  const { venue } = await requireRole(["owner", "manager"]);
+  const { venue } = await requireRole(["owner", "manager"], "ordini");
   const sql = db();
 
   const [item] = await sql<{ id: string; sort_order: number; category_id: string | null }[]>`
@@ -352,7 +352,7 @@ export async function moveMenuItem(itemId: string, direction: "up" | "down") {
 }
 
 export async function moveCategory(categoryId: string, direction: "up" | "down") {
-  const { venue } = await requireRole(["owner", "manager"]);
+  const { venue } = await requireRole(["owner", "manager"], "ordini");
   const sql = db();
 
   const [cat] = await sql<{ id: string; sort_order: number }[]>`
@@ -387,7 +387,7 @@ export async function toggleItemAvailable(itemId: string, available: boolean) {
 }
 
 export async function deleteMenuItem(itemId: string) {
-  const { venue } = await requireRole(["owner", "manager"]);
+  const { venue } = await requireRole(["owner", "manager"], "ordini");
   const sql = db();
   await sql`delete from menu_items where id = ${itemId} and venue_id = ${venue.venueId}`;
   revalidatePath("/dashboard/menu");

@@ -19,7 +19,7 @@ export interface EsitoModello {
  * lavoro fatto.
  */
 export async function applicaModello(formData: FormData): Promise<EsitoModello> {
-  const { venue } = await requireRole(["owner", "manager"]);
+  const { venue } = await requireRole(["owner", "manager"], "ordini");
 
   const tipo = String(formData.get("tipo") ?? "");
   const modello = modelloPerTipo(tipo);

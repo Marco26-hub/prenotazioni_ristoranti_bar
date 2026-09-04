@@ -5,7 +5,7 @@ import { db } from "@repo/shared/db";
 import { requireRole } from "@/lib/authz";
 
 export async function addTable(formData: FormData) {
-  const { venue } = await requireRole(["owner", "manager"]);
+  const { venue } = await requireRole(["owner", "manager"], "ordini");
   const code = String(formData.get("code") ?? "").trim();
   const seats = Number.parseInt(String(formData.get("seats") ?? "2"), 10);
   if (!code || !Number.isFinite(seats) || seats < 1) return;
@@ -16,14 +16,14 @@ export async function addTable(formData: FormData) {
 }
 
 export async function toggleTableActive(tableId: string, active: boolean) {
-  const { venue } = await requireRole(["owner", "manager"]);
+  const { venue } = await requireRole(["owner", "manager"], "ordini");
   const sql = db();
   await sql`update tables set active = ${active} where id = ${tableId} and venue_id = ${venue.venueId}`;
   revalidatePath("/dashboard/tables");
 }
 
 export async function updateTable(formData: FormData) {
-  const { venue } = await requireRole(["owner", "manager"]);
+  const { venue } = await requireRole(["owner", "manager"], "ordini");
   const tableId = String(formData.get("tableId") ?? "");
   const code = String(formData.get("code") ?? "").trim();
   const seats = Number.parseInt(String(formData.get("seats") ?? ""), 10);
@@ -42,7 +42,7 @@ export async function updateTable(formData: FormData) {
  * quindi il tavolo va ristampato.
  */
 export async function regenerateQrToken(tableId: string) {
-  const { venue } = await requireRole(["owner", "manager"]);
+  const { venue } = await requireRole(["owner", "manager"], "ordini");
   const sql = db();
   await sql`
     update tables set qr_token = encode(gen_random_bytes(16), 'hex')
@@ -51,7 +51,7 @@ export async function regenerateQrToken(tableId: string) {
 }
 
 export async function deleteTable(tableId: string) {
-  const { venue } = await requireRole(["owner", "manager"]);
+  const { venue } = await requireRole(["owner", "manager"], "ordini");
   const sql = db();
 
   // Un tavolo con storico ordini non si può cancellare senza perdere dati

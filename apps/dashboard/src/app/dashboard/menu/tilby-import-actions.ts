@@ -25,7 +25,7 @@ export interface TilbyImportResult {
  * lavora in centesimi interi, quindi va convertito una volta sola.
  */
 export async function importMenuFromTilby(): Promise<TilbyImportResult> {
-  const { venue } = await requireRole(["owner", "manager"]);
+  const { venue } = await requireRole(["owner", "manager"], "ordini");
   const sql = db();
 
   const [row] = await sql<{ tilby_token: string | null }[]>`

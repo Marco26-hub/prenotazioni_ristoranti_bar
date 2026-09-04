@@ -24,17 +24,35 @@ export async function requireVenue(): Promise<{ userId: string; venue: VenueMemb
  * queste operazioni solo perché conoscono l'action id.
  */
 export async function requireRole(
-  allowedRoles: StaffRole[]
+  allowedRoles: StaffRole[],
+  /**
+   * Modulo che questa operazione richiede, se ne richiede uno.
+   *
+   * Il ruolo dice chi sei, il modulo dice cosa il locale ha comprato: sono
+   * due domande diverse e servono entrambe. Sta qui e non in una chiamata a
+   * parte per non fare due letture del database a ogni azione.
+   */
+  modulo?: Modulo
 ): Promise<{ userId: string; venue: VenueMembership }> {
   const result = await requireVenue();
   if (!allowedRoles.includes(result.venue.role)) {
     throw new Error("Permessi insufficienti per questa operazione");
+  }
+  if (modulo && !(await moduloAttivo(result.venue.venueId, modulo))) {
+    throw new Error(`Modulo "${modulo}" non attivo per questo locale`);
   }
   return result;
 }
 
 /**
  * Oltre all'appartenenza, il modulo pagato.
+ *
+ * NOTA su dove si applica. Il modulo si chiede sulle azioni che *usano* il
+ * gestionale — menu, tavoli, QR, importazioni — e non su quelle che
+ * *chiudono* lavoro già cominciato: segnare un piatto servito o incassare un
+ * conto. Un abbonamento che scade alle nove di sera non deve lasciare i
+ * tavoli aperti per sempre e i clienti senza conto. Il lato cliente è
+ * comunque sbarrato a monte: senza modulo dal tavolo non si ordina più.
  *
  * Il filtro delle voci di menu nel layout è cosmetica: chi digita
  * `/dashboard/menu` la pagina la ottiene lo stesso, e ogni Server Action è

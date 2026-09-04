@@ -21,7 +21,7 @@ const MAX_PHOTO_BYTES = 300 * 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 export async function saveDishPhoto(formData: FormData): Promise<PhotoResult> {
-  const { venue } = await requireRole(["owner", "manager"]);
+  const { venue } = await requireRole(["owner", "manager"], "ordini");
 
   const itemId = String(formData.get("itemId") ?? "");
   const remove = formData.get("removePhoto") === "on";
