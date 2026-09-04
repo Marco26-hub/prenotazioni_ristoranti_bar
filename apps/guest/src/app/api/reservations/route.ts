@@ -51,17 +51,31 @@ interface VenueRow {
  * scrivere qui, quindi ogni valore va validato e il ritmo va limitato.
  */
 export async function POST(request: Request) {
-  const { allowed } = await checkRateLimit(clientKey(request, "reservation"), 5, 3600);
+  const body = (await request.json().catch(() => null)) as Body | null;
+  if (!body?.slug || !body.name?.trim() || !body.reservedAt) {
+    return NextResponse.json({ error: "Compila nome, data e ora" }, { status: 400 });
+  }
+
+  /*
+   * Il limite è per locale, non per indirizzo e basta.
+   *
+   * Con una chiave sul solo indirizzo, cinque prenotazioni bruciavano il
+   * diritto di prenotare ovunque: chi aveva appena prenotato da un
+   * ristorante si vedeva rifiutare il tavolo da un altro, e cinque colleghi
+   * dietro lo stesso wifi dell'ufficio — o dietro il NAT di un operatore
+   * mobile, che sono milioni di persone — si bloccavano a vicenda. L'abuso
+   * da fermare è qualcuno che tempesta un locale, e quello resta fermato.
+   */
+  const { allowed } = await checkRateLimit(
+    clientKey(request, `reservation:${body.slug.slice(0, 60)}`),
+    5,
+    3600
+  );
   if (!allowed) {
     return NextResponse.json(
       { error: "Troppe prenotazioni dallo stesso dispositivo. Riprova più tardi o chiamaci." },
       { status: 429 }
     );
-  }
-
-  const body = (await request.json().catch(() => null)) as Body | null;
-  if (!body?.slug || !body.name?.trim() || !body.reservedAt) {
-    return NextResponse.json({ error: "Compila nome, data e ora" }, { status: 400 });
   }
 
   const partySize = Number(body.partySize);

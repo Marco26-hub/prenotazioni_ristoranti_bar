@@ -28,21 +28,32 @@ interface Corpo {
 }
 
 export async function POST(request: Request) {
-  // Un tavolo lascia una recensione, non venti: il limite protegge la media
-  // di un locale da chi si diverte a premere invio.
-  const { allowed } = await checkRateLimit(clientKey(request, "recensione"), 5, 3600);
-  if (!allowed) {
-    return NextResponse.json(
-      { error: "Hai già lasciato la tua opinione. Grazie!" },
-      { status: 429 }
-    );
-  }
-
   const corpo = (await request.json().catch(() => null)) as Corpo | null;
   const voto = Number(corpo?.voto);
 
   if (!corpo?.token || !Number.isInteger(voto) || voto < 1 || voto > 5) {
     return NextResponse.json({ error: "Richiesta non valida" }, { status: 400 });
+  }
+
+  /*
+   * Un tavolo lascia una recensione, non venti: il limite protegge la media
+   * di un locale da chi si diverte a premere invio.
+   *
+   * Contato per tavolo: sull'indirizzo soltanto, chi aveva recensito a
+   * pranzo non poteva più farlo la sera altrove, e su una rete mobile
+   * condivisa si sarebbero tolti la parola a vicenda persone che non si
+   * conoscono.
+   */
+  const { allowed } = await checkRateLimit(
+    clientKey(request, `recensione:${corpo.token.slice(0, 60)}`),
+    5,
+    3600
+  );
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "Hai già lasciato la tua opinione. Grazie!" },
+      { status: 429 }
+    );
   }
 
   const sql = db();
