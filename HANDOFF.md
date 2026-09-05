@@ -704,3 +704,64 @@ sapendo che Google può rimuovere le recensioni raccolte così — sta scritto i
   secret distinti. Ogni Price deve avere il metadata `moduli`.
 - I test E2E girano contro la produzione: `pnpm test:e2e` con
   `E2E_DASHBOARD_URL` / `E2E_GUEST_URL`. Un locale per test, sempre.
+
+
+---
+
+## 5 settembre 2026 — postazioni, formati, registratore
+
+### Le postazioni le decide il locale
+
+`venue_reparti` (venue_id, chiave, etichetta). Chi non ne definisce usa le sei
+di partenza — cucina, bar, pizzeria, pasticceria, banco sushi, griglia — e non
+si accorge che la tabella esiste. Chi ne definisce usa le sue: due cucine, il
+forno separato dalla friggitoria, il «pass» da cui la sala ritira.
+
+**Non è un campo libero al momento dell'uso**, ed è deliberato: scrivendo il
+nome ogni volta si finisce con «Cucina», «cucina» e «CUCINA» come tre
+postazioni, e chi ha il permesso su una non ce l'ha sulle altre. Si crea una
+volta e si sceglie da una tendina ovunque — categorie, permessi, dispositivi,
+board, stampa comande.
+
+**La chiave non cambia mai**, l'etichetta sì: rinominare non toglie il
+permesso a nessuno. E una postazione con ancora categorie sopra non si può
+togliere: le sue comande finirebbero su uno schermo che non esiste.
+
+`menu_categories.reparto` ha un vincolo **di forma** (`^[a-z0-9_-]{1,32}$`) e
+non un elenco chiuso. Era chiuso, e aggiungere due postazioni faceva fallire
+ogni inserimento con un errore che non spiegava niente.
+
+### I formati portano il modo di lavorare, non solo il menu
+
+Ogni categoria di modello ha reparto, aliquota, genere e `fuoriFormula`. Prima
+portava solo il nome, e questo rompeva cose costruite altrove: i cocktail di
+una gintoneria finivano in cucina e il barista non poteva muoverli; una carta
+di vini nasceva al 10%; un all-you-can-eat comprendeva gli amari.
+
+Otto formati portano anche un **listino di partenza**, con gli allergeni già
+compilati. Nasce **spento** (`available = false`): i prezzi sono indicativi e
+sbagliati per definizione, e un listino inventato pubblicato per sbaglio è
+peggio di un menu vuoto.
+
+Piadineria, pizza al trancio e paninoteca accendono il **servizio al banco**:
+ogni cliente il proprio conto, numero di ritiro, e la home che diventa Banco.
+
+### Il registratore telematico
+
+Coda in `fiscal_documents`, agente in `agente-cassa/` che gira sul computer
+della cassa — la stampante sta sulla rete del locale e da Vercel non si
+raggiunge. Tre dialetti (Epson, Custom, RCH), **nessuno provato su hardware
+vero**. Reparti IVA, marca, operatore e ora di stacco della giornata sono
+impostazioni del locale.
+
+Chi non installa niente resta in **manuale** e ha il riepilogo di giornata per
+metodo di pagamento, da battere in cassa. I conti chiusi senza documento si
+vedono in Corrispettivi: l'accodamento avviene **dopo** la chiusura e fuori
+dalla transazione, perché fermare la sala è peggio di un documento mancante.
+
+### Come si confrontano i due database
+
+Non bastano le colonne. Vanno confrontati **colonne, indici e vincoli**, e
+vanno confrontati **dopo** ogni modifica allo schema — non prima. Due derive
+sono passate proprio così: gli stati `pending`/`declined` delle prenotazioni
+(un'installazione nuova rifiutava ogni richiesta) e il vincolo sul reparto.
