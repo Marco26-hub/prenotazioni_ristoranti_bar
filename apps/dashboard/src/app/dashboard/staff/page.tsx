@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { db } from "@repo/shared/db";
 import { StaffList } from "./staff-list";
+import { repartiDelLocale } from "@/lib/reparti-locale";
 import { DispositiviLista } from "./dispositivi-lista";
 import { AddStaffForm } from "./add-staff-form";
 
@@ -28,6 +29,10 @@ export default async function StaffPage() {
   }
 
   const sql = db();
+
+  // Le postazioni sono del locale: chi ha il forno separato dalla
+  // friggitoria le ha create lui, e i permessi devono offrire le sue.
+  const repartiDisponibili = await repartiDelLocale(venue.venueId);
   const staff = await sql<
     {
       id: string;
@@ -109,6 +114,7 @@ export default async function StaffPage() {
       </section>
 
       <StaffList
+        repartiDisponibili={repartiDisponibili}
         staff={staff.map((s) => ({
           id: s.id,
           email: s.email,

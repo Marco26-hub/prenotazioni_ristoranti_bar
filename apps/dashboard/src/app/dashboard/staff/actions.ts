@@ -1,6 +1,6 @@
 "use server";
 
-import { REPARTI_VALIDI } from "@repo/shared/reparti";
+import { repartiDelLocale } from "@/lib/reparti-locale";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
@@ -171,7 +171,16 @@ export async function assegnaReparti(
   const { venue } = await requireRole(["owner", "manager"]);
   const sql = db();
 
-  const puliti = [...new Set((reparti ?? []).filter((r) => REPARTI_VALIDI.includes(r)))];
+  /*
+   * Solo postazioni che questo locale ha davvero.
+   *
+   * L'elenco è suo, non del programma: dare a qualcuno il permesso su una
+   * postazione che non esiste vuol dire un permesso che non si applica a
+   * niente, e nessuno se ne accorge finché non serve.
+   */
+  const suoi = await repartiDelLocale(venue.venueId);
+  const valide = new Set(suoi.map((r) => r.chiave));
+  const puliti = [...new Set((reparti ?? []).filter((r) => valide.has(r)))];
 
   const [row] = await sql<{ id: string }[]>`
     update venue_staff set reparti = ${puliti}

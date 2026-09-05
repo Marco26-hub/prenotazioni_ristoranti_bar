@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { db } from "@repo/shared/db";
-import { etichettaReparto } from "@repo/shared/reparti";
+import { repartiDelLocale } from "@/lib/reparti-locale";
 import Link from "next/link";
 import { PrintButton } from "./print-button";
 import { moduloAttivo } from "@/lib/authz";
@@ -45,6 +45,9 @@ export default async function PrintOrdersPage({
   }
 
   const sql = db();
+  const reparti = await repartiDelLocale(venue.venueId);
+  const etichettaReparto = (c: string | null) =>
+    reparti.find((r) => r.chiave === (c ?? "cucina"))?.etichetta ?? c ?? "Cucina";
   const rows = await sql<ComandaRow[]>`
     select o.id as order_id, oi.id as item_id, t.code as table_code,
            mi.name as item_name, oi.quantity, oi.notes,

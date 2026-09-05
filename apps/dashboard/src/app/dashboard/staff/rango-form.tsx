@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { assegnaTavoli, assegnaReparti, impostaCodiceOperatore } from "./actions";
-import { REPARTI } from "@repo/shared/reparti";
+
 
 export interface TavoloRango {
   id: string;
@@ -26,6 +26,7 @@ export function RangoForm({
   tavoli,
   altri,
   reparti,
+  repartiDisponibili,
   codice,
   ruolo,
 }: {
@@ -35,6 +36,8 @@ export function RangoForm({
   /** Nome di chi tiene ciascun tavolo, per id utente. */
   altri: Record<string, string>;
   reparti: string[];
+  /** Le postazioni di questo locale: le decide lui, non il programma. */
+  repartiDisponibili: { chiave: string; etichetta: string }[];
   codice: string | null;
   ruolo: string;
 }) {
@@ -129,7 +132,7 @@ export function RangoForm({
           non può spostarle.
         </p>
         <ul className="mt-2 flex flex-wrap gap-1.5">
-          {REPARTI.map(({ chiave, etichetta }) => {
+          {repartiDisponibili.map(({ chiave, etichetta }) => {
             const on = suoiReparti.includes(chiave);
             return (
               <li key={chiave}>

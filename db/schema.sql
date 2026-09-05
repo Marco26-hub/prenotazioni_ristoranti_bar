@@ -753,3 +753,26 @@ create unique index idx_orders_pickup_number
 
 create index idx_menu_items_venue_disponibili on menu_items (venue_id, category_id)
   where available = true;
+
+-- ------------------------------------------------------------
+-- Le postazioni di ogni locale
+-- ------------------------------------------------------------
+--
+-- Un elenco fisso costringeva tutti in sei parole che non sono le loro: c'è
+-- chi ha due cucine, chi il forno separato dalla friggitoria, chi chiama
+-- "pass" il punto dove la sala ritira. Non è però un campo libero al momento
+-- dell'uso: si crea la postazione una volta e poi si sceglie da una tendina,
+-- o "Cucina", "cucina" e "CUCINA" diventano tre postazioni diverse e chi ha
+-- il permesso su una non ce l'ha sulle altre.
+
+create table venue_reparti (
+  venue_id uuid references venues(id) on delete cascade not null,
+  -- Finisce nelle comande e nei permessi: non cambia rinominando l'etichetta.
+  chiave text not null check (chiave ~ '^[a-z0-9_-]{1,32}$'),
+  etichetta text not null,
+  sort_order int not null default 0,
+  created_at timestamptz not null default now(),
+  primary key (venue_id, chiave)
+);
+
+create index idx_venue_reparti on venue_reparti (venue_id, sort_order);

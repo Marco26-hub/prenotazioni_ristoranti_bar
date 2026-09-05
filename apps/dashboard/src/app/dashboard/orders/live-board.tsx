@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRitmo } from "@repo/shared/ritmo";
-import { etichettaReparto } from "@repo/shared/reparti";
+
 import {
   setOrderItemStatus,
   advanceTableItems,
@@ -147,7 +147,24 @@ const ETICHETTA: Record<string, string> = {
 /** Ripiego se il locale non ha ancora scelto la sua soglia. */
 const SOGLIA_PREDEFINITA = 20;
 
-export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
+export function LiveBoard({
+  ruolo,
+  reparti,
+}: {
+  ruolo: StaffRole;
+  /** Le postazioni di questo locale, coi nomi che ha scelto lui. */
+  reparti: { chiave: string; etichetta: string }[];
+}) {
+  /*
+   * I nomi sono suoi.
+   *
+   * Chi ha chiamato "Pass" il punto in cui la sala ritira deve leggere
+   * "Pass": un elenco fisso nel programma costringeva tutti in sei parole
+   * che non erano le loro.
+   */
+  const etichettaReparto = (c: string | null) =>
+    reparti.find((r) => r.chiave === (c ?? "cucina"))?.etichetta ?? c ?? "Cucina";
+
   const [items, setItems] = useState<LiveItem[]>([]);
   const [adesso, setAdesso] = useState(() => Date.now());
   const [vocale, setVocale] = useState(false);

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { LiveBoard } from "./live-board";
 import { moduloAttivo } from "@/lib/authz";
+import { repartiDelLocale } from "@/lib/reparti-locale";
 import { ModuloNonAttivo } from "../modulo-non-attivo";
 
 export default async function OrdersPage() {
@@ -32,6 +33,9 @@ export default async function OrdersPage() {
 
   const ruolo = venue.role;
 
+  // I nomi delle postazioni sono del locale, non del programma.
+  const reparti = await repartiDelLocale(venue.venueId);
+
   // Il modulo si verifica qui e non solo nel menu: chi digita l'indirizzo
   // la pagina la otterrebbe lo stesso.
   if (!(await moduloAttivo(venue.venueId, "ordini"))) {
@@ -46,7 +50,7 @@ export default async function OrdersPage() {
           Stampa comande
         </Link>
       </div>
-      <LiveBoard ruolo={ruolo} />
+      <LiveBoard ruolo={ruolo} reparti={reparti} />
     </main>
   );
 }

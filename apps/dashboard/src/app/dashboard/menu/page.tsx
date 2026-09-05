@@ -15,6 +15,9 @@ import { ImportForm } from "./import-form";
 import { PhotoForm } from "./photo-form";
 import { TilbyImportForm } from "./tilby-import-form";
 import { EditItemForm, type EditableItem } from "./edit-item-form";
+import { RepartiForm } from "./reparti-form";
+import { RepartoCategoria } from "./reparto-categoria";
+import { repartiDelLocale } from "@/lib/reparti-locale";
 import { AggiungiPiatto } from "./aggiungi-piatto";
 import { TraduzioniForm } from "./traduzioni-form";
 import { LingueForm } from "./lingue-form";
@@ -80,9 +83,19 @@ export default async function MenuPage({
 
   const lingueAttive = venueRow?.languages ?? [];
 
-  const categories = await sql<{ id: string; name: string }[]>`
-    select id, name from menu_categories where venue_id = ${venue.venueId}
+  const categories = await sql<{ id: string; name: string; reparto: string }[]>`
+    select id, name, reparto from menu_categories where venue_id = ${venue.venueId}
     order by sort_order, name`;
+
+  // Le postazioni di questo locale: quelle di partenza finché non ne crea.
+  const reparti = await repartiDelLocale(venue.venueId);
+
+  // Quante categorie su ciascuna: si vede prima di togliere una postazione.
+  const categoriePerReparto: Record<string, number> = {};
+  for (const c of categories) {
+    const k = c.reparto ?? "cucina";
+    categoriePerReparto[k] = (categoriePerReparto[k] ?? 0) + 1;
+  }
 
   const items = await sql<ItemRow[]>`
     select id, category_id, name, description, ingredients, price_cents, vat_rate,
@@ -394,6 +407,16 @@ export default async function MenuPage({
       {categories.map((cat, index) => (
         <section key={cat.id} className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
+            {/* Dove si prepara: decide su quale schermo compare la comanda e
+                chi la può muovere. Il formato la assegna, ma è un punto di
+                partenza — chi ha il forno separato dalla friggitoria la
+                sposta. */}
+            <RepartoCategoria
+              categoryId={cat.id}
+              valore={cat.reparto ?? "cucina"}
+              reparti={reparti}
+              nomeCategoria={cat.name}
+            />
             <form action={renameCategory} className="flex min-w-0 flex-1 gap-2">
               <input type="hidden" name="categoryId" value={cat.id} />
               <input
@@ -489,6 +512,8 @@ export default async function MenuPage({
           <AggiungiPiatto categoryId={null} categoryName="nessuna categoria" />
         )}
       </section>
+
+      <RepartiForm reparti={reparti} usate={categoriePerReparto} />
 
       <section className="space-y-3 border-t border-border pt-6">
         <h2 id="formato" className="scroll-mt-20 font-semibold">Che locale sei</h2>

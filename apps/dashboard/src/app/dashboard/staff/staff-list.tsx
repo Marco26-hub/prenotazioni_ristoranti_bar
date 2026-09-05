@@ -21,10 +21,12 @@ export function StaffList({
   staff,
   tavoli,
   nomiPerUtente,
+  repartiDisponibili,
 }: {
   staff: Member[];
   tavoli: TavoloRango[];
   nomiPerUtente: Record<string, string>;
+  repartiDisponibili: { chiave: string; etichetta: string }[];
 }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -84,6 +86,7 @@ export function StaffList({
                 servono ai tavoli, e un bottone in più per loro è rumore. */}
             {(m.role === "waiter" || m.role === "manager") && (
               <RangoForm
+                repartiDisponibili={repartiDisponibili}
                 userId={m.userId}
                 nome={m.name ?? m.email}
                 tavoli={tavoli}

@@ -1,6 +1,6 @@
 "use server";
 
-import { REPARTI_VALIDI as REPARTI } from "@repo/shared/reparti";
+import { repartiDelLocale } from "@/lib/reparti-locale";
 import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { requireVenue, requireRole } from "@/lib/authz";
@@ -24,7 +24,7 @@ export async function segnalaDispositivo(deviceKey: string, reparto: string) {
   await sql`
     insert into venue_devices (venue_id, device_key, reparto, ultimo_utente)
     values (${venue.venueId}, ${deviceKey},
-            ${REPARTI.includes(reparto) ? reparto : null}, ${userId})
+            ${(await repartiDelLocale(venue.venueId)).some((x) => x.chiave === reparto) ? reparto : null}, ${userId})
     on conflict (venue_id, device_key) do update
        set reparto = excluded.reparto,
            ultimo_utente = excluded.ultimo_utente,

@@ -3,6 +3,7 @@ import "server-only";
 import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { modelloPerTipo } from "@repo/shared/formati";
+import { seminaReparti } from "@/lib/reparti-locale";
 
 export interface EsitoModello {
   error?: string;
@@ -67,6 +68,19 @@ export async function applicaFormato(
   const esistenti = await sql<{ id: string; name: string }[]>`
     select id, name from menu_categories where venue_id = ${venueId}`;
   const perNome = new Map(esistenti.map((c) => [c.name.toLowerCase(), c.id]));
+
+  /*
+   * Le postazioni che questo formato usa entrano nell'elenco del locale.
+   *
+   * Sono un punto di partenza, non una gabbia: da lì il ristoratore le
+   * rinomina, ne aggiunge e ne toglie, perché ogni locale è fatto a modo
+   * suo. Applicare di nuovo un formato non le rinomina indietro.
+   */
+  await seminaReparti(
+    sql,
+    venueId,
+    modello.categorie.map((c) => c.reparto ?? "cucina")
+  );
 
   let categorieCreate = 0;
   for (const [i, cat] of modello.categorie.entries()) {
