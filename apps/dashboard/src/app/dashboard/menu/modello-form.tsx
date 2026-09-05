@@ -101,6 +101,27 @@ export function ModelloForm({ tipoAttuale }: { tipoAttuale: string }) {
                 </span>
               </label>
 
+              {(modello.piatti?.length ?? 0) > 0 && (
+                <label className="flex cursor-pointer items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    name="conListino"
+                    className="mt-0.5 h-5 w-5"
+                  />
+                  <span>
+                    Parti da un listino di esempio ({modello.piatti!.length} voci)
+                    <span className="block text-xs text-muted">
+                      Nomi e allergeni già compilati, così non li batti a mano
+                      il primo giorno — gli allergeni sono l&apos;obbligo che
+                      costa da 3.000 a 24.000 euro. I prezzi sono indicativi e
+                      vanno rifatti: le voci nascono <strong>spente</strong> e
+                      nessun cliente le vede finché non le accendi tu, una per
+                      una.
+                    </span>
+                  </span>
+                </label>
+              )}
+
               <p className="text-xs text-muted">
                 Non tocca nulla di quello che hai già: le categorie esistenti
                 restano, e un gruppo di scelte con lo stesso nome non viene

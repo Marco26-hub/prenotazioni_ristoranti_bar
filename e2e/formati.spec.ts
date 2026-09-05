@@ -177,3 +177,43 @@ test("applicare la piadineria accende la consegna al bancone", async ({ page }) 
     await sql.end();
   }
 });
+
+test("il listino di esempio nasce spento e con gli allergeni compilati", async ({
+  page,
+}) => {
+  const sql = db();
+
+  try {
+    await entra(page);
+    await page.goto(`${DASHBOARD_URL}/dashboard/menu`);
+    await page.getByRole("button", { name: /^Ristorante/i }).first().click();
+    await page.getByLabel(/listino di esempio/i).check();
+    await page.getByRole("button", { name: /^Applica il modello/i }).click();
+    await expect(page.getByText(/Formato impostato/i)).toBeVisible({
+      timeout: 30_000,
+    });
+
+    const piatti = await sql<
+      { name: string; available: boolean; allergens: string[] | null }[]
+    >`select name, available, allergens from menu_items
+       where venue_id = ${venue.venueId} and name <> ${venue.menuItemName}`;
+
+    expect(piatti.length).toBeGreaterThan(5);
+
+    /*
+     * Il punto: nessuna di queste voci deve raggiungere un cliente prima che
+     * il ristoratore l'abbia guardata. Un listino inventato pubblicato per
+     * sbaglio è peggio di un menu vuoto — sono prezzi che non sono i suoi.
+     */
+    expect(piatti.every((p) => p.available === false)).toBe(true);
+
+    // E gli allergeni ci sono già dove il piatto li ha per forza: è
+    // l'obbligo che costa da 3.000 a 24.000 euro.
+    const tiramisu = piatti.find((p) => p.name === "Tiramisù");
+    expect(tiramisu?.allergens).toEqual(
+      expect.arrayContaining(["glutine", "uova", "latte"])
+    );
+  } finally {
+    await sql.end();
+  }
+});

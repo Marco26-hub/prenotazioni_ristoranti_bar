@@ -27,7 +27,9 @@ export interface EsitoModello {
 export async function applicaFormato(
   venueId: string,
   tipo: string,
-  soloCategorie: boolean
+  soloCategorie: boolean,
+  /** Crea anche un listino di partenza, non disponibile finché non è rivisto. */
+  conListino = false
 ): Promise<EsitoModello> {
   const modello = modelloPerTipo(tipo);
   if (!modello) return { error: "Formato non riconosciuto" };
@@ -137,6 +139,43 @@ export async function applicaFormato(
 
   // I gruppi si applicano ai piatti già presenti nelle categorie previste:
   // su un menu vuoto non c'è nulla a cui attaccarli, ed è normale.
+  /*
+   * Il listino di partenza nasce spento.
+   *
+   * Serve a non far battere sessanta nomi a mano il primo giorno, e
+   * soprattutto a non far compilare sessanta volte gli allergeni — l'obbligo
+   * che costa da 3.000 a 24.000 euro e la cosa che nessuno ha voglia di
+   * fare. Ma i prezzi sono indicativi e sbagliati per definizione: un
+   * ristorante di Milano e uno di paese non hanno lo stesso listino.
+   *
+   * Quindi `available = false`: nessuna di queste voci raggiunge un cliente
+   * finché il ristoratore non l'ha aperta, corretta e accesa. Un listino
+   * finto pubblicato per sbaglio è peggio di un menu vuoto.
+   */
+  let piattiCreati = 0;
+  if (conListino && modello.piatti?.length) {
+    for (const [i, piatto] of modello.piatti.entries()) {
+      const catId = perNome.get(piatto.categoria.toLowerCase());
+      if (!catId) continue;
+
+      // Non si duplica quello che c'è già: chi riapplica il formato non deve
+      // ritrovarsi il menu doppio.
+      const [gia] = await sql<{ id: string }[]>`
+        select id from menu_items
+         where venue_id = ${venueId} and lower(name) = lower(${piatto.nome})`;
+      if (gia) continue;
+
+      await sql`
+        insert into menu_items
+          (venue_id, category_id, name, description, price_cents, allergens,
+           available, sort_order)
+        values (${venueId}, ${catId}, ${piatto.nome},
+                ${piatto.descrizione ?? null}, ${piatto.prezzo},
+                ${piatto.allergeni ?? []}, false, ${i})`;
+      piattiCreati += 1;
+    }
+  }
+
   let gruppiCreati = 0;
 
   for (const g of modello.gruppi) {
@@ -183,6 +222,13 @@ export async function applicaFormato(
   revalidatePath("/dashboard/settings");
   revalidatePath("/dashboard");
 
+  const notaListino =
+    piattiCreati > 0
+      ? ` ${piattiCreati} voci di esempio create, tutte spente: prezzi e ` +
+        "allergeni vanno controllati prima di accenderle — nessun cliente le " +
+        "vede finché non lo fai."
+      : "";
+
   const notaIva =
     ritoccati > 0
       ? ` ${ritoccati} ${ritoccati === 1 ? "voce portata" : "voci portate"} ` +
@@ -198,7 +244,7 @@ export async function applicaFormato(
     return {
       success:
         "Formato impostato. Non c'era nulla da aggiungere: categorie e scelte esistono già." +
-        nota + notaIva,
+        nota + notaIva + notaListino,
     };
   }
 
@@ -207,7 +253,7 @@ export async function applicaFormato(
       `Formato impostato. ${categorieCreate} categorie aggiunte, ` +
       `${gruppiCreati} gruppi di scelte creati sui piatti esistenti. ` +
       "Prezzi e opzioni li ritocchi voce per voce." +
-      nota + notaIva,
+      nota + notaIva + notaListino,
   };
 }
 

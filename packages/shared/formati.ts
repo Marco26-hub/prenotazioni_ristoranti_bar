@@ -78,6 +78,28 @@ export interface CategoriaModello {
   genere?: "food" | "wine" | "beer" | "drink";
 }
 
+/**
+ * Una voce di partenza del listino.
+ *
+ * Serve a non far battere sessanta nomi a mano il primo giorno, e soprattutto
+ * a non far compilare sessanta volte gli allergeni — che è l'obbligo che
+ * costa da 3.000 a 24.000 euro e la cosa che nessuno ha voglia di fare.
+ *
+ * I prezzi sono indicativi e sbagliati per definizione: un ristorante di
+ * Milano e uno di paese non hanno lo stesso listino. Per questo le voci
+ * nascono NON disponibili — non raggiungono nessun cliente finché il
+ * ristoratore non le ha guardate una per una.
+ */
+export interface PiattoModello {
+  nome: string;
+  categoria: string;
+  /** Indicativo: va rivisto. In centesimi. */
+  prezzo: number;
+  /** Chiavi dell'Allegato II, quelle che quel piatto ha quasi sempre. */
+  allergeni?: string[];
+  descrizione?: string;
+}
+
 export interface ModelloLocale {
   tipo: TipoLocale;
   nome: string;
@@ -88,6 +110,8 @@ export interface ModelloLocale {
   promemoria: string[];
   /** Come parte il locale, se il formato lo suggerisce. */
   modo?: ModoLavoro;
+  /** Listino di partenza, da rivedere. Nasce non disponibile. */
+  piatti?: PiattoModello[];
 }
 
 const COTTURA_CARNE: GruppoModello = {
@@ -153,6 +177,23 @@ export const MODELLI: ModelloLocale[] = [
           ["Porzione intera", 0],
         ],
       },
+    ],
+    piatti: [
+      { nome: "Tagliere di salumi e formaggi", categoria: "Antipasti", prezzo: 1400, allergeni: ["latte", "glutine", "solfiti"] },
+      { nome: "Vitello tonnato", categoria: "Antipasti", prezzo: 1200, allergeni: ["pesce", "uova", "sedano"] },
+      { nome: "Burrata e pomodorini", categoria: "Antipasti", prezzo: 1100, allergeni: ["latte"] },
+      { nome: "Tagliatelle al ragù", categoria: "Primi", prezzo: 1300, allergeni: ["glutine", "uova", "sedano"] },
+      { nome: "Cacio e pepe", categoria: "Primi", prezzo: 1300, allergeni: ["glutine", "latte"] },
+      { nome: "Risotto ai funghi", categoria: "Primi", prezzo: 1400, allergeni: ["latte"] },
+      { nome: "Tagliata di manzo", categoria: "Secondi", prezzo: 2200, allergeni: [] },
+      { nome: "Branzino al forno", categoria: "Secondi", prezzo: 2000, allergeni: ["pesce"] },
+      { nome: "Scaloppine al limone", categoria: "Secondi", prezzo: 1600, allergeni: ["glutine", "latte"] },
+      { nome: "Patate al forno", categoria: "Contorni", prezzo: 500, allergeni: [] },
+      { nome: "Insalata mista", categoria: "Contorni", prezzo: 500, allergeni: [] },
+      { nome: "Tiramisù", categoria: "Dolci", prezzo: 600, allergeni: ["glutine", "uova", "latte"] },
+      { nome: "Panna cotta", categoria: "Dolci", prezzo: 550, allergeni: ["latte"] },
+      { nome: "Acqua naturale 0,75", categoria: "Bevande", prezzo: 250, allergeni: [] },
+      { nome: "Caffè", categoria: "Bevande", prezzo: 150, allergeni: [] },
     ],
     promemoria: [
       "Ogni vino con più di 10 mg/l di solfiti va dichiarato: praticamente tutti.",
@@ -238,6 +279,19 @@ export const MODELLI: ModelloLocale[] = [
           ["Poco cotta", 0],
         ],
       },
+    ],
+    piatti: [
+      { nome: "Supplì", categoria: "Antipasti e fritti", prezzo: 250, allergeni: ["glutine", "latte", "uova"] },
+      { nome: "Crocchetta di patate", categoria: "Antipasti e fritti", prezzo: 250, allergeni: ["glutine", "latte"] },
+      { nome: "Margherita", categoria: "Pizze classiche", prezzo: 700, allergeni: ["glutine", "latte"] },
+      { nome: "Marinara", categoria: "Pizze classiche", prezzo: 600, allergeni: ["glutine"] },
+      { nome: "Diavola", categoria: "Pizze classiche", prezzo: 900, allergeni: ["glutine", "latte"] },
+      { nome: "Capricciosa", categoria: "Pizze classiche", prezzo: 1000, allergeni: ["glutine", "latte", "uova"] },
+      { nome: "Bufala e crudo", categoria: "Pizze speciali", prezzo: 1300, allergeni: ["glutine", "latte"] },
+      { nome: "Tartufo e funghi", categoria: "Pizze speciali", prezzo: 1400, allergeni: ["glutine", "latte"] },
+      { nome: "Tiramisù", categoria: "Dolci", prezzo: 500, allergeni: ["glutine", "uova", "latte"] },
+      { nome: "Acqua naturale 0,75", categoria: "Bevande", prezzo: 250, allergeni: [] },
+      { nome: "Birra media alla spina", categoria: "Birre", prezzo: 500, allergeni: ["glutine", "solfiti"] },
     ],
     promemoria: [
       "L'impasto senza glutine richiede piano e forno separati: se non puoi garantirlo, non offrirlo.",
@@ -341,6 +395,17 @@ export const MODELLI: ModelloLocale[] = [
           ["Rucola", 0],
         ],
       },
+    ],
+    piatti: [
+      { nome: "Crudo, squacquerone e rucola", categoria: "Piadine", prezzo: 700, allergeni: ["glutine", "latte"] },
+      { nome: "Porchetta e verdure grigliate", categoria: "Piadine", prezzo: 750, allergeni: ["glutine"] },
+      { nome: "Salsiccia e cipolla", categoria: "Piadine", prezzo: 700, allergeni: ["glutine"] },
+      { nome: "Vegetariana", categoria: "Piadine", prezzo: 650, allergeni: ["glutine", "latte"] },
+      { nome: "Crescione erbe e formaggio", categoria: "Crescioni", prezzo: 650, allergeni: ["glutine", "latte"] },
+      { nome: "Crescione pomodoro e mozzarella", categoria: "Crescioni", prezzo: 650, allergeni: ["glutine", "latte"] },
+      { nome: "Insalatona mista", categoria: "Insalate", prezzo: 750, allergeni: [] },
+      { nome: "Cheesecake", categoria: "Dolci", prezzo: 450, allergeni: ["glutine", "latte", "uova"] },
+      { nome: "Acqua naturale 0,5", categoria: "Bevande", prezzo: 150, allergeni: [] },
     ],
     promemoria: [
       "La piadina classica contiene strutto: dichiaralo, non è scontato per chi non mangia maiale.",
@@ -463,6 +528,17 @@ export const MODELLI: ModelloLocale[] = [
         ],
       },
     ],
+    piatti: [
+      { nome: "Tagliere di affettati", categoria: "Antipasti", prezzo: 1400, allergeni: ["latte", "solfiti"] },
+      { nome: "Costata di manzo", categoria: "Tagli di carne", prezzo: 2800, allergeni: [] },
+      { nome: "Filetto", categoria: "Tagli di carne", prezzo: 2600, allergeni: [] },
+      { nome: "Tomahawk", categoria: "Tagli di carne", prezzo: 4500, allergeni: [] },
+      { nome: "Burger di manzo", categoria: "Hamburger", prezzo: 1400, allergeni: ["glutine", "latte", "senape"] },
+      { nome: "Patate al rosmarino", categoria: "Contorni", prezzo: 500, allergeni: [] },
+      { nome: "Verdure grigliate", categoria: "Contorni", prezzo: 600, allergeni: [] },
+      { nome: "Cheesecake", categoria: "Dolci", prezzo: 600, allergeni: ["glutine", "latte", "uova"] },
+      { nome: "Rosso della casa, calice", categoria: "Vini", prezzo: 500, allergeni: ["solfiti"] },
+    ],
     promemoria: [
       "L'origine della carne bovina è obbligatoria (Reg. CE 1760/2000): nato, allevato e macellato.",
       "Se dichiari la frollatura, scrivi i giorni: è quello che il cliente confronta.",
@@ -523,6 +599,15 @@ export const MODELLI: ModelloLocale[] = [
           ["Pomodoro", 0],
         ],
       },
+    ],
+    piatti: [
+      { nome: "Panino crudo e mozzarella", categoria: "Panini", prezzo: 650, allergeni: ["glutine", "latte"] },
+      { nome: "Panino porchetta", categoria: "Panini", prezzo: 700, allergeni: ["glutine"] },
+      { nome: "Panino vegetariano", categoria: "Panini", prezzo: 600, allergeni: ["glutine", "latte"] },
+      { nome: "Piadina crudo e squacquerone", categoria: "Piadine", prezzo: 700, allergeni: ["glutine", "latte"] },
+      { nome: "Patatine fritte", categoria: "Fritti", prezzo: 400, allergeni: [] },
+      { nome: "Acqua naturale 0,5", categoria: "Bevande", prezzo: 150, allergeni: [] },
+      { nome: "Birra media alla spina", categoria: "Birre", prezzo: 500, allergeni: ["glutine", "solfiti"] },
     ],
     promemoria: [
       "Il pane senza glutine non basta: anche affettati e salse vanno verificati.",
@@ -593,6 +678,17 @@ export const MODELLI: ModelloLocale[] = [
           ["Cetriolini", 0],
         ],
       },
+    ],
+    piatti: [
+      { nome: "Classic cheeseburger", categoria: "Hamburger", prezzo: 1000, allergeni: ["glutine", "latte", "senape"] },
+      { nome: "Bacon burger", categoria: "Hamburger", prezzo: 1200, allergeni: ["glutine", "latte", "senape"] },
+      { nome: "Doppio manzo", categoria: "Hamburger", prezzo: 1400, allergeni: ["glutine", "latte", "senape"] },
+      { nome: "Veggie burger", categoria: "Hamburger", prezzo: 1000, allergeni: ["glutine", "soia", "lupini"] },
+      { nome: "Patatine fritte", categoria: "Sfizi e fritti", prezzo: 400, allergeni: [] },
+      { nome: "Onion rings", categoria: "Sfizi e fritti", prezzo: 500, allergeni: ["glutine", "uova", "latte"] },
+      { nome: "Caesar salad", categoria: "Insalate", prezzo: 900, allergeni: ["glutine", "uova", "latte", "pesce"] },
+      { nome: "Brownie", categoria: "Dolci", prezzo: 500, allergeni: ["glutine", "uova", "latte", "frutta a guscio"] },
+      { nome: "Birra media alla spina", categoria: "Birre", prezzo: 500, allergeni: ["glutine", "solfiti"] },
     ],
     promemoria: [
       "Sulla carne trita la cottura al sangue va sconsigliata per iscritto: è un rischio, non un gusto.",
@@ -675,6 +771,16 @@ export const MODELLI: ModelloLocale[] = [
           ["Senza ghiaccio", 0],
         ],
       },
+    ],
+    piatti: [
+      { nome: "Gin tonic della casa", categoria: "Gin tonic", prezzo: 900, allergeni: ["solfiti"] },
+      { nome: "Gin tonic agrumato", categoria: "Gin tonic", prezzo: 1000, allergeni: ["solfiti"] },
+      { nome: "Negroni", categoria: "Classici", prezzo: 900, allergeni: ["solfiti"] },
+      { nome: "Americano", categoria: "Classici", prezzo: 800, allergeni: ["solfiti"] },
+      { nome: "Spritz", categoria: "Classici", prezzo: 700, allergeni: ["solfiti"] },
+      { nome: "Signature del bartender", categoria: "Signature", prezzo: 1200, allergeni: ["solfiti"] },
+      { nome: "Gin liscio", categoria: "Distillati lisci", prezzo: 800, allergeni: [] },
+      { nome: "Tagliere di formaggi", categoria: "Taglieri e sfizi", prezzo: 1200, allergeni: ["latte", "glutine"] },
     ],
     promemoria: [
       "Il gin tonic si compone: mettilo come una voce sola con gin e tonica come scelte, non come venti voci diverse.",
@@ -816,6 +922,15 @@ export const MODELLI: ModelloLocale[] = [
           ["In tazza grande", 0],
         ],
       },
+    ],
+    piatti: [
+      { nome: "Caffè", categoria: "Caffetteria", prezzo: 120, allergeni: [] },
+      { nome: "Cappuccino", categoria: "Caffetteria", prezzo: 160, allergeni: ["latte"] },
+      { nome: "Cornetto", categoria: "Colazione", prezzo: 140, allergeni: ["glutine", "uova", "latte"] },
+      { nome: "Spremuta d'arancia", categoria: "Colazione", prezzo: 350, allergeni: [] },
+      { nome: "Spritz", categoria: "Aperitivo", prezzo: 600, allergeni: ["solfiti"] },
+      { nome: "Toast prosciutto e formaggio", categoria: "Panini e toast", prezzo: 350, allergeni: ["glutine", "latte"] },
+      { nome: "Acqua naturale 0,5", categoria: "Bevande", prezzo: 150, allergeni: [] },
     ],
     promemoria: [
       "Il prezzo al banco e al tavolo può differire: se lo fai, va esposto.",

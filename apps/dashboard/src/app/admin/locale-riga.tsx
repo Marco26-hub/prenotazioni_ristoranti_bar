@@ -69,6 +69,7 @@ export function LocaleRiga({ locale }: { locale: LocaleAdmin }) {
   const [nuovaNota, setNuovaNota] = useState("");
   const [formato, setFormato] = useState(locale.formato ?? "");
   const [soloCategorie, setSoloCategorie] = useState(false);
+  const [conListino, setConListino] = useState(false);
   const [pending, start] = useTransition();
 
   const campo = (k: keyof typeof scheda) => ({
@@ -266,7 +267,12 @@ export function LocaleRiga({ locale }: { locale: LocaleAdmin }) {
                 disabled={pending || !formato}
                 onClick={() =>
                   start(async () => {
-                    const r = await impostaFormato(locale.id, formato, soloCategorie);
+                    const r = await impostaFormato(
+                      locale.id,
+                      formato,
+                      soloCategorie,
+                      conListino
+                    );
                     setAvviso(r.error ?? r.ok ?? null);
                   })
                 }
@@ -284,6 +290,20 @@ export function LocaleRiga({ locale }: { locale: LocaleAdmin }) {
                 className="h-4 w-4"
               />
               Solo le categorie, senza i gruppi di scelte sui piatti
+            </label>
+
+            <label className="mt-1 flex items-start gap-2 text-xs text-muted">
+              <input
+                type="checkbox"
+                checked={conListino}
+                onChange={(e) => setConListino(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0"
+              />
+              <span>
+                Con un listino di esempio: nomi e allergeni già compilati, così
+                il cliente non li batte a mano il primo giorno. Le voci nascono
+                spente — i prezzi sono indicativi e li rifà lui.
+              </span>
             </label>
 
             {locale.formato && (

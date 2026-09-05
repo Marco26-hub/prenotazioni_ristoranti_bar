@@ -13,7 +13,8 @@ export async function applicaModello(formData: FormData): Promise<EsitoModello> 
   return applicaFormato(
     venue.venueId,
     String(formData.get("tipo") ?? ""),
-    formData.get("soloCategorie") === "on"
+    formData.get("soloCategorie") === "on",
+    formData.get("conListino") === "on"
   );
 }
 

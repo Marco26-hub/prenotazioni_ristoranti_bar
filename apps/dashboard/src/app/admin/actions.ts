@@ -334,11 +334,12 @@ export async function creaTitolare(
 export async function impostaFormato(
   venueId: string,
   tipo: string,
-  soloCategorie: boolean
+  soloCategorie: boolean,
+  conListino = false
 ): Promise<{ ok?: string; error?: string }> {
   const admin = await requireSuperAdmin();
 
-  const esito = await applicaFormato(venueId, tipo, soloCategorie);
+  const esito = await applicaFormato(venueId, tipo, soloCategorie, conListino);
   if (esito.error) return { error: esito.error };
 
   const sql = db();
