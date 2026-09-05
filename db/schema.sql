@@ -324,7 +324,12 @@ create table menu_categories (
   name text not null,
   sort_order int default 0,
   translations jsonb default '{}'::jsonb not null,
-  reparto text default 'cucina'::text not null   -- dove si prepara: cucina/bar/pizzeria/pasticceria
+  -- Dove si prepara. La chiave, non l'etichetta: le postazioni le definisce
+  -- il locale in venue_reparti, e rinominarne una non deve togliere il
+  -- permesso a chi ce l'aveva. Vincolo di forma e non elenco chiuso, o
+  -- creare una postazione nuova fallirebbe.
+  reparto text default 'cucina'::text not null
+    constraint menu_categories_reparto_check check (reparto ~ '^[a-z0-9_-]{1,32}$')
 );
 
 create table menu_items (
