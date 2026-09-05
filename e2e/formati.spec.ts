@@ -193,10 +193,13 @@ test("il listino di esempio nasce spento e con gli allergeni compilati", async (
       timeout: 30_000,
     });
 
+    // Solo le voci create dal modello: il locale di prova ne ha già due sue,
+    // e quelle sono giustamente disponibili.
     const piatti = await sql<
       { name: string; available: boolean; allergens: string[] | null }[]
     >`select name, available, allergens from menu_items
-       where venue_id = ${venue.venueId} and name <> ${venue.menuItemName}`;
+       where venue_id = ${venue.venueId}
+         and name not in (${venue.menuItemName}, 'Dolce Test')`;
 
     expect(piatti.length).toBeGreaterThan(5);
 
