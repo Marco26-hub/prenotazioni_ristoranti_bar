@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
 import { db } from "@repo/shared/db";
 import { requireSuperAdmin } from "@/lib/authz";
+import { applicaFormato } from "@/lib/formato";
 import { type Modulo } from "@repo/shared";
 
 const VALIDI: Modulo[] = ["ordini", "prenotazioni"];
@@ -316,4 +317,41 @@ export async function creaTitolare(
     // Mostrata una volta sola: non la salviamo in chiaro da nessuna parte.
     password,
   };
+}
+
+
+/**
+ * Il formato del locale, deciso da chi vende.
+ *
+ * Quando si prepara un cliente nuovo, il tipo di locale non è un'etichetta:
+ * decide le categorie del menu, i gruppi di scelte, i promemoria di legge da
+ * mostrargli e — per chi consegna al bancone — che ogni cliente abbia il
+ * proprio conto invece di condividerlo con chi ha inquadrato prima.
+ *
+ * Farlo da qui evita di dover entrare nel gestionale del cliente con le sue
+ * credenziali, che è il modo in cui si finisce per non farlo.
+ */
+export async function impostaFormato(
+  venueId: string,
+  tipo: string,
+  soloCategorie: boolean
+): Promise<{ ok?: string; error?: string }> {
+  const admin = await requireSuperAdmin();
+
+  const esito = await applicaFormato(venueId, tipo, soloCategorie);
+  if (esito.error) return { error: esito.error };
+
+  const sql = db();
+  const [v] = await sql<{ name: string }[]>`
+    select name from venues where id = ${venueId}`;
+
+  // Resta scritto chi ha toccato cosa: un formato applicato al cliente
+  // sbagliato si spiega solo se si sa chi e quando.
+  await sql`
+    insert into platform_events (venue_id, admin_id, admin_label, azione, dettaglio)
+    values (${venueId}, ${admin.userId}, ${admin.email}, 'formato',
+            ${`${tipo}${soloCategorie ? " (solo categorie)" : ""}`})`;
+
+  revalidatePath("/admin");
+  return { ok: `${v?.name ?? "Locale"}: ${esito.success ?? "formato applicato."}` };
 }

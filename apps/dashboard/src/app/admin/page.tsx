@@ -31,10 +31,11 @@ export default async function AdminPage() {
       provenienza: string | null;
       ricontattare_il: Date | null;
       motivo_abbandono: string | null;
+      venue_type: string | null;
     }[]
   >`
     select v.id, v.name, v.slug, v.subscription_status, v.subscription_period_end,
-           v.subscription_id, v.modules, v.created_at,
+           v.subscription_id, v.modules, v.created_at, v.venue_type,
            v.referente_nome, v.referente_telefono, v.referente_email,
            v.provenienza, v.ricontattare_il, v.motivo_abbandono,
            (select count(*)::int from tables t where t.venue_id = v.id) as tavoli,
@@ -139,6 +140,7 @@ export default async function AdminPage() {
     moduli: v.modules ?? [],
     tavoli: v.tavoli,
     piatti: v.piatti,
+    formato: v.venue_type ?? null,
     interventi: (perLocale.get(v.id) ?? []).map((e) => ({
       chi: e.admin_label,
       azione: e.azione,

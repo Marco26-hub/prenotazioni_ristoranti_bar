@@ -7,7 +7,9 @@ import {
   creaTitolare,
   salvaScheda,
   aggiungiNota,
+  impostaFormato,
 } from "./actions";
+import { MODELLI } from "@repo/shared/formati";
 
 export interface LocaleAdmin {
   id: string;
@@ -22,6 +24,8 @@ export interface LocaleAdmin {
   tavoli: number;
   piatti: number;
   interventi: { chi: string; azione: string; dettaglio: string | null; quando: string }[];
+  /** Formato già applicato, se ce n'è uno. */
+  formato: string | null;
   scheda: {
     referente_nome: string;
     referente_telefono: string;
@@ -63,6 +67,8 @@ export function LocaleRiga({ locale }: { locale: LocaleAdmin }) {
   const [passwordUnaVolta, setPasswordUnaVolta] = useState<string | null>(null);
   const [scheda, setScheda] = useState(locale.scheda);
   const [nuovaNota, setNuovaNota] = useState("");
+  const [formato, setFormato] = useState(locale.formato ?? "");
+  const [soloCategorie, setSoloCategorie] = useState(false);
   const [pending, start] = useTransition();
 
   const campo = (k: keyof typeof scheda) => ({
@@ -229,6 +235,68 @@ export function LocaleRiga({ locale }: { locale: LocaleAdmin }) {
               {avviso}
             </p>
           )}
+
+          <div className="border-t border-border pt-4">
+            <p className="text-sm font-medium">Tipo di locale</p>
+            <p className="mt-0.5 text-xs text-muted">
+              Non è un&apos;etichetta: crea le categorie del menu, i gruppi di
+              scelte, i promemoria di legge del caso, e — per chi consegna al
+              bancone — fa sì che ogni cliente abbia il proprio conto invece
+              di condividerlo con chi ha inquadrato prima. Non tocca quello
+              che c&apos;è già.
+            </p>
+
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <select
+                value={formato}
+                onChange={(e) => setFormato(e.target.value)}
+                aria-label={`Tipo di locale di ${locale.nome}`}
+                className={`${CAMPO} min-w-52`}
+              >
+                <option value="">Scegli…</option>
+                {MODELLI.map((m) => (
+                  <option key={m.tipo} value={m.tipo}>
+                    {m.nome}
+                  </option>
+                ))}
+              </select>
+
+              <button
+                type="button"
+                disabled={pending || !formato}
+                onClick={() =>
+                  start(async () => {
+                    const r = await impostaFormato(locale.id, formato, soloCategorie);
+                    setAvviso(r.error ?? r.ok ?? null);
+                  })
+                }
+                className="min-h-11 rounded-full border border-border px-5 text-sm font-medium disabled:opacity-60"
+              >
+                Applica
+              </button>
+            </div>
+
+            <label className="mt-2 flex min-h-11 items-center gap-2 text-xs text-muted">
+              <input
+                type="checkbox"
+                checked={soloCategorie}
+                onChange={(e) => setSoloCategorie(e.target.checked)}
+                className="h-4 w-4"
+              />
+              Solo le categorie, senza i gruppi di scelte sui piatti
+            </label>
+
+            {locale.formato && (
+              <p className="mt-1 text-xs text-muted">
+                Ora è impostato su{" "}
+                <strong>
+                  {MODELLI.find((m) => m.tipo === locale.formato)?.nome ??
+                    locale.formato}
+                </strong>
+                . Applicarne un altro aggiunge, non sostituisce.
+              </p>
+            )}
+          </div>
 
           <div className="border-t border-border pt-4">
             <p className="text-sm font-medium">Scheda cliente</p>
