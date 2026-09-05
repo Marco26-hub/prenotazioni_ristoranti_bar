@@ -83,11 +83,26 @@ export async function POST(request: Request) {
 
   // I moduli stanno nei metadata del Price, non del codice: cambiare il
   // listino su Stripe non deve richiedere un deploy. Il metadata della
-  // Subscription fa da ripiego per gli abbonamenti creati a mano.
-  const price = sub.items?.data?.[0]?.price as
-    | { metadata?: Record<string, string> }
-    | undefined;
-  const moduliGrezzi = price?.metadata?.moduli ?? sub.metadata?.moduli ?? "";
+  /*
+   * Si cerca fra tutte le voci, non solo la prima.
+   *
+   * L'abbonamento può portare accanto al piano la voce una tantum di
+   * attivazione, che di moduli non ne dà e giustamente non ha il metadata.
+   * Stripe non garantisce l'ordine delle voci: leggendo solo la prima, un
+   * abbonamento in cui l'attivazione capitava per prima risultava senza
+   * moduli — il locale paga il piano e non gli si accende niente.
+   *
+   * Il metadata sulla Subscription resta come ripiego per gli abbonamenti
+   * creati a mano dal cruscotto.
+   */
+  const voci = (sub.items?.data ?? []) as Array<{
+    price?: { metadata?: Record<string, string> };
+  }>;
+  const dalListino = voci
+    .map((v) => v.price?.metadata?.moduli)
+    .find((m) => typeof m === "string" && m.trim() !== "");
+
+  const moduliGrezzi = dalListino ?? sub.metadata?.moduli ?? "";
   const moduli = moduliGrezzi
     .split(",")
     .map((m) => m.trim())
