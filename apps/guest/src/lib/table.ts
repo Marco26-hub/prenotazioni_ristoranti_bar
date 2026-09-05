@@ -22,6 +22,7 @@ export interface ResolvedVenue {
   /** Ore dopo cui una sessione lasciata aperta scade. 0 = mai. */
   sessione_max_ore: number;
   ordine_intervallo_min: number;
+  servizio_al_banco: boolean;
   pickup_numbering_enabled: boolean;
   pickup_metodi: string[] | null;
 }
@@ -48,7 +49,7 @@ export async function resolveTableFromQr(
            public_phone, public_email, vat_number,
            address, address_zip, address_city, address_province,
            subscription_status, subscription_period_end, modules,
-           sessione_max_ore, ordine_intervallo_min,
+           sessione_max_ore, ordine_intervallo_min, servizio_al_banco,
            pickup_numbering_enabled, pickup_metodi
     from venues where slug = ${slug}`;
   if (
@@ -84,11 +85,24 @@ export async function resolveTableFromQr(
          and opened_at < now() - make_interval(hours => ${maxOre})`;
   }
 
-  const [existingSession] = await sql<{ id: string }[]>`
-    select id from table_sessions
-    where table_id = ${table.id} and status = 'open'
-    order by opened_at desc
-    limit 1`;
+  /*
+   * Al banco ogni scansione apre un conto suo.
+   *
+   * Al tavolo la sessione si condivide, ed è giusto: chi si siede insieme
+   * paga insieme. In una piadineria no — la gente si siede dove capita o
+   * non si siede affatto, e con un QR solo al bancone il secondo cliente
+   * che inquadrava si univa alla sessione del primo: la sua piadina finiva
+   * sul conto di uno sconosciuto, e il primo se la vedeva addebitare.
+   */
+  const alBanco = Boolean(venue.servizio_al_banco);
+
+  const [existingSession] = alBanco
+    ? [undefined]
+    : await sql<{ id: string }[]>`
+        select id from table_sessions
+        where table_id = ${table.id} and status = 'open'
+        order by opened_at desc
+        limit 1`;
 
   let sessionId: string;
 
@@ -105,9 +119,10 @@ export async function resolveTableFromQr(
        * dimenticato pagherebbe i piatti a prezzo di listino.
        */
       const [newSession] = await sql<{ id: string }[]>`
-        insert into table_sessions (table_id, venue_id, status, formula)
+        insert into table_sessions (table_id, venue_id, status, formula, banco)
         select ${table.id}, ${venue.id}, 'open',
-               (v.formula_attiva and v.formula_predefinita)
+               (v.formula_attiva and v.formula_predefinita),
+               ${alBanco}
           from venues v where v.id = ${venue.id}
         returning id`;
       if (!newSession) return null;

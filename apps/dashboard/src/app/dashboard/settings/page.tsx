@@ -76,6 +76,7 @@ export default async function SettingsPage() {
       formula_nota: string | null;
       pickup_numbering_enabled: boolean;
       pickup_metodi: string[] | null;
+      servizio_al_banco: boolean;
       cover_charge_label: string | null;
       soglia_attesa_min: number;
       soglia_liberazione_min: number;
@@ -115,7 +116,7 @@ export default async function SettingsPage() {
            formula_cena_cents, formula_ora_cena::text as formula_ora_cena,
            formula_bambino_cents, formula_bambino_eta_max,
            formula_supplemento_cents, formula_nota,
-           pickup_numbering_enabled, pickup_metodi,
+           pickup_numbering_enabled, pickup_metodi, servizio_al_banco,
            cover_charge_label, public_texts,
            soglia_attesa_min, soglia_liberazione_min,
            openrouter_api_key, openrouter_model,
@@ -300,6 +301,7 @@ export default async function SettingsPage() {
         <RitiroForm
           attivo={venueRow?.pickup_numbering_enabled ?? false}
           metodi={venueRow?.pickup_metodi ?? []}
+          alBanco={venueRow?.servizio_al_banco ?? false}
         />
       </section>
 

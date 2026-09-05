@@ -28,7 +28,34 @@ export async function applicaModello(formData: FormData): Promise<EsitoModello> 
   const soloCategorie = formData.get("soloCategorie") === "on";
 
   const sql = db();
-  await sql`update venues set venue_type = ${tipo} where id = ${venue.venueId}`;
+
+  /*
+   * Il formato accende anche il modo di lavorare, se ne ha uno.
+   *
+   * Prima toccava solo le categorie del menu: una piadineria applicava il
+   * proprio modello e si ritrovava comunque la sala dei tavoli, con un QR
+   * per tavolo e il conto condiviso — cioè la piadina del secondo cliente
+   * addebitata al primo. Il formato dice com'è fatto il menu e come si
+   * consegna: sono la stessa scelta.
+   *
+   * Restano interruttori: chi ha quattro tavolini fuori li rimette in
+   * Impostazioni. Qui si sceglie da dove parte.
+   */
+  const modo = modello.modo;
+  await sql`
+    update venues set
+      venue_type = ${tipo},
+      servizio_al_banco = ${modo?.alBanco ?? sql`servizio_al_banco`},
+      pickup_numbering_enabled = ${modo?.numeriRitiro ?? sql`pickup_numbering_enabled`},
+      -- Un numero che nessuno chiama non serve: si parte avvisando sul
+      -- telefono, che è l'unico modo che non richiede di comprare niente.
+      pickup_metodi = ${
+        modo?.numeriRitiro
+          ? sql`case when cardinality(pickup_metodi) = 0
+                     then array['telefono'] else pickup_metodi end`
+          : sql`pickup_metodi`
+      }
+    where id = ${venue.venueId}`;
 
   const esistenti = await sql<{ id: string; name: string }[]>`
     select id, name from menu_categories where venue_id = ${venue.venueId}`;
@@ -102,11 +129,19 @@ export async function applicaModello(formData: FormData): Promise<EsitoModello> 
   }
 
   revalidatePath("/dashboard/menu");
+  revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard");
+
+  const nota = modo?.alBanco
+    ? " Consegna al bancone accesa: ogni cliente ha il suo conto e il suo " +
+      "numero, e la pagina principale diventa il Banco."
+    : "";
 
   if (categorieCreate === 0 && gruppiCreati === 0) {
     return {
       success:
-        "Formato impostato. Non c'era nulla da aggiungere: categorie e scelte esistono già.",
+        "Formato impostato. Non c'era nulla da aggiungere: categorie e scelte esistono già." +
+        nota,
     };
   }
 
@@ -114,7 +149,8 @@ export async function applicaModello(formData: FormData): Promise<EsitoModello> 
     success:
       `Formato impostato. ${categorieCreate} categorie aggiunte, ` +
       `${gruppiCreati} gruppi di scelte creati sui piatti esistenti. ` +
-      "Prezzi e opzioni li ritocchi voce per voce.",
+      "Prezzi e opzioni li ritocchi voce per voce." +
+      nota,
   };
 }
 

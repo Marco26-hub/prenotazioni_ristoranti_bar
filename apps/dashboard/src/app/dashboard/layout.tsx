@@ -79,6 +79,8 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
   // Il banco compare solo a chi consegna al bancone: per una trattoria
   // sarebbe una voce in più che non apre niente.
   let banco = false;
+  // Il locale consegna al bancone: la sala di tavoli non lo riguarda.
+  let alBanco = false;
 
   if (venue) {
     const sql = db();
@@ -94,9 +96,10 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
         subscription_period_end: Date | null;
         modules: string[] | null;
         pickup_numbering_enabled: boolean;
+        servizio_al_banco: boolean;
       }[]
     >`select dpa_version, vat_number, fiscal_code, address_city, public_email, pec,
-           pickup_numbering_enabled,
+           pickup_numbering_enabled, servizio_al_banco,
              subscription_status, subscription_period_end, modules
         from venues where id = ${venue.venueId}`;
 
@@ -117,6 +120,7 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
     );
 
     banco = Boolean(row?.pickup_numbering_enabled);
+    alBanco = Boolean(row?.servizio_al_banco);
   }
 
   return (
@@ -143,10 +147,19 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
         </div>
 
         <MenuNavigazione
+          /*
+           * Chi consegna al bancone non ha una sala.
+           *
+           * "Tavoli" resta raggiungibile — la pianta serve comunque a
+           * disporre i QR — ma il posto d'onore va al Banco, che è lo
+           * schermo su cui si lavora davvero. Mostrare una sala di tavoli a
+           * una piadineria è mostrare una pagina che non racconta niente.
+           */
           voci={NAV.filter(
             (item) =>
               (!item.modulo || moduliAttivi.has(item.modulo)) &&
-              (item.href !== "/dashboard/banco" || banco)
+              (item.href !== "/dashboard/banco" || banco || alBanco) &&
+              (item.href !== "/dashboard" || !alBanco)
           ).map(
             (item) => ({ href: item.href, label: item.label, fila: item.fila })
           )}

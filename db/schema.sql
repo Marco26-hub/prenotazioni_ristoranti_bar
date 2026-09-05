@@ -84,6 +84,10 @@ create table venues (
   -- Come si avvisa chi aspetta: segnaposto, cercapersone, telefono. Anche
   -- più d'uno. Vuoto: nessun avviso.
   pickup_metodi text[] not null default '{}',
+  -- Si consegna al bancone e non al tavolo: ogni scansione del QR apre un
+  -- conto suo. In una piadineria la gente si siede dove capita, o non si
+  -- siede affatto, e non condivide il conto con chi ha inquadrato prima.
+  servizio_al_banco boolean not null default false,
   -- Registratore telematico: la stampante sta nel locale e questo server sta
   -- altrove, quindi o un agente sulla cassa svuota la coda, o si batte a mano
   -- e il gestionale prepara il riepilogo.
@@ -290,6 +294,9 @@ create table table_sessions (
   venue_id uuid references venues(id) not null,
   status text not null default 'open' check (status in ('open','billing','closed','cancelled')),
   guest_count int default 1,
+  -- Aperta al bancone: più sessioni aperte sullo stesso QR sono la norma,
+  -- sono le persone in fila.
+  banco boolean not null default false,
   -- Formula a prezzo fisso su questo tavolo, con i bambini contati a parte
   -- e il supplemento per l'avanzato deciso dallo staff alla chiusura.
   formula boolean not null default false,
@@ -301,7 +308,11 @@ create table table_sessions (
 
 -- Una sola sessione aperta per tavolo: previene lo split ordini quando due
 -- scansioni dello stesso QR arrivano quasi simultanee (due ospiti allo stesso tavolo).
-create unique index uq_table_open_session on table_sessions (table_id) where status = 'open';
+-- Una sola sessione aperta per tavolo: impedisce che due scansioni quasi
+-- simultanee dello stesso QR creino due conti. Non vale al banco, dove
+-- sessioni aperte insieme sullo stesso QR sono le persone in fila.
+create unique index uq_table_open_session
+  on table_sessions (table_id) where status = 'open' and banco = false;
 
 -- ------------------------------------------------------------
 -- MENU

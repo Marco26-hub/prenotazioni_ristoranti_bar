@@ -247,8 +247,16 @@ export async function trattieniTavolo(
  * fredda. Il filtro sullo stato di partenza evita di trascinare avanti una
  * riga che qualcun altro ha già spostato mentre si guardava lo schermo.
  */
+/**
+ * Manda avanti in blocco tutto un gruppo.
+ *
+ * Il gruppo è il tavolo, oppure — dove si consegna al bancone — il numero di
+ * ritiro, che lì fa da tavolo: "N. 7". Senza distinguerli, l'azione di
+ * gruppo su una piadineria avrebbe spostato tutte le comande del bancone
+ * insieme, cioè quelle di dieci clienti diversi.
+ */
 export async function advanceTableItems(
-  tableCode: string,
+  gruppo: string,
   from: OrderItemStatus,
   to: OrderItemStatus
 ): Promise<{ aggiornate: number; error?: string }> {
@@ -267,7 +275,12 @@ export async function advanceTableItems(
        and o.table_session_id = ts.id
        and ts.table_id = t.id
        and o.venue_id = ${venue.venueId}
-       and t.code = ${tableCode}
+       and (
+         case when ${gruppo} like 'N. %'
+              then o.pickup_number = nullif(regexp_replace(${gruppo}, '^N\. ', ''), '')::int
+              else t.code = ${gruppo} and o.pickup_number is null
+         end
+       )
        and oi.status = ${from}
        -- Un piatto trattenuto non si avvia in blocco: trattenerlo è stata una
        -- decisione esplicita e un "manda tutto" non deve scavalcarla.

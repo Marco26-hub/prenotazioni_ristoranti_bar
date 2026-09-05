@@ -37,6 +37,25 @@ export interface GruppoModello {
   opzioni: Array<[string, number]>;
 }
 
+/**
+ * Come si lavora, non solo com'è fatto il menu.
+ *
+ * Il formato descriveva le categorie e i gruppi di scelte, e basta: una
+ * piadineria applicava il suo modello e si ritrovava comunque la sala dei
+ * tavoli, con un QR per tavolo e un conto condiviso — che in una piadineria
+ * vuol dire la piadina del secondo cliente sul conto del primo.
+ *
+ * Questi sono i valori di partenza, non una gabbia: restano tutti
+ * interruttori che il locale può cambiare, perché un ristorante può fare
+ * asporto e una piadineria può avere quattro tavolini.
+ */
+export interface ModoLavoro {
+  /** Si consegna al bancone: ogni cliente è il proprio conto. */
+  alBanco?: boolean;
+  /** Ogni ordine prende un numero. */
+  numeriRitiro?: boolean;
+}
+
 export interface ModelloLocale {
   tipo: TipoLocale;
   nome: string;
@@ -45,6 +64,8 @@ export interface ModelloLocale {
   gruppi: GruppoModello[];
   /** Quello che in quel formato si dimentica sempre. */
   promemoria: string[];
+  /** Come parte il locale, se il formato lo suggerisce. */
+  modo?: ModoLavoro;
 }
 
 const COTTURA_CARNE: GruppoModello = {
@@ -178,6 +199,8 @@ export const MODELLI: ModelloLocale[] = [
   },
   {
     tipo: "pizza_al_trancio",
+    // Si consegna al bancone: la gente si siede dove capita, o non si siede.
+    modo: { alBanco: true, numeriRitiro: true },
     nome: "Pizza al trancio",
     descrizione: "Vendita a trancio o a peso, da asporto e sul posto.",
     categorie: ["Pizze al trancio", "Fritti", "Bevande"],
@@ -215,6 +238,8 @@ export const MODELLI: ModelloLocale[] = [
   },
   {
     tipo: "piadineria",
+    // Si consegna al bancone: la gente si siede dove capita, o non si siede.
+    modo: { alBanco: true, numeriRitiro: true },
     nome: "Piadineria",
     descrizione: "Impasti, farciture componibili e aggiunte.",
     categorie: ["Piadine", "Crescioni", "Insalate", "Dolci", "Bevande"],
@@ -380,6 +405,8 @@ export const MODELLI: ModelloLocale[] = [
   },
   {
     tipo: "paninoteca",
+    // Si consegna al bancone: la gente si siede dove capita, o non si siede.
+    modo: { alBanco: true, numeriRitiro: true },
     nome: "Paninoteca",
     descrizione: "Pane, farciture e menu combinati.",
     categorie: ["Panini", "Piadine", "Fritti", "Bevande", "Birre"],

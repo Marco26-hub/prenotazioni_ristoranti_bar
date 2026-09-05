@@ -15,6 +15,7 @@ export async function GET() {
     {
       id: string;
       table_code: string;
+      pickup_number: number | null;
       item_name: string;
       quantity: number;
       status: string;
@@ -27,7 +28,7 @@ export async function GET() {
       ultimo_da: string | null;
     }[]
   >`
-    select oi.id, t.code as table_code, mi.name as item_name, oi.quantity, oi.status,
+    select oi.id, t.code as table_code, o.pickup_number, mi.name as item_name, oi.quantity, oi.status,
            oi.notes, o.created_at, oi.selected_options, oi.held_at,
            coalesce(mc.reparto, 'cucina') as reparto,
            (t.assigned_to = ${userId}) as mio_tavolo,

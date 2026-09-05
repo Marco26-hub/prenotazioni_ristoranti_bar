@@ -15,6 +15,14 @@ import { creaRiconoscimento, interpreta, type Riconoscimento } from "./comando-v
 interface LiveItem {
   id: string;
   table_code: string;
+  /**
+   * Numero di ritiro, dove si consegna al bancone.
+   *
+   * Lì il numero è il tavolo: raggruppare per codice tavolo metteva dieci
+   * clienti in fila dentro un'unica card intitolata "Banco", e il cuoco non
+   * aveva modo di sapere quale piadina era di chi.
+   */
+  pickup_number: number | null;
   item_name: string;
   quantity: number;
   status: OrderItemStatus;
@@ -188,6 +196,17 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
     () => false
   );
 
+  /*
+   * Al banco il numero è il tavolo.
+   *
+   * Raggruppando per codice tavolo, dieci clienti in fila finivano dentro
+   * un'unica card intitolata "Banco": il cuoco vedeva venti piadine mescolate
+   * e nessun modo di sapere quale fosse di chi. Dove c'è un numero di ritiro
+   * è quello a fare da gruppo.
+   */
+  const chiaveGruppo = (i: LiveItem) =>
+    i.pickup_number != null ? `N. ${i.pickup_number}` : i.table_code;
+
   const carica = useCallback(async () => {
     /*
      * Uno schermo fermo non deve sembrare uno schermo vuoto.
@@ -297,7 +316,7 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
     async (codice: string, da: OrderItemStatus, a: OrderItemStatus) => {
       setItems((prev) =>
         prev.map((i) =>
-          i.table_code === codice && i.status === da ? { ...i, status: a } : i
+          chiaveGruppo(i) === codice && i.status === da ? { ...i, status: a } : i
         )
       );
       try {
@@ -440,9 +459,9 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
   for (const i of items) {
     if (soloMiei && haRango && !i.mio_tavolo) continue;
     if (reparto !== "tutti" && (i.reparto ?? "cucina") !== reparto) continue;
-    const lista = perTavolo.get(i.table_code) ?? [];
+    const lista = perTavolo.get(chiaveGruppo(i)) ?? [];
     lista.push(i);
-    perTavolo.set(i.table_code, lista);
+    perTavolo.set(chiaveGruppo(i), lista);
   }
 
   const tavoli = [...perTavolo.entries()].sort(([a], [b]) => a.localeCompare(b));

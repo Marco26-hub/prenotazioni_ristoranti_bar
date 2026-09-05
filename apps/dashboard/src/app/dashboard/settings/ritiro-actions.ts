@@ -24,6 +24,15 @@ export async function salvaRitiro(formData: FormData): Promise<EsitoRitiro> {
   const attivo = formData.get("attivo") === "on";
   const metodi = METODI.filter((m) => formData.get(`metodo-${m}`) === "on");
 
+  /*
+   * Consegnare al bancone non è solo dare un numero.
+   *
+   * Cambia chi paga cosa: al tavolo il conto si condivide, al banco ogni
+   * cliente è il proprio. Con un QR solo al bancone e la sessione condivisa,
+   * la piadina del secondo finiva sul conto del primo.
+   */
+  const alBanco = formData.get("alBanco") === "on";
+
   // Numeri accesi e nessun modo di chiamarli: il cliente riceve un numero e
   // nessuno glielo dice mai. Meglio fermarsi qui che scoprirlo al bancone.
   if (attivo && metodi.length === 0) {
@@ -39,18 +48,21 @@ export async function salvaRitiro(formData: FormData): Promise<EsitoRitiro> {
   // non li manda più, ma riaccendendo si ritrovava tutto da rifare.
   if (!attivo) {
     await sql`
-      update venues set pickup_numbering_enabled = false
+      update venues set pickup_numbering_enabled = false,
+                        servizio_al_banco = ${alBanco}
        where id = ${venue.venueId}`;
   } else {
     await sql`
       update venues set
         pickup_numbering_enabled = true,
-        pickup_metodi = ${metodi}
+        pickup_metodi = ${metodi},
+        servizio_al_banco = ${alBanco}
       where id = ${venue.venueId}`;
   }
 
   revalidatePath("/dashboard/settings");
   revalidatePath("/dashboard/banco");
+  revalidatePath("/dashboard");
 
   if (!attivo) {
     return { success: "Numeri di ritiro spenti: si serve al tavolo." };
