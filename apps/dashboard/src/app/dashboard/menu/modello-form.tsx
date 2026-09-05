@@ -47,7 +47,7 @@ export function ModelloForm({ tipoAttuale }: { tipoAttuale: string }) {
         <div className="space-y-3 rounded-xl border border-border bg-surface p-4">
           <div>
             <p className="text-sm font-medium">Categorie</p>
-            <p className="mt-1 text-sm text-muted">{modello.categorie.join(" · ")}</p>
+            <p className="mt-1 text-sm text-muted">{modello.categorie.map((c) => c.nome).join(" · ")}</p>
           </div>
 
           {modello.gruppi.length > 0 && (

@@ -67,16 +67,62 @@ export async function applicaFormato(
   const perNome = new Map(esistenti.map((c) => [c.name.toLowerCase(), c.id]));
 
   let categorieCreate = 0;
-  for (const [i, nome] of modello.categorie.entries()) {
-    if (perNome.has(nome.toLowerCase())) continue;
+  for (const [i, cat] of modello.categorie.entries()) {
+    if (perNome.has(cat.nome.toLowerCase())) continue;
+
+    /*
+     * La categoria nasce col suo reparto, non senza.
+     *
+     * Il reparto decide su quale schermo compare la comanda e chi la può
+     * muovere: lasciandolo al valore di partenza, i cocktail di una
+     * gintoneria finivano sullo schermo della cucina, e il barista — che ha
+     * il permesso solo sul bar — non poteva toccarli. Il formato sa dove si
+     * prepara ogni cosa: è l'unica occasione in cui lo sa senza chiedere.
+     */
     const [creata] = await sql<{ id: string }[]>`
-      insert into menu_categories (venue_id, name, sort_order)
-      values (${venueId}, ${nome},
+      insert into menu_categories (venue_id, name, sort_order, reparto)
+      values (${venueId}, ${cat.nome},
               coalesce((select max(sort_order) + 1 from menu_categories
-                         where venue_id = ${venueId}), ${i}))
+                         where venue_id = ${venueId}), ${i}),
+              ${cat.reparto ?? "cucina"})
       returning id`;
-    perNome.set(nome.toLowerCase(), creata.id);
+    perNome.set(cat.nome.toLowerCase(), creata.id);
     categorieCreate += 1;
+  }
+
+  /*
+   * Aliquota e genere sui piatti che ci finiscono dentro.
+   *
+   * Non si tocca quello che il ristoratore ha già messo a mano: si scrive
+   * solo dove è rimasto il valore di partenza. Una carta di gin lasciata al
+   * 10% è un errore fiscale che non dà nessun errore.
+   */
+  let ritoccati = 0;
+  for (const cat of modello.categorie) {
+    const id = perNome.get(cat.nome.toLowerCase());
+    if (!id) continue;
+
+    if (cat.iva) {
+      const r = await sql`
+        update menu_items set vat_rate = ${cat.iva}
+         where venue_id = ${venueId} and category_id = ${id}
+           and vat_rate = 10.00
+        returning id`;
+      ritoccati += r.length;
+    }
+
+    if (cat.genere) {
+      await sql`
+        update menu_items set kind = ${cat.genere}
+         where venue_id = ${venueId} and category_id = ${id} and kind = 'food'`;
+    }
+
+    if (cat.fuoriFormula) {
+      await sql`
+        update menu_items set fuori_formula = true
+         where venue_id = ${venueId} and category_id = ${id}
+           and fuori_formula = false`;
+    }
   }
 
   if (soloCategorie) {
@@ -137,6 +183,12 @@ export async function applicaFormato(
   revalidatePath("/dashboard/settings");
   revalidatePath("/dashboard");
 
+  const notaIva =
+    ritoccati > 0
+      ? ` ${ritoccati} ${ritoccati === 1 ? "voce portata" : "voci portate"} ` +
+        "all'aliquota della loro categoria: controllale."
+      : "";
+
   const nota = modo?.alBanco
     ? " Consegna al bancone accesa: ogni cliente ha il suo conto e il suo " +
       "numero, e la pagina principale diventa il Banco."
@@ -146,7 +198,7 @@ export async function applicaFormato(
     return {
       success:
         "Formato impostato. Non c'era nulla da aggiungere: categorie e scelte esistono già." +
-        nota,
+        nota + notaIva,
     };
   }
 
@@ -155,7 +207,7 @@ export async function applicaFormato(
       `Formato impostato. ${categorieCreate} categorie aggiunte, ` +
       `${gruppiCreati} gruppi di scelte creati sui piatti esistenti. ` +
       "Prezzi e opzioni li ritocchi voce per voce." +
-      nota,
+      nota + notaIva,
   };
 }
 

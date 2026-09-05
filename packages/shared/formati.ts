@@ -28,7 +28,7 @@ export type TipoGruppo = "scelta" | "aggiunta" | "rimozione";
 
 export interface GruppoModello {
   nome: string;
-  /** Categorie a cui applicarlo. Vuoto = tutte. */
+  /** Nomi delle categorie a cui applicarlo. Vuoto = tutte. */
   categorie: string[];
   tipo: TipoGruppo;
   obbligatorio: boolean;
@@ -56,11 +56,33 @@ export interface ModoLavoro {
   numeriRitiro?: boolean;
 }
 
+/**
+ * Una categoria del menu, con quello che serve a farla funzionare.
+ *
+ * Il nome da solo non basta. Il reparto decide su quale schermo compare la
+ * comanda e chi la può muovere: senza, i cocktail di una gintoneria
+ * finiscono sullo schermo della cucina e il barista — che ha il permesso
+ * solo sul bar — non può toccarli. L'aliquota cambia fra cibo e alcolici, e
+ * lasciarla al 10% su una carta di gin è un errore fiscale silenzioso. E in
+ * una formula a prezzo fisso ci sono categorie che restano a pagamento.
+ */
+export interface CategoriaModello {
+  nome: string;
+  /** cucina, bar, pizzeria, pasticceria. Dove si prepara. */
+  reparto?: "cucina" | "bar" | "pizzeria" | "pasticceria";
+  /** Aliquota suggerita: 22 per gli alcolici, 10 per la somministrazione. */
+  iva?: number;
+  /** Resta a pagamento anche dentro una formula a prezzo fisso. */
+  fuoriFormula?: boolean;
+  /** Come si presenta al cliente: cambia la scheda del piatto. */
+  genere?: "food" | "wine" | "beer" | "drink";
+}
+
 export interface ModelloLocale {
   tipo: TipoLocale;
   nome: string;
   descrizione: string;
-  categorie: string[];
+  categorie: CategoriaModello[];
   gruppi: GruppoModello[];
   /** Quello che in quel formato si dimentica sempre. */
   promemoria: string[];
@@ -86,8 +108,28 @@ export const MODELLI: ModelloLocale[] = [
     tipo: "ristorante",
     nome: "Ristorante",
     descrizione: "Con carta dei vini, portate e menu degustazione.",
-    categorie: ["Antipasti", "Primi", "Secondi", "Contorni", "Dolci", "Vini", "Bevande"],
+    categorie: [
+      { nome: "Antipasti" },
+      { nome: "Primi" },
+      { nome: "Secondi" },
+      { nome: "Contorni" },
+      { nome: "Dolci", reparto: "pasticceria", fuoriFormula: true },
+      { nome: "Vini", reparto: "bar", iva: 22, genere: "wine", fuoriFormula: true },
+      { nome: "Bevande", reparto: "bar", genere: "drink", fuoriFormula: true },
+    ],
     gruppi: [
+      {
+        nome: "Preparazione",
+        categorie: ["Primi", "Secondi"],
+        tipo: "scelta",
+        obbligatorio: false,
+        multiplo: false,
+        opzioni: [
+          ["Come da ricetta", 0],
+          ["Senza glutine", 200],
+          ["Senza lattosio", 0],
+        ],
+      },
       {
         nome: "Formato",
         categorie: ["Vini"],
@@ -123,7 +165,14 @@ export const MODELLI: ModelloLocale[] = [
     tipo: "pizzeria",
     nome: "Pizzeria",
     descrizione: "Impasti, formati e ingredienti da aggiungere o togliere.",
-    categorie: ["Antipasti e fritti", "Pizze classiche", "Pizze speciali", "Dolci", "Bevande", "Birre"],
+    categorie: [
+      { nome: "Antipasti e fritti" },
+      { nome: "Pizze classiche", reparto: "pizzeria" },
+      { nome: "Pizze speciali", reparto: "pizzeria" },
+      { nome: "Dolci", reparto: "pasticceria", fuoriFormula: true },
+      { nome: "Bevande", reparto: "bar", genere: "drink", fuoriFormula: true },
+      { nome: "Birre", reparto: "bar", iva: 22, genere: "beer", fuoriFormula: true },
+    ],
     gruppi: [
       {
         nome: "Impasto",
@@ -203,7 +252,11 @@ export const MODELLI: ModelloLocale[] = [
     modo: { alBanco: true, numeriRitiro: true },
     nome: "Pizza al trancio",
     descrizione: "Vendita a trancio o a peso, da asporto e sul posto.",
-    categorie: ["Pizze al trancio", "Fritti", "Bevande"],
+    categorie: [
+      { nome: "Pizze al trancio", reparto: "pizzeria" },
+      { nome: "Fritti" },
+      { nome: "Bevande", reparto: "bar", genere: "drink", fuoriFormula: true },
+    ],
     gruppi: [
       {
         nome: "Formato",
@@ -242,7 +295,13 @@ export const MODELLI: ModelloLocale[] = [
     modo: { alBanco: true, numeriRitiro: true },
     nome: "Piadineria",
     descrizione: "Impasti, farciture componibili e aggiunte.",
-    categorie: ["Piadine", "Crescioni", "Insalate", "Dolci", "Bevande"],
+    categorie: [
+      { nome: "Piadine" },
+      { nome: "Crescioni" },
+      { nome: "Insalate" },
+      { nome: "Dolci", reparto: "pasticceria", fuoriFormula: true },
+      { nome: "Bevande", reparto: "bar", genere: "drink", fuoriFormula: true },
+    ],
     gruppi: [
       {
         nome: "Impasto",
@@ -293,16 +352,16 @@ export const MODELLI: ModelloLocale[] = [
     nome: "Sushi / All you can eat",
     descrizione: "Ordinazioni a ondate, con intervallo fra una e l'altra.",
     categorie: [
-      "Antipasti",
-      "Nigiri",
-      "Sashimi",
-      "Uramaki",
-      "Hosomaki",
-      "Temaki",
-      "Fritti",
-      "Wok e riso",
-      "Dolci",
-      "Bevande",
+      { nome: "Antipasti" },
+      { nome: "Nigiri" },
+      { nome: "Sashimi" },
+      { nome: "Uramaki" },
+      { nome: "Hosomaki" },
+      { nome: "Temaki" },
+      { nome: "Fritti" },
+      { nome: "Wok e riso" },
+      { nome: "Dolci", reparto: "pasticceria", fuoriFormula: true },
+      { nome: "Bevande", reparto: "bar", genere: "drink", fuoriFormula: true },
     ],
     gruppi: [
       {
@@ -356,7 +415,15 @@ export const MODELLI: ModelloLocale[] = [
     tipo: "steak_house",
     nome: "Grill e steak house",
     descrizione: "Tagli, cotture, frollature e contorni a scelta.",
-    categorie: ["Antipasti", "Tagli di carne", "Hamburger", "Contorni", "Dolci", "Vini", "Birre"],
+    categorie: [
+      { nome: "Antipasti" },
+      { nome: "Tagli di carne" },
+      { nome: "Hamburger" },
+      { nome: "Contorni" },
+      { nome: "Dolci", reparto: "pasticceria", fuoriFormula: true },
+      { nome: "Vini", reparto: "bar", iva: 22, genere: "wine", fuoriFormula: true },
+      { nome: "Birre", reparto: "bar", iva: 22, genere: "beer", fuoriFormula: true },
+    ],
     gruppi: [
       { ...COTTURA_CARNE, categorie: ["Tagli di carne", "Hamburger"] },
       {
@@ -409,7 +476,13 @@ export const MODELLI: ModelloLocale[] = [
     modo: { alBanco: true, numeriRitiro: true },
     nome: "Paninoteca",
     descrizione: "Pane, farciture e menu combinati.",
-    categorie: ["Panini", "Piadine", "Fritti", "Bevande", "Birre"],
+    categorie: [
+      { nome: "Panini" },
+      { nome: "Piadine" },
+      { nome: "Fritti" },
+      { nome: "Bevande", reparto: "bar", genere: "drink", fuoriFormula: true },
+      { nome: "Birre", reparto: "bar", iva: 22, genere: "beer", fuoriFormula: true },
+    ],
     gruppi: [
       {
         nome: "Pane",
@@ -460,7 +533,14 @@ export const MODELLI: ModelloLocale[] = [
     tipo: "hamburgeria",
     nome: "Hamburgeria",
     descrizione: "Carne, pane, cotture, aggiunte e doppie.",
-    categorie: ["Hamburger", "Sfizi e fritti", "Insalate", "Dolci", "Bevande", "Birre"],
+    categorie: [
+      { nome: "Hamburger" },
+      { nome: "Sfizi e fritti" },
+      { nome: "Insalate" },
+      { nome: "Dolci", reparto: "pasticceria", fuoriFormula: true },
+      { nome: "Bevande", reparto: "bar", genere: "drink", fuoriFormula: true },
+      { nome: "Birre", reparto: "bar", iva: 22, genere: "beer", fuoriFormula: true },
+    ],
     gruppi: [
       { ...COTTURA_CARNE, categorie: ["Hamburger"] },
       {
@@ -524,8 +604,25 @@ export const MODELLI: ModelloLocale[] = [
     tipo: "gintoneria",
     nome: "Gintoneria e cocktail bar",
     descrizione: "Distillati, toniche e botaniche da comporre.",
-    categorie: ["Gin tonic", "Signature", "Classici", "Distillati lisci", "Taglieri e sfizi"],
+    categorie: [
+      { nome: "Gin tonic" },
+      { nome: "Signature" },
+      { nome: "Classici" },
+      { nome: "Distillati lisci" },
+      { nome: "Taglieri e sfizi" },
+    ],
     gruppi: [
+      {
+        nome: "Gradazione",
+        categorie: ["Cocktail"],
+        tipo: "scelta",
+        obbligatorio: false,
+        multiplo: false,
+        opzioni: [
+          ["Come da ricetta", 0],
+          ["Analcolico", 0],
+        ],
+      },
       {
         nome: "Gin",
         categorie: ["Gin tonic"],
@@ -591,7 +688,13 @@ export const MODELLI: ModelloLocale[] = [
     tipo: "birreria",
     nome: "Birreria e pub",
     descrizione: "Spina e bottiglia, formati e stili.",
-    categorie: ["Alla spina", "In bottiglia", "Cucina", "Fritti", "Distillati"],
+    categorie: [
+      { nome: "Alla spina" },
+      { nome: "In bottiglia" },
+      { nome: "Cucina" },
+      { nome: "Fritti" },
+      { nome: "Distillati" },
+    ],
     gruppi: [
       {
         nome: "Formato",
@@ -628,7 +731,13 @@ export const MODELLI: ModelloLocale[] = [
     tipo: "tisaneria",
     nome: "Tisaneria e sala da tè",
     descrizione: "Infusi, formati e accompagnamenti.",
-    categorie: ["Tè", "Tisane e infusi", "Caffetteria", "Dolci", "Salato"],
+    categorie: [
+      { nome: "Tè" },
+      { nome: "Tisane e infusi" },
+      { nome: "Caffetteria", reparto: "bar", genere: "drink", fuoriFormula: true },
+      { nome: "Dolci", reparto: "pasticceria", fuoriFormula: true },
+      { nome: "Salato" },
+    ],
     gruppi: [
       {
         nome: "Formato",
@@ -668,7 +777,14 @@ export const MODELLI: ModelloLocale[] = [
     tipo: "bar",
     nome: "Bar e caffetteria",
     descrizione: "Caffetteria, colazione, aperitivo.",
-    categorie: ["Caffetteria", "Colazione", "Aperitivo", "Panini e toast", "Bevande", "Vini"],
+    categorie: [
+      { nome: "Caffetteria", reparto: "bar", genere: "drink", fuoriFormula: true },
+      { nome: "Colazione" },
+      { nome: "Aperitivo" },
+      { nome: "Panini e toast" },
+      { nome: "Bevande", reparto: "bar", genere: "drink", fuoriFormula: true },
+      { nome: "Vini", reparto: "bar", iva: 22, genere: "wine", fuoriFormula: true },
+    ],
     gruppi: [
       {
         nome: "Latte",
