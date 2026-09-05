@@ -21,6 +21,7 @@ import { hasModulo, type Modulo } from "@repo/shared";
  */
 const NAV = [
   { href: "/dashboard", label: "Tavoli", modulo: "ordini", fila: "servizio" },
+  { href: "/dashboard/avvio", label: "Primi passi", fila: "gestione" },
   { href: "/dashboard/orders", label: "Ordini", modulo: "ordini", fila: "servizio" },
   { href: "/dashboard/banco", label: "Banco", modulo: "ordini", fila: "servizio" },
   {

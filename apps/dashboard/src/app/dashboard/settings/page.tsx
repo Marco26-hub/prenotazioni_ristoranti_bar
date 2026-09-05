@@ -248,23 +248,6 @@ export default async function SettingsPage() {
           servizio={Number(venueRow?.service_percent ?? 0)}
           ivaSupplementi={Number(venueRow?.service_vat_rate ?? 10)}
           intervallo={venueRow?.ordine_intervallo_min ?? 0}
-          /*
-           * L'attesa fra le ordinazioni riguarda la formula, non il formato.
-           *
-           * Legarla al solo tipo "sushi" era sbagliato: serve a chiunque
-           * venda a prezzo fisso — una piadineria con la formula del venerdì
-           * ne ha bisogno quanto un sushi — e un locale che applica un
-           * secondo modello di menu si vedeva sparire il campo, perché il
-           * formato è uno solo e l'ultimo applicato vince.
-           *
-           * Resta anche per chi ce l'ha già impostata, o cambiando formato
-           * si ritroverebbe un'attesa attiva senza più modo di toglierla.
-           */
-          mostraIntervallo={
-            (venueRow?.formula_attiva ?? false) ||
-            venueRow?.venue_type === "sushi" ||
-            (venueRow?.ordine_intervallo_min ?? 0) > 0
-          }
           etichetta={venueRow?.cover_charge_label ?? null}
         />
       </section>

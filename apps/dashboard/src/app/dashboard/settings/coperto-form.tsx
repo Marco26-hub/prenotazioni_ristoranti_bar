@@ -10,15 +10,12 @@ export function CopertoForm({
   servizio,
   ivaSupplementi,
   intervallo,
-  mostraIntervallo,
   etichetta,
 }: {
   copertoCents: number;
   servizio: number;
   ivaSupplementi: number;
   intervallo: number;
-  /** Solo per la formula a prezzo fisso: altrove è un impedimento. */
-  mostraIntervallo: boolean;
   etichetta: string | null;
 }) {
   const [state, formAction, pending] = useActionState<EsitoCoperto | null, FormData>(
@@ -82,8 +79,7 @@ export function CopertoForm({
         </p>
       </div>
 
-      {mostraIntervallo ? (
-        <div>
+      <div>
           <label className="mb-1 block text-sm" htmlFor="intervallo">
             Attesa fra un&apos;ordinazione e la successiva (minuti)
           </label>
@@ -104,10 +100,7 @@ export function CopertoForm({
             il tempo che manca sul pulsante, non lo scopre premendo. 0 =
             nessuna attesa.
           </p>
-        </div>
-      ) : (
-        <input type="hidden" name="intervallo" value={intervallo} />
-      )}
+      </div>
 
       <div>
         <label className="mb-1 block text-sm" htmlFor="etichetta">
