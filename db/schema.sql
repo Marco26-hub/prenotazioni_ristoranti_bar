@@ -84,6 +84,17 @@ create table venues (
   -- Come si avvisa chi aspetta: segnaposto, cercapersone, telefono. Anche
   -- più d'uno. Vuoto: nessun avviso.
   pickup_metodi text[] not null default '{}',
+  -- Registratore telematico: la stampante sta nel locale e questo server sta
+  -- altrove, quindi o un agente sulla cassa svuota la coda, o si batte a mano
+  -- e il gestionale prepara il riepilogo.
+  rt_attivo boolean not null default false,
+  rt_modalita text not null default 'manuale'
+    check (rt_modalita in ('manuale', 'agente')),
+  rt_matricola text,
+  -- Solo l'impronta del segreto: in chiaro, chi legge il database potrebbe
+  -- fingersi la cassa di un locale.
+  rt_agente_hash text,
+  rt_agente_visto_at timestamptz,
   -- Minuti fra due ordini dello stesso tavolo, come negli all-you-can-eat:
   -- senza, un tavolo da sei manda ottanta piatti in tre minuti. 0 = libero.
   ordine_intervallo_min smallint not null default 0
@@ -630,3 +641,38 @@ create table order_number_counters (
   last_number int not null check (last_number > 0),
   primary key (venue_id, service_date)
 );
+
+-- ------------------------------------------------------------
+-- Documenti commerciali da emettere sul registratore telematico
+-- ------------------------------------------------------------
+
+create table fiscal_documents (
+  id uuid primary key default gen_random_uuid(),
+  venue_id uuid references venues(id) on delete cascade not null,
+  table_session_id uuid references table_sessions(id) on delete set null,
+  totale_cents int not null check (totale_cents >= 0),
+  -- Congelate al momento della chiusura: il documento certifica quello che è
+  -- stato incassato, e il menu intanto cambia.
+  righe jsonb not null default '[]'::jsonb,
+  -- { "card": 4200, "cash": 1000 }: dal 2026 il metodo va sul documento e
+  -- l'Agenzia lo incrocia con i dati degli acquirer.
+  pagamenti jsonb not null default '{}'::jsonb,
+  stato text not null default 'da_emettere'
+    check (stato in ('da_emettere', 'in_corso', 'emesso', 'errore', 'battuto_a_mano')),
+  numero_documento text,
+  rt_matricola text,
+  emesso_at timestamptz,
+  errore text,
+  tentativi int not null default 0,
+  service_date date not null,
+  created_at timestamptz not null default now()
+);
+
+create index idx_fiscali_coda on fiscal_documents (venue_id, stato, created_at)
+  where stato in ('da_emettere', 'errore');
+
+create index idx_fiscali_giornata on fiscal_documents (venue_id, service_date desc);
+
+-- Chiudere due volte lo stesso tavolo non deve emettere due scontrini.
+create unique index uq_fiscale_sessione
+  on fiscal_documents (table_session_id) where table_session_id is not null;

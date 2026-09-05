@@ -34,6 +34,7 @@ const NAV = [
 
   { href: "/dashboard/analisi", label: "Analisi", modulo: "ordini", fila: "gestione" },
   { href: "/dashboard/invoices", label: "Fatture", modulo: "ordini", fila: "gestione" },
+  { href: "/dashboard/fiscale", label: "Corrispettivi", modulo: "ordini", fila: "gestione" },
   { href: "/dashboard/recensioni", label: "Recensioni", fila: "gestione" },
   { href: "/dashboard/staff", label: "Personale", fila: "gestione" },
   { href: "/dashboard/settings", label: "Impostazioni", fila: "gestione" },

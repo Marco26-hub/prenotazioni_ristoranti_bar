@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@repo/shared/db";
+import { accodaDocumento } from "@repo/shared/fiscale";
 import { getSatispayPayment } from "@repo/shared/satispay";
 import { decryptSecret } from "@repo/shared/crypto";
 import { outstandingBalanceCents } from "@/lib/balance";
@@ -81,6 +82,10 @@ export async function GET(request: Request) {
         await sql`
           update table_sessions set status = 'closed', closed_at = now()
           where id = ${payment.table_session_id}`;
+        // Pagato tutto dall'app: il conto è chiuso e va certificato come
+        // quello chiuso in cassa. Il registratore non lo raggiungiamo da qui,
+        // quindi il documento entra in coda e lo emette l'agente sul posto.
+        await accodaDocumento(sql, payment.table_session_id);
       }
     }
   }

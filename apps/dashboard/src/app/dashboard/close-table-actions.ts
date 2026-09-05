@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { requireVenue } from "@/lib/authz";
 import { contoSessione } from "@repo/shared/conto";
+import { accodaDocumento } from "@repo/shared/fiscale";
 
 /**
  * Chiusura del conto da parte dello staff, per il pagamento al banco o in
@@ -97,6 +98,17 @@ export async function closeTableInPerson(
     await tx`
       update table_sessions set status = 'closed', closed_at = now()
       where id = ${session.id}`;
+
+    /*
+     * Il documento commerciale si accoda alla chiusura, non prima.
+     *
+     * Finché il tavolo è aperto il conto cambia, e un documento emesso a
+     * metà pasto sarebbe un corrispettivo da stornare. Sta dentro la
+     * transazione perché o si chiude e si certifica, o non si fa né l'uno
+     * né l'altro: un conto chiuso senza il suo documento è un incasso che
+     * non risulta.
+     */
+    await accodaDocumento(tx, session.id);
 
     // Chiudendo il conto la chiamata è per definizione soddisfatta: qualcuno
     // è andato al tavolo, ha incassato e ha portato il documento. Lasciarla
