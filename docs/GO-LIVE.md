@@ -7,6 +7,17 @@ tue, e che nessun altro può fare al posto tuo.
 L'ordine conta. Ogni passo ha come verificarlo: non passare al successivo
 senza aver visto la prova.
 
+**Stato al 5 settembre 2026** — verificato leggendo Vercel e Stripe:
+
+| | |
+|---|---|
+| Webhook e segreti | ✅ fatto (da rifare in Live) |
+| Metadata `moduli` sui Price | ✅ fatto |
+| Chiavi Stripe | ❌ ancora **TEST**: nessun euro si muove |
+| Resend | ❌ assente: **nessuna email parte** |
+| `INVOICETRONIC_WEBHOOK_SECRET` | ❌ assente |
+| `CRON_SECRET` | ✅ impostato |
+
 ---
 
 ## 1. Stripe in modalità Live
@@ -31,7 +42,12 @@ fascia arancione "dati di test".
 
 ---
 
-## 2. Due webhook, due segreti diversi
+## 2. Due webhook, due segreti diversi ✅ FATTO
+
+> Verificato il 5 settembre 2026: `STRIPE_WEBHOOK_SECRET` presente su
+> ristoranti-guest, `STRIPE_BILLING_WEBHOOK_SECRET` su ristoranti-dashboard.
+> Resta da rifare quando passi le chiavi in Live: i webhook di test e quelli
+> live sono endpoint diversi, con segreti diversi.
 
 Sono due cose distinte e confonderle è il primo errore che si fa.
 
@@ -53,7 +69,13 @@ Deve rispondere 200. Un 400 significa segreto sbagliato o scambiato.
 
 ---
 
-## 3. Il metadata `moduli` su ogni Price
+## 3. Il metadata `moduli` su ogni Price ✅ FATTO
+
+> Verificato sul listino: tutti e dodici i Price dei piani ce l'hanno.
+> Le due voci "Attivazione e configurazione" (449 € e 649 €) ne sono prive,
+> ed è corretto — sono una tantum e non danno moduli. Il webhook ora cerca
+> il metadata fra tutte le voci dell'abbonamento, non solo la prima, così
+> un'attivazione messa accanto al piano non lascia il locale senza niente.
 
 Per ogni Price del listino, **Metadata → aggiungi**:
 
