@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { db } from "@repo/shared/db";
 import { closeTableInPerson } from "./close-table-actions";
-import { contoSessione } from "@repo/shared/conto";
+import { contiSessioni } from "@repo/shared/conto";
 import { setOrderItemStatus } from "./orders/actions";
 import type { OrderItemStatus } from "@repo/shared";
 import { Sala, type TavoloSala, type RigaOrdine } from "./sala";
@@ -134,19 +134,15 @@ export default async function DashboardPage() {
   ]);
 
   /*
-   * Un conto per ogni tavolo aperto, tutti insieme.
+   * Tutti i conti in tre query, non tre per tavolo.
    *
-   * Sono poche query per tavolo e i tavoli aperti sono decine, non migliaia:
-   * costa meno di un numero sbagliato letto dal cameriere.
+   * Chiedendoli uno per uno, dodici tavoli erano già un secondo e mezzo e
+   * trenta sarebbero quattro secondi — su una pagina che si ricarica da sé
+   * mentre si lavora, ed è quella che il titolare tiene aperta tutta la sera.
    */
-  const contiPerSessione = new Map<
-    string,
-    Awaited<ReturnType<typeof contoSessione>>
-  >();
-  await Promise.all(
-    sessioni.map(async (s) => {
-      contiPerSessione.set(s.session_id, await contoSessione(sql, s.session_id));
-    })
+  const contiPerSessione = await contiSessioni(
+    sql,
+    sessioni.map((s) => s.session_id)
   );
 
   const righePerSessione = new Map<string, RigaOrdine[]>();

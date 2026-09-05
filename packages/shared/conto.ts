@@ -69,9 +69,25 @@ export interface Conto {
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Sql = any;
 
-export async function contoSessione(sql: Sql, sessionId: string): Promise<Conto> {
-  const [t] = await sql`
-    select ts.guest_count, ts.bambini, ts.supplemento_cents, ts.formula,
+/**
+ * Il conto di più tavoli in una volta sola.
+ *
+ * La sala mostra tutti i tavoli aperti insieme, e chiedere il conto uno per
+ * uno voleva dire tre andate e ritorno per tavolo: dodici tavoli erano già
+ * un secondo e mezzo, trenta sono quattro secondi — su una pagina che si
+ * ricarica da sé mentre si lavora. Le regole restano queste, scritte una
+ * volta: cambia solo che le tre query si fanno per tutti.
+ */
+export async function contiSessioni(
+  sql: Sql,
+  sessionIds: string[]
+): Promise<Map<string, Conto>> {
+  const esito = new Map<string, Conto>();
+  if (sessionIds.length === 0) return esito;
+
+  const tavoli = await sql`
+    select ts.id,
+           ts.guest_count, ts.bambini, ts.supplemento_cents, ts.formula,
            v.cover_charge_cents, v.cover_charge_label, v.service_percent,
            v.formula_attiva, v.formula_bambino_cents,
            case
@@ -83,9 +99,52 @@ export async function contoSessione(sql: Sql, sessionId: string): Promise<Conto>
              >= v.formula_ora_cena as e_cena
       from table_sessions ts
       join venues v on v.id = ts.venue_id
-     where ts.id = ${sessionId}`;
+     where ts.id = any(${sessionIds})`;
 
-  const vuoto: Conto = {
+  const righeTutte = await sql`
+    select o.table_session_id as sid, oi.id, mi.name as nome,
+           oi.quantity as quantita, oi.unit_price_cents as prezzo,
+           mi.vat_rate as iva, mi.fuori_formula
+      from order_items oi
+      join orders o on o.id = oi.order_id
+      join menu_items mi on mi.id = oi.menu_item_id
+     where o.table_session_id = any(${sessionIds})
+       and o.status <> 'cancelled' and oi.status <> 'cancelled'
+     order by mi.name`;
+
+  const pagatiTutti = await sql`
+    select table_session_id as sid, coalesce(sum(amount_cents), 0)::bigint as tot
+      from payments
+     where table_session_id = any(${sessionIds}) and status = 'succeeded'
+     group by table_session_id`;
+
+  const perSessione = new Map<string, any[]>();
+  for (const r of righeTutte) {
+    const l = perSessione.get(r.sid) ?? [];
+    l.push(r);
+    perSessione.set(r.sid, l);
+  }
+
+  const pagatoPer = new Map<string, number>();
+  for (const p of pagatiTutti) pagatoPer.set(p.sid, Number(p.tot));
+
+  for (const t of tavoli) {
+    esito.set(
+      t.id,
+      componiConto(t, perSessione.get(t.id) ?? [], pagatoPer.get(t.id) ?? 0)
+    );
+  }
+
+  return esito;
+}
+
+export async function contoSessione(sql: Sql, sessionId: string): Promise<Conto> {
+  const conti = await contiSessioni(sql, [sessionId]);
+  return conti.get(sessionId) ?? contoVuoto();
+}
+
+function contoVuoto(): Conto {
+  return {
     aFormula: false,
     fascia: "cena",
     formulaUnitarioCents: 0,
@@ -108,9 +167,19 @@ export async function contoSessione(sql: Sql, sessionId: string): Promise<Conto>
     eccedenzaCents: 0,
     haOrdinato: false,
   };
+}
 
-  if (!t) return vuoto;
-
+/**
+ * Le regole, in un posto solo.
+ *
+ * Prende quello che è già stato letto dal database e ne ricava il conto: le
+ * query stanno fuori perché conviene farle per tutti i tavoli insieme, ma
+ * l'aritmetica non si duplica — è quella che, scritta due volte, ha fatto
+ * dire alla sala centosessantotto euro mentre la cassa ne registrava
+ * sessantaquattro.
+ */
+function componiConto(t: any, righeGrezze: any[], pagato: number): Conto {
+  const unitario = Number(t.formula_unitario ?? 0);
   /*
    * La formula vale solo se ha un prezzo per la fascia in corso.
    *
@@ -118,7 +187,6 @@ export async function contoSessione(sql: Sql, sessionId: string): Promise<Conto>
    * a mezzogiorno, non deve incassare zero: senza prezzo si torna alla
    * carta, che è un conto sbagliato per nessuno.
    */
-  const unitario = Number(t.formula_unitario ?? 0);
   const aFormula = Boolean(t.formula && t.formula_attiva && unitario > 0);
 
   const coperti = Math.max(Number(t.guest_count ?? 1), 0);
@@ -134,6 +202,8 @@ export async function contoSessione(sql: Sql, sessionId: string): Promise<Conto>
     ? adulti * unitario + bambini * (prezzoBambino ?? unitario) + supplemento
     : 0;
 
+  const haOrdinato = righeGrezze.length > 0;
+
   /*
    * A formula si pagano solo le voci fuori formula.
    *
@@ -141,22 +211,9 @@ export async function contoSessione(sql: Sql, sessionId: string): Promise<Conto>
    * porta — ma non si sommano al conto, o si pagherebbe due volte: una con
    * la formula e una a listino.
    */
-  const righeGrezze = await sql`
-    select oi.id, mi.name as nome, oi.quantity as quantita,
-           oi.unit_price_cents as prezzo, mi.vat_rate as iva,
-           mi.fuori_formula
-      from order_items oi
-      join orders o on o.id = oi.order_id
-      join menu_items mi on mi.id = oi.menu_item_id
-     where o.table_session_id = ${sessionId}
-       and o.status <> 'cancelled' and oi.status <> 'cancelled'
-     order by mi.name`;
-
-  const haOrdinato = righeGrezze.length > 0;
-
   const righe: RigaConto[] = righeGrezze
-    .filter((r: any) => !aFormula || r.fuori_formula)
-    .map((r: any) => ({
+    .filter((r) => !aFormula || r.fuori_formula)
+    .map((r) => ({
       id: r.id,
       nome: r.nome,
       quantita: Number(r.quantita),
@@ -168,10 +225,8 @@ export async function contoSessione(sql: Sql, sessionId: string): Promise<Conto>
   const righeTotale = righe.reduce((s, r) => s + r.totaleCents, 0);
 
   /*
-   * Coperto e servizio solo se il tavolo ha ordinato.
-   *
-   * Un QR inquadrato per curiosità apre una sessione: senza questa
-   * condizione risulterebbe a debito di due euro e non si chiuderebbe mai.
+   * Coperto e servizio solo se il tavolo ha ordinato: un QR inquadrato per
+   * curiosità apre una sessione, e non deve risultare a debito di due euro.
    */
   const copertoUnitario = haOrdinato ? Number(t.cover_charge_cents ?? 0) : 0;
   const copertoTotale = copertoUnitario * coperti;
@@ -180,20 +235,11 @@ export async function contoSessione(sql: Sql, sessionId: string): Promise<Conto>
    * Il servizio si calcola su quello che il tavolo paga davvero.
    *
    * Sull'ordinato pieno voleva dire, a formula, una percentuale su
-   * centottanta euro di piatti compresi che nessuno ha pagato: il dieci per
-   * cento di una cifra immaginaria. Si calcola su formula più fuori formula,
-   * e non sul coperto, che è una voce fissa.
+   * centottanta euro di piatti compresi che nessuno ha pagato.
    */
   const servizioPercent = haOrdinato ? Number(t.service_percent ?? 0) : 0;
-  const baseServizio = formulaTotale + righeTotale;
-  const servizio = Math.round((baseServizio * servizioPercent) / 100);
+  const servizio = Math.round(((formulaTotale + righeTotale) * servizioPercent) / 100);
 
-  const [p] = await sql`
-    select coalesce(sum(amount_cents), 0)::bigint as tot
-      from payments
-     where table_session_id = ${sessionId} and status = 'succeeded'`;
-
-  const pagato = Number(p?.tot ?? 0);
   const dovuto = formulaTotale + righeTotale + copertoTotale + servizio;
   const differenza = dovuto - pagato;
 

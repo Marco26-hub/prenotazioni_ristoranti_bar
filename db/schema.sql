@@ -569,7 +569,7 @@ create index idx_payment_order_items_item on payment_order_items (order_item_id)
 create table invoices (
   id uuid primary key default gen_random_uuid(),
   venue_id uuid references venues(id) not null,
-  payment_id uuid references payments(id) not null unique, -- 1 fattura per pagamento: previene doppia trasmissione SDI
+  payment_id uuid references payments(id) not null, -- unico più sotto: una fattura per pagamento, previene la doppia trasmissione a SDI
   invoice_number int,                    -- progressivo usato nell'XML, per retry coerenti
   customer_fiscal_code text,
   customer_vat_number text,
@@ -689,3 +689,44 @@ create index idx_fiscali_giornata on fiscal_documents (venue_id, service_date de
 -- Chiudere due volte lo stesso tavolo non deve emettere due scontrini.
 create unique index uq_fiscale_sessione
   on fiscal_documents (table_session_id) where table_session_id is not null;
+
+-- ------------------------------------------------------------
+-- Indici per quando le tabelle non sono più piccole
+-- ------------------------------------------------------------
+--
+-- Un locale da cento coperti scrive circa trecento righe di comanda al
+-- giorno, centomila l'anno. Senza questi, le stesse query cominciano a
+-- costare senza che nessuno cambi una riga: è il modo peggiore di degradare,
+-- perché non dà errori — la sala diventa lenta un mese alla volta.
+
+-- Parziale sui tavoli aperti: è la domanda che la sala fa di continuo.
+-- Una fattura per pagamento: previene la doppia trasmissione allo SDI. Come
+-- indice esplicito e non come vincolo di colonna, per avere lo stesso nome
+-- che ha in produzione — due nomi per la stessa garanzia rendono impossibile
+-- confrontare i due database.
+create unique index uq_invoice_payment on invoices (payment_id);
+
+create index idx_table_sessions_venue_open
+  on table_sessions (venue_id, table_id) where status = 'open';
+
+create index idx_sessioni_chiuse on table_sessions (venue_id, closed_at desc)
+  where status = 'closed';
+
+create index idx_orders_venue_data on orders (venue_id, created_at desc);
+
+-- Con lo stato dentro: senza, il saldo legge anche tutti i tentativi falliti.
+create index idx_pagamenti_sessione_stato on payments (table_session_id, status);
+
+-- Parziale sugli stati vivi: la board di cucina cerca solo quelli, e un
+-- indice su tutti gli stati sarebbe più grande per niente.
+create index idx_order_items_live on order_items (order_id, status)
+  where status in ('pending', 'sent_to_kitchen', 'preparing', 'ready');
+
+-- Due ordini non possono prendere lo stesso numero di ritiro nella stessa
+-- giornata: il contatore in transazione lo evita, l'indice lo rende vero.
+create unique index idx_orders_pickup_number
+  on orders (venue_id, pickup_service_date, pickup_number)
+  where pickup_number is not null;
+
+create index idx_menu_items_venue_disponibili on menu_items (venue_id, category_id)
+  where available = true;
