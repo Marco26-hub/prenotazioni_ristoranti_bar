@@ -69,7 +69,7 @@ export interface ModoLavoro {
 export interface CategoriaModello {
   nome: string;
   /** cucina, bar, pizzeria, pasticceria. Dove si prepara. */
-  reparto?: "cucina" | "bar" | "pizzeria" | "pasticceria";
+  reparto?: "cucina" | "bar" | "pizzeria" | "pasticceria" | "sushi" | "griglia";
   /** Aliquota suggerita: 22 per gli alcolici, 10 per la somministrazione. */
   iva?: number;
   /** Resta a pagamento anche dentro una formula a prezzo fisso. */
@@ -418,11 +418,14 @@ export const MODELLI: ModelloLocale[] = [
     descrizione: "Ordinazioni a ondate, con intervallo fra una e l'altra.",
     categorie: [
       { nome: "Antipasti" },
-      { nome: "Nigiri" },
-      { nome: "Sashimi" },
-      { nome: "Uramaki" },
-      { nome: "Hosomaki" },
-      { nome: "Temaki" },
+      // Il crudo lo fa il banco sushi, i fritti e il wok la cucina: due
+      // postazioni, due persone, due schermi. Mandando tutto in cucina i due
+      // si vedevano le comande a vicenda.
+      { nome: "Nigiri", reparto: "sushi" },
+      { nome: "Sashimi", reparto: "sushi" },
+      { nome: "Uramaki", reparto: "sushi" },
+      { nome: "Hosomaki", reparto: "sushi" },
+      { nome: "Temaki", reparto: "sushi" },
       { nome: "Fritti" },
       { nome: "Wok e riso" },
       { nome: "Dolci", reparto: "pasticceria", fuoriFormula: true },
@@ -482,8 +485,9 @@ export const MODELLI: ModelloLocale[] = [
     descrizione: "Tagli, cotture, frollature e contorni a scelta.",
     categorie: [
       { nome: "Antipasti" },
-      { nome: "Tagli di carne" },
-      { nome: "Hamburger" },
+      // Chi gira le carni non prepara gli antipasti, e i tempi sono diversi.
+      { nome: "Tagli di carne", reparto: "griglia" },
+      { nome: "Hamburger", reparto: "griglia" },
       { nome: "Contorni" },
       { nome: "Dolci", reparto: "pasticceria", fuoriFormula: true },
       { nome: "Vini", reparto: "bar", iva: 22, genere: "wine", fuoriFormula: true },
@@ -619,7 +623,7 @@ export const MODELLI: ModelloLocale[] = [
     nome: "Hamburgeria",
     descrizione: "Carne, pane, cotture, aggiunte e doppie.",
     categorie: [
-      { nome: "Hamburger" },
+      { nome: "Hamburger", reparto: "griglia" },
       { nome: "Sfizi e fritti" },
       { nome: "Insalate" },
       { nome: "Dolci", reparto: "pasticceria", fuoriFormula: true },

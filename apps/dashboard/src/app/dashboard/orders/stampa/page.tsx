@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { db } from "@repo/shared/db";
+import { etichettaReparto } from "@repo/shared/reparti";
 import Link from "next/link";
 import { PrintButton } from "./print-button";
 import { moduloAttivo } from "@/lib/authz";
@@ -11,12 +12,7 @@ import { ModuloNonAttivo } from "../../modulo-non-attivo";
  * funziona con qualsiasi stampante già in cucina, senza driver né
  * configurazione IP.
  */
-const REPARTI: Record<string, string> = {
-  cucina: "Cucina",
-  bar: "Bar",
-  pizzeria: "Pizzeria",
-  pasticceria: "Pasticceria",
-};
+
 
 export default async function PrintOrdersPage({
   searchParams,
@@ -148,7 +144,7 @@ export default async function PrintOrdersPage({
                     : "border border-border"
                 }`}
               >
-                {r === "tutti" ? "Tutto" : (REPARTI[r] ?? r)}
+                {r === "tutti" ? "Tutto" : (etichettaReparto(r))}
               </a>
             );
           })}
@@ -172,7 +168,7 @@ export default async function PrintOrdersPage({
               )}
             </div>
             <div className="text-right text-sm">
-              <p className="font-semibold">{REPARTI[items[0].reparto] ?? items[0].reparto}</p>
+              <p className="font-semibold">{etichettaReparto(items[0].reparto)}</p>
               <p className="text-muted print:text-black">
                 Comanda #{items[0].order_id.slice(0, 8).toUpperCase()}
               </p>

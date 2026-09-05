@@ -1,10 +1,11 @@
 "use server";
 
+import { REPARTI_VALIDI as REPARTI } from "@repo/shared/reparti";
 import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { requireVenue, requireRole } from "@/lib/authz";
 
-const REPARTI = ["cucina", "bar", "pizzeria", "pasticceria"];
+
 
 /**
  * Lo schermo si presenta.

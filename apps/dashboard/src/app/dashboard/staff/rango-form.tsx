@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { assegnaTavoli, assegnaReparti, impostaCodiceOperatore } from "./actions";
+import { REPARTI } from "@repo/shared/reparti";
 
 export interface TavoloRango {
   id: string;
@@ -10,12 +11,7 @@ export interface TavoloRango {
   assignedTo: string | null;
 }
 
-const REPARTI: Array<[string, string]> = [
-  ["cucina", "Cucina"],
-  ["bar", "Bar"],
-  ["pizzeria", "Pizzeria"],
-  ["pasticceria", "Pasticceria"],
-];
+
 
 /**
  * Rango e reparti di un addetto: quali tavoli sono suoi, e su cosa può agire.
@@ -133,7 +129,7 @@ export function RangoForm({
           non può spostarle.
         </p>
         <ul className="mt-2 flex flex-wrap gap-1.5">
-          {REPARTI.map(([chiave, etichetta]) => {
+          {REPARTI.map(({ chiave, etichetta }) => {
             const on = suoiReparti.includes(chiave);
             return (
               <li key={chiave}>

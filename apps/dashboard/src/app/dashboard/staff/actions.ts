@@ -1,5 +1,6 @@
 "use server";
 
+import { REPARTI_VALIDI } from "@repo/shared/reparti";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
@@ -155,7 +156,7 @@ export async function assegnaTavoli(
 }
 
 
-const REPARTI_VALIDI = ["cucina", "bar", "pizzeria", "pasticceria"];
+
 
 /**
  * Su quali reparti può operare un addetto.

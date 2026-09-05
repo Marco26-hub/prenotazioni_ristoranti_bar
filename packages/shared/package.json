@@ -28,7 +28,8 @@
     "./prenotazioni-token": "./prenotazioni-token.ts",
     "./conto": "./conto.ts",
     "./fiscale": "./fiscale.ts",
-    "./ritmo": "./ritmo.ts"
+    "./ritmo": "./ritmo.ts",
+    "./reparti": "./reparti.ts"
   },
   "dependencies": {
     "postgres": "^3.4.5",

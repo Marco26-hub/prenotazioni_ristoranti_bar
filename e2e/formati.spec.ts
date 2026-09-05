@@ -220,3 +220,51 @@ test("il listino di esempio nasce spento e con gli allergeni compilati", async (
     await sql.end();
   }
 });
+
+test("il sushi separa il banco del crudo dalla cucina", async ({ page }) => {
+  const sql = db();
+
+  try {
+    await entra(page);
+    await applica(page, /Sushi/i);
+
+    const cat = await sql<{ name: string; reparto: string }[]>`
+      select name, reparto from menu_categories
+       where venue_id = ${venue.venueId}`;
+    const perNome = new Map(cat.map((c) => [c.name, c.reparto]));
+
+    /*
+     * In un sushi il crudo lo fa una persona e i fritti e il wok un'altra,
+     * su due postazioni diverse. Mandando tutto in "cucina" i due si vedono
+     * le comande a vicenda e nessuno dei due sa quali siano sue.
+     */
+    expect(perNome.get("Nigiri")).toBe("sushi");
+    expect(perNome.get("Sashimi")).toBe("sushi");
+    expect(perNome.get("Fritti")).toBe("cucina");
+    expect(perNome.get("Wok e riso")).toBe("cucina");
+  } finally {
+    await sql.end();
+  }
+});
+
+test("la steak house manda le carni alla griglia, non alla cucina", async ({
+  page,
+}) => {
+  const sql = db();
+
+  try {
+    await entra(page);
+    await applica(page, /steak house/i);
+
+    const cat = await sql<{ name: string; reparto: string }[]>`
+      select name, reparto from menu_categories
+       where venue_id = ${venue.venueId}`;
+    const perNome = new Map(cat.map((c) => [c.name, c.reparto]));
+
+    // Chi gira le carni non prepara gli antipasti, e i tempi sono diversi.
+    expect(perNome.get("Tagli di carne")).toBe("griglia");
+    expect(perNome.get("Antipasti")).toBe("cucina");
+  } finally {
+    await sql.end();
+  }
+});

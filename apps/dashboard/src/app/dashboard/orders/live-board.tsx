@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRitmo } from "@repo/shared/ritmo";
+import { etichettaReparto } from "@repo/shared/reparti";
 import {
   setOrderItemStatus,
   advanceTableItems,
@@ -78,12 +79,7 @@ const LEGENDA_RIGA: Array<[string, string, string]> = [
   ["served", "portato", "bg-emerald-500"],
 ];
 
-const REPARTI: Record<string, string> = {
-  cucina: "Cucina",
-  bar: "Bar",
-  pizzeria: "Pizzeria",
-  pasticceria: "Pasticceria",
-};
+
 
 /**
  * Il reparto scelto vale per QUESTO schermo, non per l'utente.
@@ -614,7 +610,7 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
                   : "border border-border"
               }`}
             >
-              {r === "tutti" ? "Tutto" : (REPARTI[r] ?? r)}
+              {r === "tutti" ? "Tutto" : (etichettaReparto(r))}
             </button>
           ))}
         </div>
