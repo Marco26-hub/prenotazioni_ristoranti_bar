@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { useRitmo } from "@repo/shared/ritmo";
 
 interface Ordine {
   numero: number;
@@ -35,14 +36,23 @@ export function NumeroRitiro({ sessionId }: { sessionId: string }) {
     }
   }, [sessionId]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    carica();
-    const t = setInterval(carica, 5000);
-    return () => clearInterval(t);
-  }, [carica]);
-
+  /*
+   * Si aggiorna mentre il cliente guarda.
+   *
+   * Chi aspetta il proprio numero tiene la pagina davanti, e allora conta
+   * ogni secondo; ma appena mette via il telefono non serve più chiedere —
+   * ed è lì che stavano quasi tutte le richieste. Rallenta anche quando il
+   * numero non si muove: fra "in preparazione" e "pronto" passano minuti,
+   * non secondi.
+   */
   const daRitirare = ordini.filter((o) => o.stato !== "ritirato");
+
+  useRitmo(carica, {
+    svelto: 5000,
+    lento: 15000,
+    // Niente da ritirare: non c'è niente da guardare.
+    attivo: ordini.length === 0 || daRitirare.length > 0,
+  });
   if (daRitirare.length === 0) return null;
 
   return (

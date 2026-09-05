@@ -9,6 +9,7 @@ import {
   useElements,
 } from "@stripe/react-stripe-js";
 import { formatPriceCents } from "@repo/shared";
+import { useRitmo } from "@repo/shared/ritmo";
 
 interface UnpaidItem {
   id: string;
@@ -130,6 +131,21 @@ export function Bill({
     );
   }, [sessionId]);
 
+  /*
+   * Si aggiorna mentre qualcuno guarda, non a telefono in tasca.
+   *
+   * Fra una portata e l'altra il telefono è bloccato o la scheda è dietro a
+   * WhatsApp, e il conto continuava a chiedere dodici volte al minuto: la
+   * maggior parte delle richieste era per una pagina che nessuno stava
+   * guardando. Rallenta anche quando l'importo non si muove, e si ferma del
+   * tutto a conto saldato — lì non cambia più niente per definizione.
+   */
+  useRitmo(refreshBill, {
+    svelto: 5000,
+    lento: 20000,
+    attivo: !paid,
+  });
+
   useEffect(() => {
     // Il setState avviene dentro il fetch async (dopo l'await), non
     // sincrono nel corpo dell'effect — pattern standard fetch-on-mount,
@@ -138,8 +154,8 @@ export function Bill({
     refreshBill();
     // Polling semplice: più ospiti allo stesso tavolo possono ordinare in
     // parallelo, il conto deve riflettere gli ordini altrui senza reload manuale.
-    const interval = setInterval(refreshBill, 5000);
-    return () => clearInterval(interval);
+    // Il ritmo lo tiene useRitmo qui sopra: si ferma quando la pagina non è
+    // visibile e a conto saldato.
   }, [refreshBill]);
 
   const startCheckout = async () => {

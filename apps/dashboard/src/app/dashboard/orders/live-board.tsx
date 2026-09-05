@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useRitmo } from "@repo/shared/ritmo";
 import {
   setOrderItemStatus,
   advanceTableItems,
@@ -215,18 +216,23 @@ export function LiveBoard({ ruolo }: { ruolo: StaffRole }) {
     if (k) void segnalaDispositivo(k, leggiReparto());
   }, []);
 
+  /*
+   * Lo schermo della cucina si aggiorna quando qualcuno lo guarda.
+   *
+   * Fra un servizio e l'altro resta acceso su una pagina che nessuno vede, e
+   * continuava a chiedere quindici volte al minuto — per ogni schermo del
+   * locale, tutto il giorno. Quando la pagina torna in primo piano fa subito
+   * un giro, perché la prima cosa che serve è lo stato di adesso.
+   *
+   * Non rallenta mai: in cucina quattro secondi sono il patto, e una comanda
+   * che compare con venti secondi di ritardo è un piatto che parte tardi.
+   */
+  useRitmo(carica, { svelto: 4000 });
+
   useEffect(() => {
-    // Il setState avviene dentro il fetch, dopo l'await, non sincrono nel
-    // corpo dell'effect: qui la regola è un falso positivo.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    carica();
-    const dati = setInterval(carica, 4000);
     const orologio = setInterval(() => setAdesso(Date.now()), 30_000);
-    return () => {
-      clearInterval(dati);
-      clearInterval(orologio);
-    };
-  }, [carica]);
+    return () => clearInterval(orologio);
+  }, []);
 
   const avanza = useCallback(
     async (item: LiveItem) => {

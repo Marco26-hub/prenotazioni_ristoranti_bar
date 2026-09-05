@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
+import { useRitmo } from "@repo/shared/ritmo";
 import { useRouter } from "next/navigation";
 import { chiamaNumero } from "./actions";
 
@@ -40,10 +41,13 @@ export function BancoVivo({
   const [avviso, setAvviso] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
-  useEffect(() => {
-    const t = setInterval(() => router.refresh(), 5000);
-    return () => clearInterval(t);
-  }, [router]);
+  /*
+   * Ogni giro qui è un render completo della pagina sul server, non una
+   * chiamata leggera: costa molto più di un aggiornamento qualunque. Si fa
+   * mentre lo schermo del banco è acceso e guardato, e si ferma quando non
+   * lo è — fra un servizio e l'altro è la maggior parte del tempo.
+   */
+  useRitmo(() => router.refresh(), { svelto: 5000, lento: 20000 });
 
   const pronti = ordini.filter((o) => o.stato === "pronto" || o.stato === "chiamato");
   const inCorso = ordini.filter((o) => o.stato === "in_preparazione");

@@ -169,10 +169,16 @@ importers:
       postgres:
         specifier: ^3.4.5
         version: 3.4.9
+      react:
+        specifier: ^19.0.0
+        version: 19.2.8
       server-only:
         specifier: ^0.0.1
         version: 0.0.1
     devDependencies:
+      '@types/react':
+        specifier: ^19
+        version: 19.2.18
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -4180,7 +4186,7 @@ snapshots:
       react-refresh: 0.18.0
       remotion: 4.0.443(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       source-map: 0.7.3
-      style-loader: 4.0.0(webpack@5.105.0)
+      style-loader: 4.0.0(webpack@5.105.0(esbuild@0.25.0)(postcss@8.5.1))
       webpack: 5.105.0(esbuild@0.25.0)(postcss@8.5.1)
     transitivePeerDependencies:
       - '@minify-html/node'
@@ -6976,7 +6982,7 @@ snapshots:
       '@types/node': 20.19.43
       qs: 6.16.0
 
-  style-loader@4.0.0(webpack@5.105.0):
+  style-loader@4.0.0(webpack@5.105.0(esbuild@0.25.0)(postcss@8.5.1)):
     dependencies:
       webpack: 5.105.0(esbuild@0.25.0)(postcss@8.5.1)
 
