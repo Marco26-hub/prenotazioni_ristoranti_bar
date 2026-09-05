@@ -1,3 +1,6 @@
+> I collegamenti da fare a mano (Stripe, Resend, webhook) stanno in
+> [GO-LIVE.md](GO-LIVE.md). Questa lista è il resto.
+
 # Checklist di lancio
 
 Ordinata per quello che blocca davvero. Le voci con ⚠️ richiedono
