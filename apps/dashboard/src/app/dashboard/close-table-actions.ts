@@ -5,6 +5,7 @@ import { db } from "@repo/shared/db";
 import { requireVenue } from "@/lib/authz";
 import { contoSessione } from "@repo/shared/conto";
 import { accodaDocumento } from "@repo/shared/fiscale";
+import { messaggioErrore } from "@repo/shared/errori";
 
 /**
  * Chiusura del conto da parte dello staff, per il pagamento al banco o in
@@ -99,17 +100,6 @@ export async function closeTableInPerson(
       update table_sessions set status = 'closed', closed_at = now()
       where id = ${session.id}`;
 
-    /*
-     * Il documento commerciale si accoda alla chiusura, non prima.
-     *
-     * Finché il tavolo è aperto il conto cambia, e un documento emesso a
-     * metà pasto sarebbe un corrispettivo da stornare. Sta dentro la
-     * transazione perché o si chiude e si certifica, o non si fa né l'uno
-     * né l'altro: un conto chiuso senza il suo documento è un incasso che
-     * non risulta.
-     */
-    await accodaDocumento(tx, session.id);
-
     // Chiudendo il conto la chiamata è per definizione soddisfatta: qualcuno
     // è andato al tavolo, ha incassato e ha portato il documento. Lasciarla
     // aperta la farebbe suonare su un tavolo ormai vuoto.
@@ -126,6 +116,29 @@ export async function closeTableInPerson(
    * il tavolo ancora aperto — cioè esattamente la situazione in cui si
    * riprova, che è quello che il rifiuto serviva a evitare.
    */
+  /*
+   * Il documento commerciale si accoda dopo aver chiuso, e fuori dalla
+   * transazione.
+   *
+   * Dentro, un errore qualunque — un vincolo, una rete che salta — abortiva
+   * la transazione e il tavolo non si chiudeva più: in mezzo al servizio è
+   * peggio di qualunque problema fiscale, perché blocca la sala e i clienti
+   * non possono andarsene. Chiudere viene prima.
+   *
+   * Il rischio opposto — conto chiuso e documento mai accodato — è
+   * recuperabile e va reso visibile: la pagina Corrispettivi confronta i
+   * conti chiusi con i documenti e segnala quelli senza.
+   */
+  if (!esito.error) {
+    try {
+      await accodaDocumento(sql, sessionId);
+    } catch (err) {
+      console.error(
+        `[fiscale] documento non accodato per la sessione ${sessionId}: ${messaggioErrore(err)}`
+      );
+    }
+  }
+
   if (!esito.error) revalidatePath("/dashboard");
   return esito.error || esito.ok ? esito : { ok: "Conto chiuso." };
 }

@@ -26,7 +26,25 @@ const CODICE = process.env.RT_CODICE;
 const STAMPANTE = process.env.RT_STAMPANTE;
 const GESTIONALE =
   process.env.RT_GESTIONALE ?? "https://ristoranti-dashboard.vercel.app";
-const ATTESA = Number(process.env.RT_ATTESA ?? 5) * 1000;
+/*
+ * Ogni interrogazione si paga.
+ *
+ * A cinque secondi fissi sono 17.280 richieste al giorno per locale, quasi
+ * tutte per sentirsi dire che non c'è niente da stampare: di notte, a
+ * locale chiuso, con la stessa insistenza di mezzogiorno.
+ *
+ * Un documento fiscale non ha fretta al secondo — nessuno aspetta davanti
+ * alla stampante — quindi si rallenta quando non c'è lavoro e si accelera
+ * appena ne compare: dopo un documento si torna a pochi secondi, perché i
+ * conti si chiudono a ondate e dietro al primo ne arrivano altri.
+ *
+ * A locale fermo sono 2.880 richieste al giorno invece di 17.280.
+ */
+const SVELTO = Number(process.env.RT_ATTESA ?? 3) * 1000;
+const LENTO = Number(process.env.RT_ATTESA_FERMO ?? 30) * 1000;
+// Quanti giri a vuoto prima di rallentare: un conto chiuso da poco fa
+// spesso da apripista, e rallentare subito lo farebbe aspettare mezzo minuto.
+const GIRI_PRIMA_DI_RALLENTARE = 5;
 const PROVA = process.env.RT_PROVA === "1";
 
 if (!CODICE) {
@@ -250,15 +268,15 @@ async function giro() {
       "Codice non riconosciuto. Ne è stato generato uno nuovo nel gestionale? " +
         "Rigeneralo e riavvia."
     );
-    return;
+    return 0;
   }
   if (!r.ok) {
     console.error(`gestionale non raggiungibile: HTTP ${r.status}`);
-    return;
+    return 0;
   }
 
   const { documenti, stampante } = await r.json();
-  if (!documenti?.length) return;
+  if (!documenti?.length) return 0;
 
   // Marca, operatore, percorso e reparti arrivano dal gestionale: cambiare
   // stampante non deve voler dire andare a modificare un file sulla cassa.
@@ -294,20 +312,30 @@ async function giro() {
       console.error(`NON emesso ${doc.id}: ${messaggio}`);
     }
   }
+
+  return documenti.length;
 }
 
 console.log(
   `Agente cassa avviato. Gestionale: ${GESTIONALE}. ` +
     (PROVA
       ? "Modalità prova: non stampa, mostra il tracciato."
-      : `Stampante: ${STAMPANTE}. Marca e reparti li decide il gestionale.`)
+      : `Stampante: ${STAMPANTE}. Marca e reparti li decide il gestionale.`) +
+    ` Controlla ogni ${SVELTO / 1000}s quando c'è lavoro, ogni ${LENTO / 1000}s quando è fermo.`
 );
 
 // Un errore di rete non deve spegnere l'agente: il locale non se ne
 // accorgerebbe fino a fine serata.
+let giriAVuoto = 0;
+
 for (;;) {
-  await giro().catch((e) =>
-    console.error(`giro non riuscito: ${e instanceof Error ? e.message : e}`)
-  );
-  await new Promise((r) => setTimeout(r, ATTESA));
+  const fatti = await giro().catch((e) => {
+    console.error(`giro non riuscito: ${e instanceof Error ? e.message : e}`);
+    return 0;
+  });
+
+  giriAVuoto = fatti > 0 ? 0 : giriAVuoto + 1;
+  const attesa = giriAVuoto >= GIRI_PRIMA_DI_RALLENTARE ? LENTO : SVELTO;
+
+  await new Promise((r) => setTimeout(r, attesa));
 }

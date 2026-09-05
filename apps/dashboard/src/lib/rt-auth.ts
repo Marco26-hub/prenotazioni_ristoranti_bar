@@ -1,5 +1,5 @@
 import "server-only";
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash } from "node:crypto";
 import { db } from "@repo/shared/db";
 
 /**
@@ -9,9 +9,9 @@ import { db } from "@repo/shared/db";
  * l'impronta. In chiaro, chiunque possa leggere il database potrebbe fingersi
  * la cassa di un locale — e emettere documenti fiscali per conto suo.
  *
- * Il confronto è a tempo costante: su un segreto che vale l'emissione di
- * scontrini, la differenza di pochi microsecondi fra un confronto fallito al
- * primo carattere e uno fallito all'ultimo è un modo per indovinarlo.
+ * Si cerca per impronta con un indice unico: per costruire l'impronta
+ * bisogna già conoscere il segreto, quindi non c'è niente da indovinare
+ * misurando i tempi.
  */
 export function improntaAgente(segreto: string): string {
   return createHash("sha256").update(segreto).digest("hex");
@@ -27,25 +27,30 @@ export async function localeDalToken(
   const impronta = improntaAgente(token);
   const sql = db();
 
-  const righe = await sql<
-    { id: string; rt_agente_hash: string; rt_matricola: string | null }[]
-  >`select id, rt_agente_hash, rt_matricola
-      from venues
-     where rt_attivo = true and rt_modalita = 'agente'
-       and rt_agente_hash is not null`;
+  /*
+   * Si cerca l'impronta, non si scorrono i locali.
+   *
+   * Prima venivano caricati tutti i locali con un agente configurato e
+   * confrontati uno per uno: con mille locali che interrogano la coda ogni
+   * cinque secondi sono dodicimila scansioni complete al minuto. Funziona
+   * benissimo con tre clienti e mette in ginocchio il database con mille —
+   * senza dare nessun errore, solo diventando lento.
+   *
+   * L'impronta è uno SHA-256 e quindi deterministica: l'indice unico la
+   * trova in un colpo. Il confronto a tempo costante qui non serve più — non
+   * si sta confrontando un segreto con quello che ha scritto qualcuno, si
+   * sta cercando un valore che per costruirlo bisogna già conoscerlo.
+   *
+   * L'ultimo contatto si aggiorna nella stessa scrittura: serve a dire al
+   * ristoratore che la cassa è viva, perché un agente spento è
+   * indistinguibile da una coda vuota finché non ci si accorge che non esce
+   * più niente.
+   */
+  const [locale] = await sql<{ id: string; rt_matricola: string | null }[]>`
+    update venues set rt_agente_visto_at = now()
+     where rt_agente_hash = ${impronta}
+       and rt_attivo = true and rt_modalita = 'agente'
+    returning id, rt_matricola`;
 
-  for (const r of righe) {
-    const a = Buffer.from(r.rt_agente_hash);
-    const b = Buffer.from(impronta);
-    if (a.length === b.length && timingSafeEqual(a, b)) {
-      // Serve a mostrare al ristoratore che la cassa è viva: un agente
-      // spento è indistinguibile da una coda vuota, finché non ci si
-      // accorge che non esce più niente.
-      await sql`
-        update venues set rt_agente_visto_at = now() where id = ${r.id}`;
-      return { venueId: r.id, matricola: r.rt_matricola };
-    }
-  }
-
-  return null;
+  return locale ? { venueId: locale.id, matricola: locale.rt_matricola } : null;
 }

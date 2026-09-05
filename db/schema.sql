@@ -706,6 +706,12 @@ create unique index uq_fiscale_sessione
 -- confrontare i due database.
 create unique index uq_invoice_payment on invoices (payment_id);
 
+-- L'agente della cassa si riconosce con una ricerca, non scorrendo tutti i
+-- locali. Unico: due locali con lo stesso segreto vorrebbe dire che l'agente
+-- di uno emette i documenti fiscali dell'altro.
+create unique index uq_rt_agente_hash on venues (rt_agente_hash)
+  where rt_agente_hash is not null;
+
 create index idx_table_sessions_venue_open
   on table_sessions (venue_id, table_id) where status = 'open';
 

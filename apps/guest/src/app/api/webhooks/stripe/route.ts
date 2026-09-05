@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@repo/shared/db";
 import { accodaDocumento } from "@repo/shared/fiscale";
+import { messaggioErrore } from "@repo/shared/errori";
 import { stripeClient } from "@/lib/stripe";
 import { outstandingBalanceCents } from "@/lib/balance";
 
@@ -88,10 +89,24 @@ export async function POST(request: Request) {
         await sql`
           update table_sessions set status = 'closed', closed_at = now()
           where id = ${payment.table_session_id}`;
-        // Pagato tutto dall'app: il conto è chiuso e va certificato come
-        // quello chiuso in cassa. Il registratore non lo raggiungiamo da qui,
-        // quindi il documento entra in coda e lo emette l'agente sul posto.
-        await accodaDocumento(sql, payment.table_session_id);
+        /*
+         * Pagato tutto dall'app: il conto è chiuso e va certificato come
+         * quello chiuso in cassa. Il registratore non lo raggiungiamo da
+         * qui, quindi il documento entra in coda e lo emette l'agente.
+         *
+         * Se non ci riesce non si risponde con un errore: il fornitore
+         * ritenterebbe la notifica, e alla seconda il pagamento risulta già
+         * riuscito — quindi il documento non verrebbe accodato lo stesso, e
+         * in più il pagamento resterebbe in sospeso. Meglio un documento
+         * mancante, che la pagina Corrispettivi mostra.
+         */
+        try {
+          await accodaDocumento(sql, payment.table_session_id);
+        } catch (err) {
+          console.error(
+            `[fiscale] documento non accodato dopo il pagamento: ${messaggioErrore(err)}`
+          );
+        }
       }
     }
   }

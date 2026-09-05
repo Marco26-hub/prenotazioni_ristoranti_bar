@@ -32,9 +32,10 @@ export interface RigaFiscale {
  * lo stesso tavolo non emetta due scontrini — che sarebbe un corrispettivo
  * raddoppiato, cioè imposta pagata su incassi mai avvenuti.
  *
- * Non solleva mai: un registratore che non risponde non deve impedire di
- * chiudere un tavolo e mandare via i clienti. Il documento resta in coda e
- * la pagina Fiscale lo mostra.
+ * Può sollevare, e chi la chiama deve tenerne conto: va invocata DOPO aver
+ * chiuso il tavolo e fuori dalla transazione. Dentro, un errore qualunque
+ * abortirebbe la chiusura e il tavolo resterebbe occupato — in mezzo al
+ * servizio è peggio di qualunque problema fiscale.
  */
 export async function accodaDocumento(
   sql: Sql,

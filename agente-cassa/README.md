@@ -26,6 +26,26 @@ RT_CODICE=… RT_PROVA=1 node agente.mjs
 Stampa a schermo il tracciato che uscirebbe. **Fallo prima**, e confronta il
 tracciato con il manuale della tua stampante.
 
+## Quanto costa tenerlo acceso
+
+L'agente chiede al gestionale se c'è qualcosa da stampare. Ogni richiesta si
+paga, e la coda è vuota quasi sempre: di notte, a locale chiuso, non c'è
+niente da fare.
+
+Per questo il ritmo si adatta. Quando c'è lavoro controlla ogni **3 secondi**;
+dopo cinque giri a vuoto rallenta a **30**. Un documento fiscale non ha fretta
+al secondo — nessuno aspetta davanti alla stampante — e appena ne compare uno
+torna svelto, perché i conti si chiudono a ondate.
+
+A locale fermo sono **2.880 richieste al giorno invece di 17.280**.
+
+Se vuoi cambiarli:
+
+```bash
+RT_ATTESA=3        # secondi quando c'è lavoro
+RT_ATTESA_FERMO=30 # secondi quando è fermo
+```
+
 ## Da sapere prima di usarlo in servizio
 
 Il tracciato XML qui dentro è quello delle **Epson fiscali** (`fpmate.cgi`), la

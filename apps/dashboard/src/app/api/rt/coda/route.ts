@@ -23,24 +23,6 @@ export async function GET(request: Request) {
 
   const sql = db();
 
-  /*
-   * La configurazione della stampante viaggia con la coda.
-   *
-   * Marca, operatore, percorso e reparti IVA stanno nel gestionale e non
-   * nell'agente: cambiare stampante o correggere un reparto non deve
-   * significare andare sul computer della cassa a modificare un file — che
-   * è la cosa che poi nessuno fa, e il reparto sbagliato resta lì.
-   */
-  const [conf] = await sql<
-    {
-      rt_marca: string;
-      rt_operatore: number;
-      rt_percorso: string | null;
-      rt_reparti: Record<string, number>;
-    }[]
-  >`select rt_marca, rt_operatore, rt_percorso, rt_reparti
-      from venues where id = ${locale.venueId}`;
-
   const righe = await sql<
     {
       id: string;
@@ -69,6 +51,35 @@ export async function GET(request: Request) {
         for update skip locked
      )
     returning id, totale_cents, righe, pagamenti, tentativi`;
+
+  /*
+   * A coda vuota si risponde e basta.
+   *
+   * La configurazione della stampante serve solo per stampare, e la coda è
+   * vuota quasi sempre: leggerla comunque voleva dire una query in più a
+   * ogni interrogazione, di ogni locale, tutto il giorno e tutta la notte.
+   */
+  if (righe.length === 0) {
+    return NextResponse.json({ documenti: [] });
+  }
+
+  /*
+   * Marca, operatore, percorso e reparti viaggiano con la coda.
+   *
+   * Stanno nel gestionale e non nell'agente: cambiare stampante o correggere
+   * un reparto non deve significare andare sul computer della cassa a
+   * modificare un file — che è la cosa che poi nessuno fa, e il reparto
+   * sbagliato resta lì.
+   */
+  const [conf] = await sql<
+    {
+      rt_marca: string;
+      rt_operatore: number;
+      rt_percorso: string | null;
+      rt_reparti: Record<string, number>;
+    }[]
+  >`select rt_marca, rt_operatore, rt_percorso, rt_reparti
+      from venues where id = ${locale.venueId}`;
 
   return NextResponse.json({
     matricola: locale.matricola,
