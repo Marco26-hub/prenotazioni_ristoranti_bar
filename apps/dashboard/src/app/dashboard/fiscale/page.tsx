@@ -82,6 +82,33 @@ export default async function FiscalePage() {
      group by chiave
      order by 2 desc`;
 
+  /*
+   * I conti chiusi senza documento.
+   *
+   * L'accodamento avviene dopo la chiusura e fuori dalla transazione —
+   * chiudere il tavolo viene prima di tutto — quindi può fallire e lasciare
+   * un incasso senza certificazione. È recuperabile solo se si vede: senza
+   * questo confronto resterebbe un buco che nessuno nota fino al controllo.
+   */
+  const scoperti = await sql<
+    { id: string; chiuso: Date; incassato: number }[]
+  >`select ts.id, ts.closed_at as chiuso,
+           coalesce((select sum(p.amount_cents)::int from payments p
+                      where p.table_session_id = ts.id and p.status = 'succeeded'), 0)
+             as incassato
+      from table_sessions ts
+      join venues v on v.id = ts.venue_id
+     where ts.venue_id = ${venue.venueId}
+       and ts.status = 'closed'
+       and v.rt_attivo = true
+       and ts.closed_at >= now() - interval '7 days'
+       and exists (select 1 from orders o
+                    where o.table_session_id = ts.id and o.status <> 'cancelled')
+       and not exists (select 1 from fiscal_documents fd
+                        where fd.table_session_id = ts.id)
+     order by ts.closed_at desc
+     limit 50`;
+
   const daFare = documenti.filter(
     (d) => d.stato === "da_emettere" || d.stato === "errore" || d.stato === "in_corso"
   );
@@ -130,6 +157,37 @@ export default async function FiscalePage() {
           </dl>
         )}
       </section>
+
+      {locale?.rt_attivo && scoperti.length > 0 && (
+        <section className="mt-4 rounded-xl border border-danger bg-danger/5 p-4">
+          <h2 className="font-semibold text-danger">
+            {scoperti.length}{" "}
+            {scoperti.length === 1 ? "conto chiuso" : "conti chiusi"} senza
+            documento
+          </h2>
+          <p className="mt-0.5 text-sm">
+            Sono incassi che non risultano certificati. Succede se qualcosa è
+            andato storto mentre il conto si chiudeva: il tavolo si chiude
+            comunque, perché fermare la sala sarebbe peggio, ma il documento
+            va emesso a mano.
+          </p>
+          <ul className="mt-2 space-y-1 text-sm">
+            {scoperti.slice(0, 10).map((s) => (
+              <li key={s.id} className="flex justify-between gap-3">
+                <span className="text-muted">{dataIt.format(s.chiuso)}</span>
+                <span className="font-medium tabular-nums">
+                  {formatPriceCents(s.incassato)}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {scoperti.length > 10 && (
+            <p className="mt-1 text-xs text-muted">
+              e altri {scoperti.length - 10}.
+            </p>
+          )}
+        </section>
+      )}
 
       {/* --- Collegamento ---------------------------------------------- */}
       <section className="mt-4 rounded-xl border border-border bg-surface p-4">
