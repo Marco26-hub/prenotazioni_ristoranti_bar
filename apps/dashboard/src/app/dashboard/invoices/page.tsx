@@ -17,6 +17,23 @@ export default async function InvoicesPage() {
   const venue = session?.venues[0];
   if (!venue) return <main className="p-4">Nessun locale associato.</main>;
 
+  /*
+   * Solo titolare e responsabile.
+   *
+   * L'elenco delle fatture porta importi, dati dei clienti e identificativi SDI. Con il solo controllo di appartenenza bastava essere del personale, e
+   * la promessa "chi è in sala non vede gli incassi" era falsa.
+   */
+  if (venue.role !== "owner" && venue.role !== "manager") {
+    return (
+      <main className="mx-auto max-w-lg px-4 py-16">
+        <h1 className="text-lg font-semibold">Non è roba tua</h1>
+        <p className="mt-2 text-sm text-muted">
+          Le fatture le vede il titolare o il responsabile. Chiedi al titolare se ti serve.
+        </p>
+      </main>
+    );
+  }
+
   // Il modulo si verifica qui e non solo nel menu: chi digita
   // l'indirizzo la pagina la otterrebbe lo stesso.
   if (!(await moduloAttivo(venue.venueId, "ordini"))) {

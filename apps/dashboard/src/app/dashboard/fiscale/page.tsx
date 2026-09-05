@@ -1,6 +1,6 @@
 import { db } from "@repo/shared/db";
 import { formatPriceCents } from "@repo/shared";
-import { requireVenue } from "@/lib/authz";
+import { requireRole } from "@/lib/authz";
 import { RtForm } from "./rt-form";
 import { RigaDocumento } from "./riga-documento";
 
@@ -20,7 +20,15 @@ const METODO: Record<string, string> = {
  * è una svista, è un controllo.
  */
 export default async function FiscalePage() {
-  const { venue } = await requireVenue();
+  /*
+   * Solo titolare e responsabile.
+   *
+   * Questa pagina mostra l'incasso di giornata diviso per metodo e ogni
+   * documento fiscale: è esattamente ciò che la promessa "chi è in sala non
+   * vede gli incassi" dice che non deve vedere. Con requireVenue bastava
+   * essere del personale.
+   */
+  const { venue } = await requireRole(["owner", "manager"]);
   const sql = db();
 
   const [locale] = await sql<

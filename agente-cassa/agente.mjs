@@ -260,7 +260,42 @@ async function stampa(doc, conf) {
   return dialetto.leggiEsito(testo);
 }
 
+/*
+ * Esiti che il gestionale non ha ancora accettato.
+ *
+ * Se la linea cade fra la stampa e la comunicazione, lo scontrino e' gia'
+ * uscito: l'esito va riprovato, non trasformato in un errore che farebbe
+ * ristampare.
+ */
+const daRiportare = new Map();
+
+/** Comunica l'esito. Vero se il gestionale l'ha accettato. */
+async function riporta(id, corpo) {
+  try {
+    const r = await fetch(`${GESTIONALE}/api/rt/esito`, {
+      method: "POST",
+      headers: intestazioni,
+      body: JSON.stringify({ id, ...corpo }),
+      signal: AbortSignal.timeout(15_000),
+    });
+    // fetch non solleva sui 4xx e 5xx: senza questo controllo un 500 o un
+    // 401 passavano per successo.
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
+
 async function giro() {
+  // Prima si riprovano gli esiti rimasti in sospeso: sono scontrini gia'
+  // usciti, e finche' il gestionale non lo sa li considera da stampare.
+  for (const [id, corpo] of [...daRiportare]) {
+    if (await riporta(id, corpo)) {
+      daRiportare.delete(id);
+      console.log(`esito recuperato per ${id}`);
+    }
+  }
+
   const r = await fetch(`${GESTIONALE}/api/rt/coda`, { headers: intestazioni });
 
   if (r.status === 401) {
@@ -288,28 +323,57 @@ async function giro() {
   }
 
   for (const doc of documenti) {
+    /*
+     * Stampare e riportare l'esito sono due passi distinti, e vanno tenuti
+     * separati.
+     *
+     * Con un try solo attorno a entrambi, uno scontrino gia' uscito dalla
+     * stampante veniva dichiarato "non emesso" appena la linea del
+     * ristorante cadeva un istante: il gestionale lo rimetteva in coda e al
+     * giro dopo usciva una seconda volta. Due scontrini per lo stesso conto
+     * sono un corrispettivo dichiarato due volte.
+     */
+    let stampato;
     try {
-      const esito = await stampa(doc, conf);
-      await fetch(`${GESTIONALE}/api/rt/esito`, {
-        method: "POST",
-        headers: intestazioni,
-        body: JSON.stringify({ id: doc.id, esito: "emesso", ...esito }),
-      });
-      console.log(
-        `emesso ${doc.id} — ${(doc.totaleCents / 100).toFixed(2)} € ` +
-          `(doc. ${esito.numeroDocumento ?? "?"})`
-      );
+      stampato = await stampa(doc, conf);
     } catch (e) {
       const messaggio = e instanceof Error ? e.message : "errore sconosciuto";
-      // L'esito si riporta sempre, anche quando è un fallimento: un documento
-      // lasciato "in corso" resta bloccato finché non scade, e intanto
-      // nessuno sa che non è uscito.
-      await fetch(`${GESTIONALE}/api/rt/esito`, {
-        method: "POST",
-        headers: intestazioni,
-        body: JSON.stringify({ id: doc.id, esito: "errore", errore: messaggio }),
-      }).catch(() => {});
-      console.error(`NON emesso ${doc.id}: ${messaggio}`);
+      await riporta(doc.id, { esito: "errore", errore: messaggio });
+      console.error(`NON stampato ${doc.id}: ${messaggio}`);
+      continue;
+    }
+
+    if (PROVA) {
+      // In prova non si tocca la coda: il documento resta da emettere.
+      // Marcarlo "emesso" con un numero finto vorrebbe dire dichiarare
+      // certificati degli incassi che nessuno ha certificato, e da li' non
+      // se ne accorge piu' nessuno.
+      console.log(
+        `PROVA ${doc.id} — ${(doc.totaleCents / 100).toFixed(2)} € ` +
+          "(lasciato in coda: nessuna certificazione)"
+      );
+      continue;
+    }
+
+    const riportato = await riporta(doc.id, {
+      esito: "emesso",
+      ...stampato,
+    });
+
+    if (riportato) {
+      console.log(
+        `emesso ${doc.id} — ${(doc.totaleCents / 100).toFixed(2)} € ` +
+          `(doc. ${stampato.numeroDocumento ?? "?"})`
+      );
+    } else {
+      // Lo scontrino e' uscito ma il gestionale non lo sa: va detto forte,
+      // perche' e' l'unico caso in cui serve una persona.
+      console.error(
+        `STAMPATO ma non registrato ${doc.id} (doc. ${stampato.numeroDocumento ?? "?"}): ` +
+          "segnalo al gestionale al prossimo giro; se resta cosi', segnalo a mano " +
+          "in Corrispettivi come battuto in cassa per non farlo ristampare."
+      );
+      daRiportare.set(doc.id, { esito: "emesso", ...stampato });
     }
   }
 

@@ -33,7 +33,7 @@ export async function GET(request: Request) {
     }[]
   >`
     update fiscal_documents
-       set stato = 'in_corso', tentativi = tentativi + 1
+       set stato = 'in_corso', tentativi = tentativi + 1, preso_at = now()
      where id in (
        select id from fiscal_documents
         where venue_id = ${locale.venueId}
@@ -43,8 +43,16 @@ export async function GET(request: Request) {
             -- cinque volte è un guasto, e va guardato da una persona invece
             -- che ritentato per sempre.
             or (stato = 'errore' and tentativi < 5)
-            -- Preso in carico e mai concluso: l'agente è morto a metà.
-            or (stato = 'in_corso' and created_at < now() - interval '5 minutes')
+            /*
+             * Preso in carico e mai concluso: l'agente è morto a metà.
+             *
+             * Si guarda quando è stato preso, non quando è nato. Con
+             * created_at un documento di mezz'ora fa veniva riconsegnato a
+             * ogni interrogazione — anche mentre una cassa lo stava
+             * stampando — e lo stesso scontrino usciva più volte.
+             */
+            or (stato = 'in_corso'
+                and coalesce(preso_at, created_at) < now() - interval '5 minutes')
           )
         order by created_at
         limit 20

@@ -464,7 +464,11 @@ create table reservations (
   party_size int not null,
   reserved_at timestamptz not null,
   status text not null default 'confirmed'
-    check (status in ('confirmed','seated','no_show','cancelled')),
+    -- 'pending' e 'declined' ci sono in produzione da quando esiste la
+    -- conferma manuale: senza, un'installazione nuova rifiuta ogni richiesta
+    -- di prenotazione con un errore del database, e il cliente vede solo
+    -- "non siamo riusciti a registrare la prenotazione".
+    check (status in ('pending','confirmed','declined','seated','no_show','cancelled')),
   deposit_amount_cents int default 0,
   deposit_payment_id uuid,               -- fk a payments, aggiunta dopo
   table_id uuid references tables(id),
@@ -472,7 +476,7 @@ create table reservations (
   notes text,
   decline_reason text,
   confirmed_at timestamptz,
-  responded_by uuid,
+  responded_by uuid references users(id),
   guest_notified_at timestamptz,
   guest_notify_error text,
   venue_notified_at timestamptz,
@@ -569,7 +573,11 @@ create index idx_payment_order_items_item on payment_order_items (order_item_id)
 create table invoices (
   id uuid primary key default gen_random_uuid(),
   venue_id uuid references venues(id) not null,
-  payment_id uuid references payments(id) not null, -- unico più sotto: una fattura per pagamento, previene la doppia trasmissione a SDI
+  -- Una fattura per pagamento: previene la doppia trasmissione allo SDI.
+  -- Come vincolo e non come indice separato, perché è così in produzione: due
+  -- forme per la stessa garanzia rendono impossibile confrontare i database.
+  payment_id uuid references payments(id) not null
+    constraint uq_invoice_payment unique,
   invoice_number int,                    -- progressivo usato nell'XML, per retry coerenti
   customer_fiscal_code text,
   customer_vat_number text,
@@ -672,6 +680,10 @@ create table fiscal_documents (
   pagamenti jsonb not null default '{}'::jsonb,
   stato text not null default 'da_emettere'
     check (stato in ('da_emettere', 'in_corso', 'emesso', 'errore', 'battuto_a_mano')),
+  -- Quando è stato consegnato alla cassa, che non è quando è nato: senza,
+  -- un documento vecchio veniva riconsegnato a ogni interrogazione mentre
+  -- una stampante lo stava ancora stampando.
+  preso_at timestamptz,
   numero_documento text,
   rt_matricola text,
   emesso_at timestamptz,
@@ -700,12 +712,6 @@ create unique index uq_fiscale_sessione
 -- perché non dà errori — la sala diventa lenta un mese alla volta.
 
 -- Parziale sui tavoli aperti: è la domanda che la sala fa di continuo.
--- Una fattura per pagamento: previene la doppia trasmissione allo SDI. Come
--- indice esplicito e non come vincolo di colonna, per avere lo stesso nome
--- che ha in produzione — due nomi per la stessa garanzia rendono impossibile
--- confrontare i due database.
-create unique index uq_invoice_payment on invoices (payment_id);
-
 -- L'agente della cassa si riconosce con una ricerca, non scorrendo tutti i
 -- locali. Unico: due locali con lo stesso segreto vorrebbe dire che l'agente
 -- di uno emette i documenti fiscali dell'altro.

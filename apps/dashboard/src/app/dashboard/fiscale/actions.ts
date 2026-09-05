@@ -26,13 +26,56 @@ export async function salvaRt(formData: FormData): Promise<EsitoFiscale> {
   const { venue } = await requireRole(["owner", "manager"]);
 
   const attivo = formData.get("attivo") === "on";
+
+  const sql = db();
+
+  /*
+   * Spegnere il collegamento non cancella come era configurato.
+   *
+   * I campi si smontano dall'interfaccia quando la spunta si toglie, quindi
+   * il modulo non li manda più e arrivavano vuoti: marca, operatore, ora di
+   * stacco della giornata, matricola e soprattutto la mappa aliquota →
+   * reparto tornavano ai valori di partenza. Chi spegneva il collegamento
+   * per un guasto e lo riaccendeva il giorno dopo si ritrovava ogni riga sul
+   * reparto 1 — cioè ogni aliquota dichiarata come quella del reparto 1,
+   * senza un errore da nessuna parte. E l'ora di stacco tornata a 5
+   * attribuiva i corrispettivi alla giornata sbagliata.
+   */
+  if (!attivo) {
+    await sql`update venues set rt_attivo = false where id = ${venue.venueId}`;
+    revalidatePath("/dashboard/fiscale");
+    return { ok: "Spento: i conti chiusi non vengono messi in coda." };
+  }
+
   const modalita = formData.get("modalita") === "agente" ? "agente" : "manuale";
   const matricola = String(formData.get("matricola") ?? "").trim().slice(0, 60);
 
-  if (attivo && !matricola) {
+  if (!matricola) {
     return {
       error:
         "Serve la matricola del registratore: è quella che hai comunicato all'Agenzia.",
+    };
+  }
+
+  const stacco = Number.parseInt(String(formData.get("stacco") ?? "5"), 10);
+  if (!Number.isFinite(stacco) || stacco < 0 || stacco > 12) {
+    return { error: "Ora di chiusura giornata non valida (0-12)" };
+  }
+
+  /*
+   * In manuale la stampante non esiste: marca, operatore, percorso e reparti
+   * restano quelli che erano, invece di essere riscritti con dei valori che
+   * il modulo non ha mai mostrato.
+   */
+  if (modalita === "manuale") {
+    await sql`
+      update venues set rt_attivo = true, rt_modalita = 'manuale',
+                        rt_matricola = ${matricola},
+                        giornata_stacco_ora = ${stacco}
+       where id = ${venue.venueId}`;
+    revalidatePath("/dashboard/fiscale");
+    return {
+      ok: "Salvato. I documenti restano da battere a mano e trovi il riepilogo qui.",
     };
   }
 
@@ -45,18 +88,14 @@ export async function salvaRt(formData: FormData): Promise<EsitoFiscale> {
     return { error: "Numero operatore non valido (1-99)" };
   }
 
-  const stacco = Number.parseInt(String(formData.get("stacco") ?? "5"), 10);
-  if (!Number.isFinite(stacco) || stacco < 0 || stacco > 12) {
-    return { error: "Ora di chiusura giornata non valida (0-12)" };
-  }
-
   /*
    * Aliquota → reparto.
    *
    * Sulle stampanti fiscali ogni aliquota sta su un reparto numerato, e la
    * numerazione la decide chi ha configurato la stampante. Mandare tutto sul
    * reparto 1 significa dichiarare tutto con l'aliquota di quel reparto:
-   * nessun errore a schermo, un errore fiscale in silenzio.
+   * nessun errore a schermo, un errore fiscale in silenzio. Per questo senza
+   * mappa non si accende.
    */
   const reparti: Record<string, number> = {};
   for (const [chiave, valore] of formData.entries()) {
@@ -66,30 +105,28 @@ export async function salvaRt(formData: FormData): Promise<EsitoFiscale> {
     if (Number.isFinite(n) && n >= 1 && n <= 99) reparti[m[1]] = n;
   }
 
-  const sql = db();
+  if (Object.keys(reparti).length === 0) {
+    return {
+      error:
+        "Indica almeno un reparto: senza, ogni riga finirebbe sul reparto 1 e " +
+        "verrebbe dichiarata con l'aliquota di quel reparto.",
+    };
+  }
+
   await sql`
     update venues set
-      rt_attivo = ${attivo},
-      rt_modalita = ${modalita},
-      rt_matricola = ${matricola || null},
+      rt_attivo = true,
+      rt_modalita = 'agente',
+      rt_matricola = ${matricola},
       rt_marca = ${marca},
       rt_operatore = ${operatore},
       rt_percorso = ${String(formData.get("percorso") ?? "").trim().slice(0, 120) || null},
-      rt_reparti = ${sql.json(reparti as never)},
+      rt_reparti = ${sql.json(reparti)},
       giornata_stacco_ora = ${stacco}
     where id = ${venue.venueId}`;
 
   revalidatePath("/dashboard/fiscale");
-
-  if (!attivo) {
-    return { ok: "Spento: i conti chiusi non vengono messi in coda." };
-  }
-  return {
-    ok:
-      modalita === "agente"
-        ? "Salvato. Genera il codice per il programma sulla cassa, qui sotto."
-        : "Salvato. I documenti restano da battere a mano e trovi il riepilogo qui.",
-  };
+  return { ok: "Salvato. Genera il codice per il programma sulla cassa, qui sotto." };
 }
 
 /**

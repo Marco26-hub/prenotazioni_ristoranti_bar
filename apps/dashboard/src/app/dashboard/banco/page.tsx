@@ -81,7 +81,12 @@ export default async function BancoPage() {
          or o.pickup_ritirato_at is null
        )
      group by o.id, o.pickup_number, o.pickup_chiamato_at,
-              o.pickup_ritirato_at, o.created_at, o.pickup_service_date, v.timezone
+              o.pickup_ritirato_at, o.created_at, o.pickup_service_date,
+              -- Servono nel GROUP BY perché compaiono nella select dentro
+              -- "oggi": raggruppare per o.id copre le colonne di orders,
+              -- non quelle di venues. Senza, la query non è valida e la
+              -- pagina risponde 500 a ogni caricamento.
+              v.timezone, v.giornata_stacco_ora
      order by o.pickup_number`;
 
   const righe: OrdineBanco[] = ordini.map((o) => ({

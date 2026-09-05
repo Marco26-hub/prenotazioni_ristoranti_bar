@@ -51,7 +51,19 @@ export async function accodaDocumento(
   if (!locale.rt_attivo) return { accodato: false, motivo: "registratore non attivo" };
 
   const conto = await contoSessione(sql, sessionId);
-  if (!conto.haOrdinato) return { accodato: false, motivo: "niente da certificare" };
+
+  /*
+   * Si certifica se c'è un incasso, non se ci sono comande.
+   *
+   * Un tavolo a formula che ha pagato senza ordinare niente dal telefono —
+   * si ordina a voce e si paga il prezzo a persona — non aveva righe, quindi
+   * usciva di qui senza documento: incassato e mai certificato, e il conto
+   * risultava chiuso regolarmente. Lo stesso vale per un conto saldato
+   * interamente al banco su un tavolo aperto per sbaglio.
+   */
+  if (conto.dovutoCents <= 0 && conto.pagatoCents <= 0) {
+    return { accodato: false, motivo: "niente da certificare" };
+  }
 
   const righe: RigaFiscale[] = conto.righe.map((r) => ({
     descrizione: r.nome,
