@@ -49,87 +49,197 @@ const intestazioni = {
 };
 
 /**
- * Il documento nel dialetto XML delle stampanti Epson fiscali.
+ * Il reparto su cui va una riga, secondo la sua aliquota.
  *
- * Ogni marca ha il suo: Custom e RCH parlano diverso. Qui c'è Epson perché è
- * la più diffusa nei locali italiani; per le altre si cambia questa funzione
- * e basta, il resto del programma non sa cosa sia una stampante.
+ * Sulle stampanti fiscali italiane ogni aliquota IVA sta su un reparto
+ * numerato, e la numerazione la decide chi ha configurato la stampante.
+ * Mandare tutto sul reparto 1 significa dichiarare tutto con l'aliquota di
+ * quel reparto: nessun errore a schermo, un errore fiscale in silenzio.
  *
- * ATTENZIONE: questo dialetto non è stato provato su una stampante vera —
- * il tracciato va confrontato con il manuale del modello che hai prima di
- * usarlo in servizio. Fino ad allora, RT_PROVA=1.
+ * Se il locale non ha ancora mappato le aliquote si usa il reparto 1 e lo si
+ * dice nel log, invece di far finta di niente.
  */
-function documentoXml(doc) {
-  const righe = doc.righe
-    .map((r) => {
-      const descrizione = String(r.descrizione)
-        .slice(0, 38)
-        .replace(/[<>&"]/g, " ");
-      const prezzo = (r.prezzoUnitarioCents / 100).toFixed(2);
-      return (
-        `<printRecItem operator="1" description="${descrizione}" ` +
-        `quantity="${r.quantita}" unitPrice="${prezzo}" ` +
-        `department="1" justification="1" />`
-      );
-    })
-    .join("");
-
-  /*
-   * Il pagamento va dichiarato per quello che è.
-   *
-   * Dal 2026 il documento commerciale deve riportare il mezzo usato, e
-   * l'Agenzia incrocia gli importi con i dati degli acquirer: battere una
-   * carta come contante non è un dettaglio, è uno scostamento che genera un
-   * controllo. paymentType 0 = contante, 2 = elettronico.
-   */
-  const pagamenti = Object.entries(doc.pagamenti ?? {})
-    .map(([metodo, centesimi]) => {
-      const tipo = metodo === "cash" ? "0" : "2";
-      const importo = (Number(centesimi) / 100).toFixed(2);
-      return (
-        `<printRecTotal operator="1" description="${metodo === "cash" ? "CONTANTE" : "ELETTRONICO"}" ` +
-        `payment="${importo}" paymentType="${tipo}" index="1" justification="1" />`
-      );
-    })
-    .join("");
-
-  return `<?xml version="1.0" encoding="utf-8"?>
-<printerFiscalReceipt>
-  <beginFiscalReceipt operator="1" />
-  ${righe}
-  ${pagamenti}
-  <endFiscalReceipt operator="1" />
-</printerFiscalReceipt>`;
+function reparto(riga, reparti) {
+  const chiave = String(riga.ivaPercent);
+  const trovato = reparti?.[chiave] ?? reparti?.[String(Number(chiave))];
+  if (trovato) return Number(trovato);
+  if (!reparti || Object.keys(reparti).length === 0) return 1;
+  console.warn(
+    `  aliquota ${chiave}% non mappata a nessun reparto: uso il reparto 1, ` +
+      "controlla i reparti in Corrispettivi"
+  );
+  return 1;
 }
 
-async function stampa(doc) {
+/** Contante o elettronico: dal 2026 il documento deve dirlo. */
+function tipoPagamento(metodo) {
+  return metodo === "cash" ? 0 : 2;
+}
+
+const pulisci = (t, max) => String(t).slice(0, max).replace(/[<>&"]/g, " ");
+const euro = (c) => (Number(c) / 100).toFixed(2);
+
+/*
+ * I dialetti.
+ *
+ * Ogni marca ha il suo tracciato e il suo percorso HTTP. Aggiungerne una
+ * significa aggiungere una voce qui: il resto del programma non sa cosa sia
+ * una stampante, chiede solo "come si scrive" e "dove si manda".
+ *
+ * ATTENZIONE: nessuno di questi tracciati è stato provato su hardware vero.
+ * Vanno confrontati con il manuale del modello prima del servizio, e fino ad
+ * allora si usa RT_PROVA=1.
+ */
+const DIALETTI = {
+  epson: {
+    percorso: "/cgi-bin/fpmate.cgi",
+    contentType: "text/xml; charset=utf-8",
+    componi(doc, conf) {
+      const op = conf.operatore ?? 1;
+      const righe = doc.righe
+        .map(
+          (r) =>
+            `<printRecItem operator="${op}" description="${pulisci(r.descrizione, 38)}" ` +
+            `quantity="${r.quantita}" unitPrice="${euro(r.prezzoUnitarioCents)}" ` +
+            `department="${reparto(r, conf.reparti)}" justification="1" />`
+        )
+        .join("\n  ");
+
+      const pagamenti = Object.entries(doc.pagamenti ?? {})
+        .map(
+          ([metodo, cents]) =>
+            `<printRecTotal operator="${op}" ` +
+            `description="${metodo === "cash" ? "CONTANTE" : "ELETTRONICO"}" ` +
+            `payment="${euro(cents)}" paymentType="${tipoPagamento(metodo)}" ` +
+            `index="1" justification="1" />`
+        )
+        .join("\n  ");
+
+      return `<?xml version="1.0" encoding="utf-8"?>
+<printerFiscalReceipt>
+  <beginFiscalReceipt operator="${op}" />
+  ${righe}
+  ${pagamenti}
+  <endFiscalReceipt operator="${op}" />
+</printerFiscalReceipt>`;
+    },
+    leggiEsito(testo) {
+      if (/success="false"/i.test(testo)) {
+        const codice = testo.match(/code="([^"]+)"/i)?.[1] ?? "?";
+        throw new Error(`la stampante ha rifiutato il documento (codice ${codice})`);
+      }
+      return {
+        numeroDocumento: testo.match(/fiscalReceiptNumber="([^"]+)"/i)?.[1] ?? null,
+        matricola: testo.match(/serialNumber="([^"]+)"/i)?.[1] ?? null,
+      };
+    },
+  },
+
+  custom: {
+    percorso: "/xml/printer.cgi",
+    contentType: "text/xml; charset=utf-8",
+    componi(doc, conf) {
+      const righe = doc.righe
+        .map(
+          (r) =>
+            `<printRecItem description="${pulisci(r.descrizione, 38)}" ` +
+            `quantity="${r.quantita}" unitPrice="${euro(r.prezzoUnitarioCents)}" ` +
+            `department="${reparto(r, conf.reparti)}" />`
+        )
+        .join("\n  ");
+
+      const pagamenti = Object.entries(doc.pagamenti ?? {})
+        .map(
+          ([metodo, cents]) =>
+            `<printRecTotal payment="${euro(cents)}" ` +
+            `paymentType="${tipoPagamento(metodo)}" />`
+        )
+        .join("\n  ");
+
+      return `<?xml version="1.0" encoding="utf-8"?>
+<Service>
+  <cmd>=K</cmd>
+  <printerFiscalReceipt>
+    <beginFiscalReceipt />
+    ${righe}
+    ${pagamenti}
+    <endFiscalReceipt />
+  </printerFiscalReceipt>
+</Service>`;
+    },
+    leggiEsito(testo) {
+      if (/<error/i.test(testo) || /status="[1-9]/i.test(testo)) {
+        throw new Error(`la stampante ha risposto con un errore: ${pulisci(testo, 120)}`);
+      }
+      return {
+        numeroDocumento: testo.match(/(?:zRepNumber|docNumber)="([^"]+)"/i)?.[1] ?? null,
+        matricola: testo.match(/(?:serialNumber|matricola)="([^"]+)"/i)?.[1] ?? null,
+      };
+    },
+  },
+
+  rch: {
+    percorso: "/service.cgi",
+    contentType: "text/xml; charset=utf-8",
+    componi(doc, conf) {
+      const righe = doc.righe
+        .map(
+          (r) =>
+            `<vendita descrizione="${pulisci(r.descrizione, 38)}" ` +
+            `quantita="${r.quantita}" prezzo="${euro(r.prezzoUnitarioCents)}" ` +
+            `reparto="${reparto(r, conf.reparti)}" />`
+        )
+        .join("\n  ");
+
+      const pagamenti = Object.entries(doc.pagamenti ?? {})
+        .map(
+          ([metodo, cents]) =>
+            `<pagamento tipo="${tipoPagamento(metodo)}" importo="${euro(cents)}" />`
+        )
+        .join("\n  ");
+
+      return `<?xml version="1.0" encoding="utf-8"?>
+<Scontrino>
+  ${righe}
+  ${pagamenti}
+</Scontrino>`;
+    },
+    leggiEsito(testo) {
+      if (/errore|error/i.test(testo)) {
+        throw new Error(`la stampante ha risposto con un errore: ${pulisci(testo, 120)}`);
+      }
+      return {
+        numeroDocumento: testo.match(/(?:numDoc|documento)="([^"]+)"/i)?.[1] ?? null,
+        matricola: testo.match(/matricola="([^"]+)"/i)?.[1] ?? null,
+      };
+    },
+  },
+};
+
+async function stampa(doc, conf) {
+  const dialetto = DIALETTI[conf.marca] ?? DIALETTI.epson;
+  const corpo = dialetto.componi(doc, conf);
+
   if (PROVA) {
-    console.log(`\n--- documento ${doc.id} (prova, non stampato) ---`);
-    console.log(documentoXml(doc));
+    console.log(`\n--- documento ${doc.id} (${conf.marca}, prova: non stampato) ---`);
+    console.log(corpo);
     return { numeroDocumento: `PROVA-${doc.id.slice(0, 8)}`, matricola: "PROVA" };
   }
 
-  const risposta = await fetch(`http://${STAMPANTE}/cgi-bin/fpmate.cgi`, {
+  const percorso = conf.percorso || dialetto.percorso;
+  const risposta = await fetch(`http://${STAMPANTE}${percorso}`, {
     method: "POST",
-    headers: { "Content-Type": "text/xml; charset=utf-8" },
-    body: documentoXml(doc),
+    headers: { "Content-Type": dialetto.contentType },
+    body: corpo,
     signal: AbortSignal.timeout(20_000),
   });
 
   const testo = await risposta.text();
+  // Un HTTP 200 da solo non vuol dire che lo scontrino sia uscito: la
+  // stampante risponde comunque, e dentro dice se ha accettato.
   if (!risposta.ok) throw new Error(`stampante HTTP ${risposta.status}`);
 
-  // La stampante risponde con success="true|false": un HTTP 200 da solo non
-  // vuol dire che lo scontrino sia uscito.
-  if (/success="false"/i.test(testo)) {
-    const codice = testo.match(/code="([^"]+)"/i)?.[1] ?? "?";
-    throw new Error(`la stampante ha rifiutato il documento (codice ${codice})`);
-  }
-
-  return {
-    numeroDocumento: testo.match(/fiscalReceiptNumber="([^"]+)"/i)?.[1] ?? null,
-    matricola: testo.match(/serialNumber="([^"]+)"/i)?.[1] ?? null,
-  };
+  return dialetto.leggiEsito(testo);
 }
 
 async function giro() {
@@ -147,12 +257,21 @@ async function giro() {
     return;
   }
 
-  const { documenti } = await r.json();
+  const { documenti, stampante } = await r.json();
   if (!documenti?.length) return;
+
+  // Marca, operatore, percorso e reparti arrivano dal gestionale: cambiare
+  // stampante non deve voler dire andare a modificare un file sulla cassa.
+  const conf = stampante ?? { marca: "epson", operatore: 1, reparti: {} };
+  if (!DIALETTI[conf.marca]) {
+    console.error(
+      `marca "${conf.marca}" non gestita da questo agente: uso il dialetto Epson`
+    );
+  }
 
   for (const doc of documenti) {
     try {
-      const esito = await stampa(doc);
+      const esito = await stampa(doc, conf);
       await fetch(`${GESTIONALE}/api/rt/esito`, {
         method: "POST",
         headers: intestazioni,
@@ -179,7 +298,9 @@ async function giro() {
 
 console.log(
   `Agente cassa avviato. Gestionale: ${GESTIONALE}. ` +
-    (PROVA ? "Modalità prova: non stampa." : `Stampante: ${STAMPANTE}.`)
+    (PROVA
+      ? "Modalità prova: non stampa, mostra il tracciato."
+      : `Stampante: ${STAMPANTE}. Marca e reparti li decide il gestionale.`)
 );
 
 // Un errore di rete non deve spegnere l'agente: il locale non se ne

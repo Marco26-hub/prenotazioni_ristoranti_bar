@@ -23,6 +23,24 @@ export async function GET(request: Request) {
 
   const sql = db();
 
+  /*
+   * La configurazione della stampante viaggia con la coda.
+   *
+   * Marca, operatore, percorso e reparti IVA stanno nel gestionale e non
+   * nell'agente: cambiare stampante o correggere un reparto non deve
+   * significare andare sul computer della cassa a modificare un file — che
+   * è la cosa che poi nessuno fa, e il reparto sbagliato resta lì.
+   */
+  const [conf] = await sql<
+    {
+      rt_marca: string;
+      rt_operatore: number;
+      rt_percorso: string | null;
+      rt_reparti: Record<string, number>;
+    }[]
+  >`select rt_marca, rt_operatore, rt_percorso, rt_reparti
+      from venues where id = ${locale.venueId}`;
+
   const righe = await sql<
     {
       id: string;
@@ -54,6 +72,12 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     matricola: locale.matricola,
+    stampante: {
+      marca: conf?.rt_marca ?? "epson",
+      operatore: conf?.rt_operatore ?? 1,
+      percorso: conf?.rt_percorso ?? null,
+      reparti: conf?.rt_reparti ?? {},
+    },
     documenti: righe.map((r) => ({
       id: r.id,
       totaleCents: r.totale_cents,

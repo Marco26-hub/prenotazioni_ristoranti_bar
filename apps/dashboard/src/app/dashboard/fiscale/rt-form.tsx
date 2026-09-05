@@ -17,6 +17,12 @@ export function RtForm({
   attivo,
   modalita,
   matricola,
+  marca,
+  operatore,
+  percorso,
+  reparti,
+  stacco,
+  aliquote,
   haCodice,
   agenteVistoIl,
   agenteFermo,
@@ -24,6 +30,15 @@ export function RtForm({
   attivo: boolean;
   modalita: string;
   matricola: string;
+  marca: string;
+  operatore: number;
+  percorso: string;
+  /** Aliquota IVA → reparto della stampante. */
+  reparti: Record<string, number>;
+  /** Ora locale in cui finisce la giornata di servizio. */
+  stacco: number;
+  /** Le aliquote che compaiono davvero nel menu di questo locale. */
+  aliquote: number[];
   haCodice: boolean;
   agenteVistoIl: string | null;
   agenteFermo: boolean;
@@ -40,7 +55,7 @@ export function RtForm({
 
   return (
     <div className="space-y-4">
-      <form action={azione} className="space-y-3">
+      <form id="rt" action={azione} className="space-y-3">
         <label className="flex min-h-11 items-center gap-2 text-sm">
           <input
             type="checkbox"
@@ -68,6 +83,30 @@ export function RtForm({
               <p className="mt-1 text-xs text-muted">
                 È quella che hai comunicato all&apos;Agenzia collegando il POS
                 al registratore.
+              </p>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm" htmlFor="stacco">
+                A che ora finisce la giornata di servizio
+              </label>
+              <select
+                id="stacco"
+                name="stacco"
+                defaultValue={String(stacco)}
+                className={CAMPO}
+              >
+                {Array.from({ length: 13 }, (_, i) => i).map((h) => (
+                  <option key={h} value={h}>
+                    {String(h).padStart(2, "0")}:00
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-muted">
+                I corrispettivi si chiudono per giornata di servizio, non a
+                mezzanotte: chi chiude alle due mette le 5:00. Un bar che apre
+                alle sei mette un&apos;ora prima, o i primi caffè finiscono
+                nella giornata di ieri.
               </p>
             </div>
 
@@ -122,7 +161,86 @@ export function RtForm({
       </form>
 
       {acceso && modo === "agente" && (
-        <div className="rounded-lg border border-border p-3">
+        <div className="space-y-3 rounded-lg border border-border p-3">
+          <div>
+            <label className="mb-1 block text-sm" htmlFor="marca">
+              Marca della stampante fiscale
+            </label>
+            <select id="marca" name="marca" defaultValue={marca} className={CAMPO} form="rt">
+              <option value="epson">Epson</option>
+              <option value="custom">Custom</option>
+              <option value="rch">RCH</option>
+            </select>
+            <p className="mt-1 text-xs text-muted">
+              Parlano dialetti diversi. Se non sai quale hai, c&apos;è scritto
+              sulla stampante.
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm" htmlFor="operatore">
+                Numero operatore
+              </label>
+              <input
+                id="operatore"
+                name="operatore"
+                type="number"
+                min="1"
+                max="99"
+                defaultValue={operatore}
+                className={CAMPO}
+                form="rt"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm" htmlFor="percorso">
+                Percorso, se il modello lo cambia
+              </label>
+              <input
+                id="percorso"
+                name="percorso"
+                defaultValue={percorso}
+                placeholder="lascia vuoto"
+                className={CAMPO}
+                form="rt"
+              />
+            </div>
+          </div>
+
+          <div>
+            <p className="text-sm font-medium">Reparti IVA</p>
+            <p className="mt-0.5 text-xs text-muted">
+              Sulla stampante ogni aliquota sta su un reparto numerato, e la
+              numerazione l&apos;ha decisa chi l&apos;ha configurata. Mandare
+              tutto sul reparto 1 vuol dire dichiarare tutto con
+              l&apos;aliquota di quel reparto: nessun errore a schermo, un
+              errore fiscale in silenzio.
+            </p>
+            <div className="mt-2 grid gap-2 sm:grid-cols-3">
+              {(aliquote.length > 0 ? aliquote : [4, 10, 22]).map((a) => (
+                <label key={a} className="text-xs font-medium text-muted">
+                  IVA {a}%
+                  <input
+                    name={`reparto-${a}`}
+                    type="number"
+                    min="1"
+                    max="99"
+                    defaultValue={reparti[String(a)] ?? ""}
+                    placeholder="reparto"
+                    className={`${CAMPO} mt-1`}
+                    form="rt"
+                  />
+                </label>
+              ))}
+            </div>
+            {aliquote.length > 0 && (
+              <p className="mt-1 text-xs text-muted">
+                Queste sono le aliquote che compaiono davvero nel tuo menu.
+              </p>
+            )}
+          </div>
+
           <p className="text-sm font-medium">Codice per il programma sulla cassa</p>
 
           {haCodice && (

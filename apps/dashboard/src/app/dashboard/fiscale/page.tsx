@@ -31,12 +31,24 @@ export default async function FiscalePage() {
       rt_agente_hash: string | null;
       rt_agente_visto_at: Date | null;
       agente_fermo: boolean;
+      rt_marca: string;
+      rt_operatore: number;
+      rt_percorso: string | null;
+      rt_reparti: Record<string, number>;
+      giornata_stacco_ora: number;
     }[]
   >`select rt_attivo, rt_modalita, rt_matricola, rt_agente_hash,
-           rt_agente_visto_at,
+           rt_agente_visto_at, rt_marca, rt_operatore, rt_percorso,
+           rt_reparti, giornata_stacco_ora,
            (rt_agente_visto_at is null
             or rt_agente_visto_at < now() - interval '10 minutes') as agente_fermo
       from venues where id = ${venue.venueId}`;
+
+  // Le aliquote che compaiono davvero nel menu: chiedere il reparto per
+  // un'aliquota che il locale non usa è una casella in più da guardare.
+  const aliquote = await sql<{ v: string }[]>`
+    select distinct vat_rate::text as v from menu_items
+     where venue_id = ${venue.venueId} order by 1`;
 
   const documenti = await sql<
     {
@@ -60,11 +72,13 @@ export default async function FiscalePage() {
   // confronta con quello che il registratore ha già emesso.
   const perMetodo = await sql<{ metodo: string; totale: string }[]>`
     select chiave as metodo, sum(valore::int)::text as totale
-      from fiscal_documents fd,
+      from fiscal_documents fd
+      join venues v on v.id = fd.venue_id,
            lateral jsonb_each_text(fd.pagamenti) as p(chiave, valore)
      where fd.venue_id = ${venue.venueId}
-       and fd.service_date = ((now() at time zone 'Europe/Rome')
-                               - interval '5 hours')::date
+       and fd.service_date =
+           ((now() at time zone coalesce(v.timezone, 'Europe/Rome'))
+             - make_interval(hours => v.giornata_stacco_ora))::date
      group by chiave
      order by 2 desc`;
 
@@ -131,6 +145,12 @@ export default async function FiscalePage() {
               : null
           }
           agenteFermo={locale?.agente_fermo ?? true}
+          marca={locale?.rt_marca ?? "epson"}
+          operatore={locale?.rt_operatore ?? 1}
+          percorso={locale?.rt_percorso ?? ""}
+          reparti={locale?.rt_reparti ?? {}}
+          stacco={locale?.giornata_stacco_ora ?? 5}
+          aliquote={aliquote.map((a) => Number(a.v))}
         />
       </section>
 

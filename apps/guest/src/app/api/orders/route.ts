@@ -187,7 +187,7 @@ export async function POST(request: Request) {
       insert into order_number_counters (venue_id, service_date, last_number)
       select ${session.venue_id},
              ((now() at time zone coalesce(v.timezone, 'Europe/Rome'))
-               - interval '5 hours')::date,
+               - make_interval(hours => v.giornata_stacco_ora))::date,
              1
         from venues v
        where v.id = ${session.venue_id} and v.pickup_numbering_enabled

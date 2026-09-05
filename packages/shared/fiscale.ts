@@ -41,7 +41,7 @@ export async function accodaDocumento(
   sessionId: string
 ): Promise<{ accodato: boolean; motivo?: string }> {
   const [locale] = await sql`
-    select v.id, v.rt_attivo, v.timezone
+    select v.id, v.rt_attivo, v.timezone, v.giornata_stacco_ora
       from table_sessions ts
       join venues v on v.id = ts.venue_id
      where ts.id = ${sessionId}`;
@@ -132,8 +132,11 @@ export async function accodaDocumento(
       (venue_id, table_session_id, totale_cents, righe, pagamenti, service_date)
     select ${locale.id}, ${sessionId}, ${conto.dovutoCents},
            ${sql.json(righe as never)}, ${sql.json(pagamenti as never)},
+           -- La giornata di servizio finisce quando la decide il locale: le
+           -- cinque del mattino vanno bene a un ristorante, non a un bar che
+           -- apre alle sei — i suoi primi caffè finirebbero in quella prima.
            ((now() at time zone coalesce(${locale.timezone}, 'Europe/Rome'))
-             - interval '5 hours')::date
+             - make_interval(hours => ${locale.giornata_stacco_ora}))::date
     on conflict (table_session_id) where table_session_id is not null
     do nothing
     returning id`;

@@ -36,12 +36,47 @@ export async function salvaRt(formData: FormData): Promise<EsitoFiscale> {
     };
   }
 
+  const marche = ["epson", "custom", "rch"];
+  const marca = String(formData.get("marca") ?? "epson");
+  if (!marche.includes(marca)) return { error: "Marca non riconosciuta" };
+
+  const operatore = Number.parseInt(String(formData.get("operatore") ?? "1"), 10);
+  if (!Number.isFinite(operatore) || operatore < 1 || operatore > 99) {
+    return { error: "Numero operatore non valido (1-99)" };
+  }
+
+  const stacco = Number.parseInt(String(formData.get("stacco") ?? "5"), 10);
+  if (!Number.isFinite(stacco) || stacco < 0 || stacco > 12) {
+    return { error: "Ora di chiusura giornata non valida (0-12)" };
+  }
+
+  /*
+   * Aliquota → reparto.
+   *
+   * Sulle stampanti fiscali ogni aliquota sta su un reparto numerato, e la
+   * numerazione la decide chi ha configurato la stampante. Mandare tutto sul
+   * reparto 1 significa dichiarare tutto con l'aliquota di quel reparto:
+   * nessun errore a schermo, un errore fiscale in silenzio.
+   */
+  const reparti: Record<string, number> = {};
+  for (const [chiave, valore] of formData.entries()) {
+    const m = chiave.match(/^reparto-(\d+(?:\.\d+)?)$/);
+    if (!m) continue;
+    const n = Number.parseInt(String(valore), 10);
+    if (Number.isFinite(n) && n >= 1 && n <= 99) reparti[m[1]] = n;
+  }
+
   const sql = db();
   await sql`
     update venues set
       rt_attivo = ${attivo},
       rt_modalita = ${modalita},
-      rt_matricola = ${matricola || null}
+      rt_matricola = ${matricola || null},
+      rt_marca = ${marca},
+      rt_operatore = ${operatore},
+      rt_percorso = ${String(formData.get("percorso") ?? "").trim().slice(0, 120) || null},
+      rt_reparti = ${sql.json(reparti as never)},
+      giornata_stacco_ora = ${stacco}
     where id = ${venue.venueId}`;
 
   revalidatePath("/dashboard/fiscale");

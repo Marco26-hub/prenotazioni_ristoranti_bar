@@ -95,6 +95,19 @@ create table venues (
   -- fingersi la cassa di un locale.
   rt_agente_hash text,
   rt_agente_visto_at timestamptz,
+  -- Marca, operatore e percorso: Epson, Custom e RCH parlano diverso.
+  rt_marca text not null default 'epson'
+    check (rt_marca in ('epson', 'custom', 'rch')),
+  rt_operatore smallint not null default 1
+    check (rt_operatore between 1 and 99),
+  rt_percorso text,
+  -- Aliquota IVA → reparto della stampante: mandare tutto sul reparto 1
+  -- vuol dire dichiarare tutto con l'aliquota di quel reparto.
+  rt_reparti jsonb not null default '{}'::jsonb,
+  -- Ora in cui finisce la giornata di servizio. Cinque va bene a un
+  -- ristorante, non a un bar che apre alle sei.
+  giornata_stacco_ora smallint not null default 5
+    check (giornata_stacco_ora between 0 and 12),
   -- Minuti fra due ordini dello stesso tavolo, come negli all-you-can-eat:
   -- senza, un tavolo da sei manda ottanta piatti in tre minuti. 0 = libero.
   ordine_intervallo_min smallint not null default 0

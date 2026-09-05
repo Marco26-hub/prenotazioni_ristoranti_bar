@@ -66,7 +66,7 @@ export default async function BancoPage() {
            o.pickup_service_date::text as giornata,
            (o.pickup_service_date =
              ((now() at time zone coalesce(v.timezone, 'Europe/Rome'))
-               - interval '5 hours')::date) as oggi
+               - make_interval(hours => v.giornata_stacco_ora))::date) as oggi
       from orders o
       join order_items oi on oi.order_id = o.id
       join venues v on v.id = o.venue_id
@@ -77,7 +77,7 @@ export default async function BancoPage() {
        and (
          o.pickup_service_date =
            ((now() at time zone coalesce(v.timezone, 'Europe/Rome'))
-             - interval '5 hours')::date
+             - make_interval(hours => v.giornata_stacco_ora))::date
          or o.pickup_ritirato_at is null
        )
      group by o.id, o.pickup_number, o.pickup_chiamato_at,
