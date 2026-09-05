@@ -605,10 +605,10 @@ export const MODELLI: ModelloLocale[] = [
     nome: "Gintoneria e cocktail bar",
     descrizione: "Distillati, toniche e botaniche da comporre.",
     categorie: [
-      { nome: "Gin tonic" },
-      { nome: "Signature" },
-      { nome: "Classici" },
-      { nome: "Distillati lisci" },
+      { nome: "Gin tonic", reparto: "bar", iva: 22, genere: "drink", fuoriFormula: true },
+      { nome: "Signature", reparto: "bar", iva: 22, genere: "drink", fuoriFormula: true },
+      { nome: "Classici", reparto: "bar", iva: 22, genere: "drink", fuoriFormula: true },
+      { nome: "Distillati lisci", reparto: "bar", iva: 22, genere: "drink", fuoriFormula: true },
       { nome: "Taglieri e sfizi" },
     ],
     gruppi: [
@@ -689,11 +689,11 @@ export const MODELLI: ModelloLocale[] = [
     nome: "Birreria e pub",
     descrizione: "Spina e bottiglia, formati e stili.",
     categorie: [
-      { nome: "Alla spina" },
-      { nome: "In bottiglia" },
+      { nome: "Alla spina", reparto: "bar", iva: 22, genere: "beer", fuoriFormula: true },
+      { nome: "In bottiglia", reparto: "bar", iva: 22, genere: "beer", fuoriFormula: true },
       { nome: "Cucina" },
       { nome: "Fritti" },
-      { nome: "Distillati" },
+      { nome: "Distillati", reparto: "bar", iva: 22, genere: "drink", fuoriFormula: true },
     ],
     gruppi: [
       {
@@ -732,8 +732,8 @@ export const MODELLI: ModelloLocale[] = [
     nome: "Tisaneria e sala da tè",
     descrizione: "Infusi, formati e accompagnamenti.",
     categorie: [
-      { nome: "Tè" },
-      { nome: "Tisane e infusi" },
+      { nome: "Tè", reparto: "bar", genere: "drink", fuoriFormula: true },
+      { nome: "Tisane e infusi", reparto: "bar", genere: "drink", fuoriFormula: true },
       { nome: "Caffetteria", reparto: "bar", genere: "drink", fuoriFormula: true },
       { nome: "Dolci", reparto: "pasticceria", fuoriFormula: true },
       { nome: "Salato" },
@@ -779,8 +779,10 @@ export const MODELLI: ModelloLocale[] = [
     descrizione: "Caffetteria, colazione, aperitivo.",
     categorie: [
       { nome: "Caffetteria", reparto: "bar", genere: "drink", fuoriFormula: true },
-      { nome: "Colazione" },
-      { nome: "Aperitivo" },
+      { nome: "Colazione", reparto: "bar", fuoriFormula: true },
+      // L'aperitivo lo fa il banco, non la cucina: se finisce in cucina, chi
+      // sta al bancone non può nemmeno segnarlo pronto.
+      { nome: "Aperitivo", reparto: "bar", iva: 22, genere: "drink", fuoriFormula: true },
       { nome: "Panini e toast" },
       { nome: "Bevande", reparto: "bar", genere: "drink", fuoriFormula: true },
       { nome: "Vini", reparto: "bar", iva: 22, genere: "wine", fuoriFormula: true },
