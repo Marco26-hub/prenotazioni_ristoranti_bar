@@ -29,6 +29,7 @@ const IT = {
   "coperti.in_attesa":
     "Il personale lo conferma quando passa: fino ad allora il totale è provvisorio.",
   "coperti.di_piu": "Siete di più?",
+  "coperti.campo": "Numero di coperti",
   "coperti.non_riuscito": "Non è riuscito. Riprova, o dillo al personale.",
   "tavolo.etichetta": "Tavolo",
   "nav.aria": "Navigazione tavolo",
@@ -128,6 +129,7 @@ const EN: Speculare<typeof IT> = {
   "coperti.in_attesa":
     "A member of staff will confirm it when they come by: until then the total is provisional.",
   "coperti.di_piu": "More than that?",
+  "coperti.campo": "Number of covers",
   "coperti.non_riuscito": "That didn\u2019t work. Try again, or tell a member of staff.",
   "tavolo.etichetta": "Table",
   "nav.aria": "Table navigation",

@@ -98,7 +98,9 @@ test("il tavolo dichiara i coperti dal QR, e resta una proposta", async ({ page 
 
   // La domanda sta in pagina, non in una finestra sopra: al tavolo un
   // pop-up è la cosa che si chiude per arrivare al menu.
-  await expect(page.getByText(/In quanti siete/i)).toBeVisible({ timeout: 20_000 });
+  await expect(
+    page.getByRole("heading", { name: /In quanti siete/i })
+  ).toBeVisible({ timeout: 20_000 });
   await page.getByRole("button", { name: "6", exact: true }).first().click();
 
   await expect
@@ -230,5 +232,5 @@ test("un tavolo alla carta non si fa chiedere i coperti", async ({ page }) => {
   // Il menu c'è, la domanda no: alla carta i coperti muovono il coperto, e
   // due euro non valgono una domanda a chi si è appena seduto.
   await expect(page.getByText(venue.menuItemName).first()).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByText(/In quanti siete/i)).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: /In quanti siete/i })).toHaveCount(0);
 });

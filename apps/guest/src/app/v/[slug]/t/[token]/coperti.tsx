@@ -107,7 +107,9 @@ export function Coperti({
           max="50"
           inputMode="numeric"
           disabled={inviando}
-          aria-label={t("coperti.domanda")}
+          // Non la stessa frase del titolo: un lettore di schermo la
+          // annuncerebbe due volte, una come intestazione e una come campo.
+          aria-label={t("coperti.campo")}
           onKeyDown={(e) => {
             if (e.key !== "Enter") return;
             e.preventDefault();
