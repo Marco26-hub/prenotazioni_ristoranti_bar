@@ -7,6 +7,8 @@ import { invoicetronicClient } from "@/lib/invoice/invoicetronic-client";
 import { inviaEmail } from "@repo/shared/email";
 import { messaggioErrore } from "@repo/shared/errori";
 import { contoSessione } from "@repo/shared/conto";
+import { tEmail } from "@repo/shared/i18n/email";
+import { linguaRichiesta } from "@/i18n/api";
 
 interface InvoiceRequestBody {
   sessionId: string;
@@ -318,10 +320,22 @@ export async function POST(request: Request) {
       );
     }
 
+    // Nella lingua di chi ha chiesto la fattura: la richiede dal telefono,
+    // quindi la lingua è ancora nella richiesta e non serve leggerla altrove.
+    const tMail = tEmail(linguaRichiesta(request));
     const emailResult = await inviaEmail({
       a: body.customer.email,
-      oggetto: `Fattura ${invoiceNumber} — ${venue.name}`,
-      testo: `Ciao ${recipientName},\n\nla fattura ${invoiceNumber} del ${venue.name} è stata trasmessa al Sistema di Interscambio.${xmlBase64 ? " Trovi il documento XML allegato." : " Il documento sarà recapitato tramite il canale fiscale indicato."}\nIdentificativo Invoicetronic: ${String(data.id)}\n\nQuesta email è una copia di cortesia della trasmissione.`,
+      oggetto: tMail("fattura.oggetto", { numero: invoiceNumber, locale: venue.name }),
+      testo: [
+        tMail("fattura.saluto", { nome: recipientName }),
+        "",
+        tMail("fattura.trasmessa", { numero: invoiceNumber, locale: venue.name }) +
+          " " +
+          tMail(xmlBase64 ? "fattura.allegato" : "fattura.canale"),
+        tMail("fattura.identificativo", { id: String(data.id) }),
+        "",
+        tMail("fattura.cortesia"),
+      ].join("\n"),
       ...(xmlBase64
         ? {
             allegati: [{

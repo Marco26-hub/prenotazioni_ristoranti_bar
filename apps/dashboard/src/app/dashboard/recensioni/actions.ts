@@ -3,10 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { requireVenue } from "@/lib/authz";
+import { linguaUtente } from "@/lib/lingua";
+import { tPrenotazioni } from "@/i18n/prenotazioni";
 
 /** Segna lette le recensioni di questo locale. */
 export async function segnaTutteLette(): Promise<{ ok?: string; error?: string }> {
   const { venue } = await requireVenue();
+  const t = tPrenotazioni(await linguaUtente());
   const sql = db();
 
   const righe = await sql`
@@ -15,5 +18,5 @@ export async function segnaTutteLette(): Promise<{ ok?: string; error?: string }
     returning id`;
 
   revalidatePath("/dashboard/recensioni");
-  return { ok: `${righe.length} segnate come lette.` };
+  return { ok: t("recensioni.segnate", { n: righe.length }) };
 }

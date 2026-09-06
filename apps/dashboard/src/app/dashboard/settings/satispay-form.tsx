@@ -2,10 +2,13 @@
 
 import { useActionState } from "react";
 import { connectSatispay } from "./satispay-actions";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tImpostazioni } from "@/i18n/impostazioni";
 
 type FormState = { error?: string; success?: boolean } | null;
 
 export function SatispayForm() {
+  const t = tImpostazioni(useLingua());
   const [state, formAction, pending] = useActionState<FormState, FormData>(
     async (_prev, formData) => connectSatispay(formData),
     null
@@ -15,7 +18,7 @@ export function SatispayForm() {
     <form action={formAction} className="space-y-2">
       <input
         name="activationToken"
-        placeholder="Codice attivazione (dalla Dashboard Satispay Business)"
+        placeholder={t("satispay.codice.placeholder")}
         required
         className="min-h-11 w-full rounded-lg border border-border bg-background px-3"
       />
@@ -24,10 +27,10 @@ export function SatispayForm() {
         disabled={pending}
         className="min-h-11 w-full rounded-full bg-accent font-medium text-accent-foreground active:scale-95 disabled:opacity-50"
       >
-        {pending ? "Attivazione..." : "Connetti Satispay"}
+        {pending ? t("stato.attivazione") : t("satispay.connetti")}
       </button>
       {state?.error && <p className="text-sm text-danger">{state.error}</p>}
-      {state?.success && <p className="text-sm text-success">Satispay connesso.</p>}
+      {state?.success && <p className="text-sm text-success">{t("satispay.ok")}</p>}
     </form>
   );
 }

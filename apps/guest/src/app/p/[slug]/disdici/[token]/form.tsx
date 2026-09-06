@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tPrenota } from "@/i18n/prenota";
 
 /**
  * Conferma prima di disdire.
@@ -10,6 +12,7 @@ import { useState } from "react";
  * sparirebbe senza che nessuno abbia deciso niente.
  */
 export function DisdiciForm({ token }: { token: string }) {
+  const t = tPrenota(useLingua());
   const [invio, setInvio] = useState(false);
   const [fatto, setFatto] = useState(false);
   const [errore, setErrore] = useState<string | null>(null);
@@ -20,7 +23,7 @@ export function DisdiciForm({ token }: { token: string }) {
         role="status"
         className="mt-4 rounded-lg border border-success bg-success/10 p-3 text-sm font-medium"
       >
-        Disdetta. Grazie per averlo fatto sapere: il tavolo torna disponibile.
+        {t("disdetta.fatta")}
       </p>
     );
   }
@@ -41,19 +44,19 @@ export function DisdiciForm({ token }: { token: string }) {
             });
             const dati = await res.json().catch(() => ({}));
             if (!res.ok) {
-              setErrore(dati.error ?? "Non è riuscito. Riprova, o chiama il locale.");
+              setErrore(dati.error ?? t("disdetta.errore"));
               return;
             }
             setFatto(true);
           } catch {
-            setErrore("Connessione non riuscita. Controlla la rete e riprova.");
+            setErrore(t("errore.rete"));
           } finally {
             setInvio(false);
           }
         }}
         className="min-h-11 w-full rounded-full bg-danger px-5 text-sm font-medium text-white disabled:opacity-60"
       >
-        {invio ? "Disdico…" : "Sì, disdici la prenotazione"}
+        {invio ? t("disdetta.invio") : t("disdetta.conferma")}
       </button>
 
       {errore && (

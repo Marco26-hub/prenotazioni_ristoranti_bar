@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tMenu } from "@/i18n/menu";
 import { MenuItemCard, type DettaglioVoce } from "./menu-item-card";
 
 /**
@@ -23,6 +25,7 @@ export function MenuCategories({
   categories: Category[];
   currency: string;
 }) {
+  const t = tMenu(useLingua());
   const [selected, setSelected] = useState("all");
   const visible =
     selected === "all"
@@ -33,7 +36,7 @@ export function MenuCategories({
     <>
       <nav
         className="menu-category-nav sticky top-0 z-20 border-b border-border"
-        aria-label="Filtra il menu per categoria"
+        aria-label={t("categorie.filtra")}
       >
         <div className="mx-auto flex max-w-5xl gap-2 overflow-x-auto px-4 py-3 sm:px-6">
           <button
@@ -46,7 +49,7 @@ export function MenuCategories({
                 : "hover:bg-surface"
             }`}
           >
-            Tutti
+            {t("categorie.tutti")}
           </button>
           {categories.map((category) => (
             <button
@@ -67,7 +70,7 @@ export function MenuCategories({
             href="#informazioni"
             className="flex min-h-10 shrink-0 items-center rounded-full px-4 text-sm text-muted hover:bg-surface"
           >
-            Info
+            {t("categorie.info")}
           </a>
         </div>
       </nav>
@@ -97,7 +100,7 @@ export function MenuCategories({
 
         {categories.length === 0 && (
           <p className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted">
-            Il menu non è ancora pubblicato.
+            {t("categorie.vuoto")}
           </p>
         )}
       </main>

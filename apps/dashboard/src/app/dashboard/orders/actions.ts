@@ -4,6 +4,17 @@ import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { requireVenue } from "@/lib/authz";
 import type { OrderItemStatus, StaffRole } from "@repo/shared";
+import { linguaUtente } from "@/lib/lingua";
+import { tServizio } from "@/i18n/servizio";
+
+/**
+ * Il traduttore che gli aiutanti qui sotto si passano.
+ *
+ * Lo ricevono come parametro invece di rileggere la lingua ognuno per conto
+ * suo: `linguaUtente()` interroga la sessione e il database, e farlo tre volte
+ * dentro una sola azione sarebbe tre giri per una frase sola.
+ */
+type T = ReturnType<typeof tServizio>;
 
 /**
  * Come si chiama chi ha agito, congelato al momento del gesto.
@@ -38,23 +49,27 @@ async function repartoDiRiga(orderItemId: string): Promise<string> {
   return r?.reparto ?? "cucina";
 }
 
-const NOME_REPARTO: Record<string, string> = {
-  cucina: "cucina",
-  bar: "bar",
-  pizzeria: "pizzeria",
-  pasticceria: "pasticceria",
+const NOME_REPARTO: Record<string, Parameters<T>[0]> = {
+  cucina: "reparto.minuscolo.cucina",
+  bar: "reparto.minuscolo.bar",
+  pizzeria: "reparto.minuscolo.pizzeria",
+  pasticceria: "reparto.minuscolo.pasticceria",
 };
 
 async function vietatoPerReparto(
   userId: string,
   venueId: string,
-  orderItemId: string
+  orderItemId: string,
+  t: T
 ): Promise<string | null> {
   const suoi = await repartiAddetto(userId, venueId);
   if (suoi.length === 0) return null;
   const reparto = await repartoDiRiga(orderItemId);
   if (suoi.includes(reparto)) return null;
-  return `Questa riga è del reparto ${NOME_REPARTO[reparto] ?? reparto}, su cui non operi.`;
+  // Il reparto senza nome nostro resta com'è scritto in tabella: è il nome che
+  // il locale gli ha dato, e tradurlo non è compito nostro.
+  const chiave = NOME_REPARTO[reparto];
+  return t("errore.reparto", { reparto: chiave ? t(chiave) : reparto });
 }
 
 async function etichettaAddetto(userId: string): Promise<string> {
@@ -85,14 +100,14 @@ const PERMESSI: Record<StaffRole, OrderItemStatus[]> = {
   kitchen: ["preparing", "ready"],
 };
 
-const NEGATO: Record<string, string> = {
-  ready: "Solo la cucina può segnare un piatto pronto.",
-  served: "Solo chi è in sala può segnare un piatto servito.",
+const NEGATO: Record<string, Parameters<T>[0]> = {
+  ready: "errore.ruolo.ready",
+  served: "errore.ruolo.served",
 };
 
-function puo(role: StaffRole, status: OrderItemStatus): string | null {
+function puo(role: StaffRole, status: OrderItemStatus, t: T): string | null {
   if (PERMESSI[role]?.includes(status)) return null;
-  return NEGATO[status] ?? "Il tuo ruolo non può fare questa modifica.";
+  return t(NEGATO[status] ?? "errore.ruolo");
 }
 
 export async function setOrderItemStatus(
@@ -110,13 +125,14 @@ export async function setOrderItemStatus(
   atteso?: OrderItemStatus
 ): Promise<{ error?: string }> {
   const { venue, userId } = await requireVenue();
+  const t = tServizio(await linguaUtente());
 
   // Riverificato qui e non solo nascondendo il bottone: ogni Server Action è
   // un POST pubblico per chi conosce l'id.
-  const vietato = puo(venue.role, status);
+  const vietato = puo(venue.role, status, t);
   if (vietato) return { error: vietato };
 
-  const fuoriReparto = await vietatoPerReparto(userId, venue.venueId, orderItemId);
+  const fuoriReparto = await vietatoPerReparto(userId, venue.venueId, orderItemId, t);
   if (fuoriReparto) return { error: fuoriReparto };
 
   const sql = db();
@@ -132,7 +148,7 @@ export async function setOrderItemStatus(
     returning id, (select status from order_items where id = ${orderItemId}) as precedente`;
 
   if (!riga && atteso) {
-    return { error: "Qualcuno l'ha già spostato: guarda lo stato aggiornato." };
+    return { error: t("errore.gia_spostato") };
   }
 
   if (riga) {
@@ -160,9 +176,10 @@ export async function trattieniRiga(
   nota?: string
 ): Promise<{ error?: string }> {
   const { venue, userId } = await requireVenue();
+  const t = tServizio(await linguaUtente());
   const sql = db();
 
-  const fuoriReparto = await vietatoPerReparto(userId, venue.venueId, orderItemId);
+  const fuoriReparto = await vietatoPerReparto(userId, venue.venueId, orderItemId, t);
   if (fuoriReparto) return { error: fuoriReparto };
 
   const [riga] = await sql<{ id: string }[]>`
@@ -175,7 +192,7 @@ export async function trattieniRiga(
        and status not in ('served', 'cancelled')
     returning id`;
 
-  if (!riga) return { error: "Riga non trovata o già servita" };
+  if (!riga) return { error: t("errore.riga") };
 
   await sql`
     insert into order_item_events
@@ -194,9 +211,37 @@ export async function trattieniRiga(
  * È il gesto vero: "ritarda i secondi del sei" si dice una volta, non piatto
  * per piatto con le mani occupate.
  */
+/**
+ * Il reparto dello schermo, che non è il reparto dell'operatore.
+ *
+ * Sono due cose diverse e servono tutte e due. `venue_staff.reparti` dice a
+ * cosa quell'account ha *diritto* di mettere le mani: è autorizzazione, e
+ * resta. Questo dice cosa quello schermo sta *guardando* adesso: è il filtro
+ * che l'operatore ha scelto sul tablet, e vale solo per lui.
+ *
+ * Finché c'era solo il primo, un locale a gestione familiare — due schermi,
+ * un unico account padrone senza reparti assegnati — non aveva nessun
+ * filtro: il banco sushi premeva "Tutto pronto" sul tavolo 5, il bottone
+ * diceva 4 perché contava le righe che vedeva, e ne mandava fuori 9 portando
+ * a 'ready' anche i fritti che la cucina non aveva ancora acceso. Sullo
+ * schermo della cucina quelle righe sparivano dalla coda senza che nessuno
+ * le avesse toccate, e il cameriere andava al passe a ritirare roba che non
+ * esisteva.
+ */
+function filtroReparto(
+  sql: ReturnType<typeof db>,
+  reparto: string | null | undefined
+) {
+  if (!reparto || reparto === "tutti") return sql``;
+  return sql`and coalesce((select mc.reparto from menu_items mi
+                             left join menu_categories mc on mc.id = mi.category_id
+                            where mi.id = oi.menu_item_id), 'cucina') = ${reparto}`;
+}
+
 export async function trattieniTavolo(
   tableCode: string,
-  trattieni: boolean
+  trattieni: boolean,
+  reparto?: string | null
 ): Promise<{ aggiornate: number }> {
   const { venue, userId } = await requireVenue();
   const suoiReparti = await repartiAddetto(userId, venue.venueId);
@@ -215,6 +260,7 @@ export async function trattieniTavolo(
        and t.code = ${tableCode}
        and oi.status not in ('served', 'cancelled')
        and oi.held_at is ${trattieni ? sql`null` : sql`not null`}
+       ${filtroReparto(sql, reparto)}
        ${
          suoiReparti.length > 0
            ? sql`and coalesce((select mc.reparto from menu_items mi
@@ -258,11 +304,12 @@ export async function trattieniTavolo(
 export async function advanceTableItems(
   gruppo: string,
   from: OrderItemStatus,
-  to: OrderItemStatus
+  to: OrderItemStatus,
+  reparto?: string | null
 ): Promise<{ aggiornate: number; error?: string }> {
   const { venue, userId } = await requireVenue();
 
-  const vietato = puo(venue.role, to);
+  const vietato = puo(venue.role, to, tServizio(await linguaUtente()));
   if (vietato) return { aggiornate: 0, error: vietato };
 
   const suoiReparti = await repartiAddetto(userId, venue.venueId);
@@ -285,6 +332,9 @@ export async function advanceTableItems(
        -- Un piatto trattenuto non si avvia in blocco: trattenerlo è stata una
        -- decisione esplicita e un "manda tutto" non deve scavalcarla.
        and oi.held_at is null
+       -- Solo quello che questo schermo sta guardando: il bottone conta le
+       -- righe filtrate, quindi deve spostare esattamente quelle.
+       ${filtroReparto(sql, reparto)}
        -- E non si tocca il reparto altrui: "tutto pronto" dal bar non deve
        -- mandare fuori i primi.
        ${

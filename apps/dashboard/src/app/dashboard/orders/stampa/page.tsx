@@ -5,6 +5,9 @@ import Link from "next/link";
 import { PrintButton } from "./print-button";
 import { moduloAttivo } from "@/lib/authz";
 import { ModuloNonAttivo } from "../../modulo-non-attivo";
+import { linguaUtente } from "@/lib/lingua";
+import { LinguaProvider } from "@repo/shared/i18n/contesto";
+import { tServizio } from "@/i18n/servizio";
 
 /**
  * Comande da stampare su carta. Volutamente non è una stampa ESC/POS su
@@ -21,7 +24,9 @@ export default async function PrintOrdersPage({
   const scelto = Array.isArray(params.reparto) ? params.reparto[0] : params.reparto;
   const session = await auth();
   const venue = session?.venues[0];
-  if (!venue) return <main className="p-4">Nessun locale associato.</main>;
+  const lingua = await linguaUtente();
+  const t = tServizio(lingua);
+  if (!venue) return <main className="p-4">{t("errore.senza_locale")}</main>;
 
   // Il modulo si verifica qui e non solo nel menu: chi digita
   // l'indirizzo la pagina la otterrebbe lo stesso.
@@ -47,7 +52,9 @@ export default async function PrintOrdersPage({
   const sql = db();
   const reparti = await repartiDelLocale(venue.venueId);
   const etichettaReparto = (c: string | null) =>
-    reparti.find((r) => r.chiave === (c ?? "cucina"))?.etichetta ?? c ?? "Cucina";
+    reparti.find((r) => r.chiave === (c ?? "cucina"))?.etichetta ??
+    c ??
+    t("reparto.cucina");
   const rows = await sql<ComandaRow[]>`
     select o.id as order_id, oi.id as item_id, t.code as table_code,
            mi.name as item_name, oi.quantity, oi.notes,
@@ -61,7 +68,22 @@ export default async function PrintOrdersPage({
     join tables t on t.id = ts.table_id
     join menu_items mi on mi.id = oi.menu_item_id
     left join menu_categories mc on mc.id = mi.category_id
-    where o.venue_id = ${venue.venueId} and oi.status not in ('served', 'cancelled')
+    where o.venue_id = ${venue.venueId}
+      and oi.status not in ('served', 'cancelled')
+      -- Solo i tavoli ancora aperti, come fa la board.
+      --
+      -- Senza questo la pagina accumulava per sempre: chiudere un tavolo
+      -- chiude la sessione ma non porta le sue righe a 'served', e nessuno
+      -- in tutto il progetto le porta a 'served' in blocco. In un all you
+      -- can eat nessuno picchietta "servito" ottanta volte a tavolo, quindi
+      -- le righe restano a 'sent_to_kitchen' per sempre. Al secondo giorno
+      -- si stampavano le comande di ieri insieme a quelle di stasera — e chi
+      -- la usa come ripiego quando lo schermo si pianta preparava roba già
+      -- mangiata e pagata.
+      and ts.status = 'open'
+      -- E comunque non oltre la giornata: una sessione lasciata aperta per
+      -- sbaglio non deve trascinarsi dietro le comande di una settimana fa.
+      and o.created_at >= now() - interval '24 hours'
     order by o.created_at asc, mi.name`;
 
   // Presenti davvero adesso: mostrare "Pizzeria" a chi non ne ha una è una
@@ -85,10 +107,10 @@ export default async function PrintOrdersPage({
 
   const totalePezzi = righe.reduce((totale, row) => totale + row.quantity, 0);
   const stato: Record<string, string> = {
-    pending: "Da inviare",
-    sent_to_kitchen: "In coda",
-    preparing: "In preparazione",
-    ready: "Pronto",
+    pending: t("stato.pending"),
+    sent_to_kitchen: t("stampa.stato.sent_to_kitchen"),
+    preparing: t("stato.preparing"),
+    ready: t("stato.ready"),
   };
 
   return (
@@ -100,27 +122,29 @@ export default async function PrintOrdersPage({
               href="/dashboard/orders"
               className="mb-2 inline-flex min-h-10 items-center text-sm font-medium text-muted underline underline-offset-4"
             >
-              ← Torna agli ordini in corso
+              {t("stampa.indietro")}
             </Link>
-            <h1 className="text-lg font-semibold">Comande da stampare</h1>
-            <p className="mt-1 text-sm text-muted">
-              Fogli separati per ordine e reparto, pronti per la cucina.
-            </p>
+            <h1 className="text-lg font-semibold">{t("stampa.titolo")}</h1>
+            <p className="mt-1 text-sm text-muted">{t("stampa.sottotitolo")}</p>
           </div>
-          <PrintButton />
+          {/* Il provider vive nel layout; qui si rimette perché il bottone
+              deve trovare una lingua anche se questo albero ne è fuori. */}
+          <LinguaProvider lingua={lingua}>
+            <PrintButton />
+          </LinguaProvider>
         </div>
 
         <dl className="grid grid-cols-3 gap-2">
           <div className="rounded-lg border border-border bg-surface p-3">
-            <dt className="text-xs text-muted">Comande</dt>
+            <dt className="text-xs text-muted">{t("stampa.conteggio.comande")}</dt>
             <dd className="mt-1 text-lg font-semibold tabular-nums">{byOrder.size}</dd>
           </div>
           <div className="rounded-lg border border-border bg-surface p-3">
-            <dt className="text-xs text-muted">Pezzi</dt>
+            <dt className="text-xs text-muted">{t("stampa.conteggio.pezzi")}</dt>
             <dd className="mt-1 text-lg font-semibold tabular-nums">{totalePezzi}</dd>
           </div>
           <div className="rounded-lg border border-border bg-surface p-3">
-            <dt className="text-xs text-muted">Reparti</dt>
+            <dt className="text-xs text-muted">{t("stampa.conteggio.reparti")}</dt>
             <dd className="mt-1 text-lg font-semibold tabular-nums">{presenti.length}</dd>
           </div>
         </dl>
@@ -129,7 +153,7 @@ export default async function PrintOrdersPage({
       <header className="mb-6 hidden border-b-2 border-black pb-3 print:block">
         <h1 className="text-xl font-bold">{venue.venueName}</h1>
         <p className="text-sm">
-          Comande aperte · {new Date().toLocaleString("it-IT")}
+          {t("stampa.intestazione", { quando: t.dataOra(new Date()) })}
         </p>
       </header>
 
@@ -147,7 +171,7 @@ export default async function PrintOrdersPage({
                     : "border border-border"
                 }`}
               >
-                {r === "tutti" ? "Tutto" : (etichettaReparto(r))}
+                {r === "tutti" ? t("filtro.tutto") : etichettaReparto(r)}
               </a>
             );
           })}
@@ -155,34 +179,42 @@ export default async function PrintOrdersPage({
       )}
 
       {byOrder.size === 0 && (
-        <p className="text-sm text-muted">Nessuna comanda in corso.</p>
+        <p className="text-sm text-muted">{t("stampa.vuoto")}</p>
       )}
 
       {[...byOrder.entries()].map(([key, items]) => (
         <article
           key={key}
-          className="mb-4 break-after-page border-b-2 border-dashed pb-4 last:border-0"
+          /* `last:break-after-auto`: il salto pagina sull'ultima comanda
+             faceva uscire un foglio bianco a ogni stampa. */
+          className="mb-4 break-after-page border-b-2 border-dashed pb-4 last:break-after-auto last:border-0"
         >
           <header className="mb-3 flex items-start justify-between gap-4 border-b border-border pb-3 print:border-black">
             <div>
-              <p className="text-2xl font-bold">Tavolo {items[0].table_code}</p>
+              <p className="text-2xl font-bold">
+                {t("tavolo.etichetta")} {items[0].table_code}
+              </p>
               {items[0].guest_label && (
-                <p className="mt-1 text-sm font-medium">Cliente: {items[0].guest_label}</p>
+                <p className="mt-1 text-sm font-medium">
+                  {t("stampa.cliente", { nome: items[0].guest_label })}
+                </p>
               )}
             </div>
             <div className="text-right text-sm">
               <p className="font-semibold">{etichettaReparto(items[0].reparto)}</p>
               <p className="text-muted print:text-black">
-                Comanda #{items[0].order_id.slice(0, 8).toUpperCase()}
+                {t("stampa.comanda", {
+                  numero: items[0].order_id.slice(0, 8).toUpperCase(),
+                })}
               </p>
               <time dateTime={items[0].created_at}>
-                {new Date(items[0].created_at).toLocaleString("it-IT")}
+                {t.dataOra(new Date(items[0].created_at))}
               </time>
             </div>
           </header>
           {items[0].order_notes && (
             <p className="mb-3 border-l-4 border-accent pl-3 text-sm font-semibold print:border-black">
-              Nota ordine: {items[0].order_notes}
+              {t("stampa.nota_ordine", { nota: items[0].order_notes })}
             </p>
           )}
           <ul className="space-y-3">
@@ -209,7 +241,10 @@ export default async function PrintOrdersPage({
             ))}
           </ul>
           <p className="mt-4 border-t border-border pt-2 text-right text-sm font-semibold print:border-black">
-            {items.reduce((totale, item) => totale + item.quantity, 0)} pezzi
+            {t.n(
+              items.reduce((totale, item) => totale + item.quantity, 0),
+              "stampa.pezzi"
+            )}
           </p>
         </article>
       ))}

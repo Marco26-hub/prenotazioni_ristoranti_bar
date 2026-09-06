@@ -12,6 +12,7 @@ import {
   formattaOrario,
   interpretaOrario,
 } from "@repo/shared/prenotazioni";
+import { tApi, linguaRichiesta } from "@/i18n/api";
 
 interface Body {
   slug: string;
@@ -52,9 +53,11 @@ interface VenueRow {
  * scrivere qui, quindi ogni valore va validato e il ritmo va limitato.
  */
 export async function POST(request: Request) {
+  const t = tApi(linguaRichiesta(request));
+
   const body = (await request.json().catch(() => null)) as Body | null;
   if (!body?.slug || !body.name?.trim() || !body.reservedAt) {
-    return NextResponse.json({ error: "Compila nome, data e ora" }, { status: 400 });
+    return NextResponse.json({ error: t("prenotazione.errore.campi_mancanti") }, { status: 400 });
   }
 
   /*
@@ -74,7 +77,7 @@ export async function POST(request: Request) {
   );
   if (!allowed) {
     return NextResponse.json(
-      { error: "Troppe prenotazioni dallo stesso dispositivo. Riprova più tardi o chiamaci." },
+      { error: t("prenotazione.errore.troppe") },
       { status: 429 }
     );
   }
@@ -82,7 +85,7 @@ export async function POST(request: Request) {
   const partySize = Number(body.partySize);
   if (!Number.isInteger(partySize) || partySize < 1 || partySize > MAX_PARTY) {
     return NextResponse.json(
-      { error: `Indica da 1 a ${MAX_PARTY} persone. Per gruppi più grandi chiamaci.` },
+      { error: t("prenotazione.errore.coperti_max", { max: MAX_PARTY }) },
       { status: 400 }
     );
   }
@@ -94,7 +97,7 @@ export async function POST(request: Request) {
   // ha modo di distinguere una prenotazione vera da uno scherzo.
   if (!phone && !email) {
     return NextResponse.json(
-      { error: "Lascia un telefono o un'email: servono per confermarti il tavolo" },
+      { error: t("prenotazione.errore.recapito") },
       { status: 400 }
     );
   }
@@ -108,7 +111,7 @@ export async function POST(request: Request) {
       from venues where slug = ${body.slug}`;
 
   if (!venue) {
-    return NextResponse.json({ error: "Locale non trovato" }, { status: 404 });
+    return NextResponse.json({ error: t("errore.locale_non_trovato") }, { status: 404 });
   }
   if (
     !hasModulo(
@@ -119,7 +122,7 @@ export async function POST(request: Request) {
     )
   ) {
     return NextResponse.json(
-      { error: "Prenotazione online non attiva per questo locale — chiama il ristorante" },
+      { error: t("prenotazione.errore.non_attiva") },
       { status: 402 }
     );
   }
@@ -131,13 +134,13 @@ export async function POST(request: Request) {
   // prenotazione di due ore in estate.
   const when = interpretaOrario(body.reservedAt, fuso);
   if (!when) {
-    return NextResponse.json({ error: "Data non valida" }, { status: 400 });
+    return NextResponse.json({ error: t("prenotazione.errore.data_non_valida") }, { status: 400 });
   }
   if (when.getTime() < Date.now()) {
-    return NextResponse.json({ error: "La data è già passata" }, { status: 400 });
+    return NextResponse.json({ error: t("prenotazione.errore.data_passata") }, { status: 400 });
   }
   if (when.getTime() > Date.now() + MAX_DAYS_AHEAD * 86400_000) {
-    return NextResponse.json({ error: "Data troppo lontana — controlla l'anno" }, { status: 400 });
+    return NextResponse.json({ error: t("prenotazione.errore.data_lontana") }, { status: 400 });
   }
 
 
@@ -167,7 +170,10 @@ export async function POST(request: Request) {
     // per un orario che è già pieno fa perdere il cliente due volte.
     return NextResponse.json(
       {
-        error: `Per ${formattaOrario(when, fuso)} non abbiamo più posto per ${partySize} persone.`,
+        error: t("prenotazione.errore.pieno", {
+          orario: formattaOrario(when, fuso),
+          persone: partySize,
+        }),
         alternative: alternative.map((d) => ({
           iso: d.toISOString(),
           etichetta: formattaOrario(d, fuso),
@@ -199,10 +205,16 @@ export async function POST(request: Request) {
       const [prenotazione] = await tx<{ id: string; cancel_token: string }[]>`
         insert into reservations
           (venue_id, customer_name, customer_phone, customer_email, party_size,
-           reserved_at, notes, status, confirmed_at, cancel_token)
+           reserved_at, notes, status, confirmed_at, cancel_token, lingua)
         values (${venue.id}, ${nome}, ${phone}, ${email}, ${partySize},
                 ${when}, ${notes}, ${stato}, ${automatica ? tx`now()` : null},
-                ${nuovoTokenDisdetta()})
+                ${nuovoTokenDisdetta()},
+                -- La lingua si salva qui perché dopo non si può più dedurre:
+                -- il promemoria del giorno prima lo manda un cron alle nove
+                -- del mattino, senza header e senza cookie. Chi prenota in
+                -- inglese deve ricevere in inglese proprio il messaggio che
+                -- contiene il link per disdire.
+                ${t.lingua})
         returning id, cancel_token`;
 
       const tavoli = await assegnaTavoliPrenotazione(
@@ -218,7 +230,7 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof Error && error.message === "NESSUN_TAVOLO") {
       return NextResponse.json(
-        { error: `Non c'è un tavolo libero adatto per ${partySize} persone in questo orario.` },
+        { error: t("prenotazione.errore.nessun_tavolo", { persone: partySize }) },
         { status: 409 }
       );
     }
@@ -303,28 +315,27 @@ export async function POST(request: Request) {
       rispondiA: venue.reservation_email ?? venue.public_email ?? undefined,
       mittenteLocale,
       oggetto: automatica
-        ? `Prenotazione confermata — ${venue.name}`
-        : `Richiesta ricevuta — ${venue.name}`,
+        ? t("prenotazione.email.oggetto.confermata", { locale: venue.name })
+        : t("prenotazione.email.oggetto.richiesta", { locale: venue.name }),
       testo: [
-        `Ciao ${nome},`,
+        t("prenotazione.email.saluto", { nome }),
         "",
         automatica
-          ? `la tua prenotazione da ${venue.name} è confermata.`
-          : `abbiamo ricevuto la tua richiesta per ${venue.name}. Non è ancora una prenotazione: il locale ti risponde a breve, e ti arriva un'altra email.`,
+          ? t("prenotazione.email.confermata", { locale: venue.name })
+          : t("prenotazione.email.in_attesa", { locale: venue.name }),
         "",
-        `Quando: ${quandoTesto}`,
-        `Persone: ${partySize}`,
+        t("prenotazione.email.quando", { quando: quandoTesto }),
+        t("prenotazione.email.persone", { persone: partySize }),
         // Il tavolo assegnato si dice solo quando è davvero suo: annunciarlo
         // in una richiesta ancora da approvare fa credere di avere posto.
-        automatica ? `Tavolo: ${tavoliTesto}` : null,
-        notes ? `Richieste: ${notes}` : null,
+        automatica ? t("prenotazione.email.tavolo", { tavoli: tavoliTesto }) : null,
+        notes ? t("prenotazione.email.richieste", { note: notes }) : null,
         "",
         venue.public_phone
-          ? `Se qualcosa cambia, chiamaci al ${venue.public_phone}.`
-          : "Se qualcosa cambia, faccelo sapere rispondendo a questa email.",
+          ? t("prenotazione.email.cambio.telefono", { telefono: venue.public_phone })
+          : t("prenotazione.email.cambio.email"),
         "",
-        "Se non puoi più venire, disdici da qui — ci vuole un momento e il",
-        "tavolo torna disponibile per qualcun altro:",
+        t("prenotazione.email.disdetta"),
         urlDisdetta,
       ]
         .filter((r) => r !== null)
@@ -345,7 +356,10 @@ export async function POST(request: Request) {
     // Il cliente deve sapere se ha un tavolo o una richiesta in attesa: è
     // la differenza fra presentarsi tranquillo e presentarsi a vuoto.
     messaggio: automatica
-      ? `Tavolo confermato per ${quandoTesto}.`
-      : `Richiesta inviata per ${quandoTesto}. ${venue.name} ti risponde a breve.`,
+      ? t("prenotazione.messaggio.confermata", { quando: quandoTesto })
+      : t("prenotazione.messaggio.in_attesa", {
+          quando: quandoTesto,
+          locale: venue.name,
+        }),
   });
 }

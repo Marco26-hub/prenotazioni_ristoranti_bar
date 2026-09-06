@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { requireRole } from "@/lib/authz";
+import { linguaUtente } from "@/lib/lingua";
+import { tImpostazioni } from "@/i18n/impostazioni";
 
 export interface EsitoFormula {
   error?: string;
@@ -28,6 +30,7 @@ function centesimi(v: FormDataEntryValue | null): number | null {
  */
 export async function salvaFormula(formData: FormData): Promise<EsitoFormula> {
   const { venue } = await requireRole(["owner", "manager"]);
+  const t = tImpostazioni(await linguaUtente());
 
   const attiva = formData.get("attiva") === "on";
   const predefinita = formData.get("predefinita") === "on";
@@ -37,7 +40,7 @@ export async function salvaFormula(formData: FormData): Promise<EsitoFormula> {
   const supplemento = centesimi(formData.get("supplemento"));
 
   if (Number.isNaN(pranzo) || Number.isNaN(cena) || Number.isNaN(supplemento)) {
-    return { error: "Prezzi non validi (0-500 €)" };
+    return { error: t("formula.errore.prezzi") };
   }
 
   /*
@@ -53,7 +56,7 @@ export async function salvaFormula(formData: FormData): Promise<EsitoFormula> {
   else if (modoBambini === "ridotto") {
     const b = centesimi(formData.get("bambino"));
     if (b === null || Number.isNaN(b)) {
-      return { error: "Indica la tariffa bambino, o scegli un'altra opzione" };
+      return { error: t("formula.errore.bambino") };
     }
     bambino = b;
   }
@@ -61,16 +64,16 @@ export async function salvaFormula(formData: FormData): Promise<EsitoFormula> {
   const etaTesto = String(formData.get("etaMax") ?? "").trim();
   const eta = etaTesto === "" ? null : Number.parseInt(etaTesto, 10);
   if (eta !== null && (!Number.isFinite(eta) || eta < 0 || eta > 17)) {
-    return { error: "Età bambini non valida (0-17)" };
+    return { error: t("formula.errore.eta") };
   }
 
   const oraCena = String(formData.get("oraCena") ?? "17:00");
-  if (!/^\d{2}:\d{2}$/.test(oraCena)) return { error: "Ora della cena non valida" };
+  if (!/^\d{2}:\d{2}$/.test(oraCena)) return { error: t("formula.errore.ora") };
 
   // Attivarla senza prezzi lascerebbe i tavoli a formula con un conto a
   // zero: meglio dirlo adesso che scoprirlo alla chiusura del primo.
   if (attiva && (pranzo ?? 0) <= 0 && (cena ?? 0) <= 0) {
-    return { error: "Imposta almeno un prezzo, di pranzo o di cena" };
+    return { error: t("formula.errore.senza_prezzo") };
   }
 
   const sql = db();
@@ -88,7 +91,7 @@ export async function salvaFormula(formData: FormData): Promise<EsitoFormula> {
     await sql`update venues set formula_attiva = false where id = ${venue.venueId}`;
     revalidatePath("/dashboard/settings");
     revalidatePath("/dashboard");
-    return { success: "Formula spenta: i tavoli pagano i piatti a prezzo di carta." };
+    return { success: t("formula.ok.spenta") };
   }
 
   await sql`
@@ -108,8 +111,6 @@ export async function salvaFormula(formData: FormData): Promise<EsitoFormula> {
   revalidatePath("/dashboard");
 
   return {
-    success: predefinita
-      ? "Salvato. I nuovi tavoli partono a formula; lo staff può passarli alla carta."
-      : "Salvato. I tavoli partono alla carta; lo staff accende la formula quando serve.",
+    success: predefinita ? t("formula.ok.predefinita") : t("formula.ok.carta"),
   };
 }

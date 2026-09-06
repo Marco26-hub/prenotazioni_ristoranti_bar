@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { requireRole } from "@/lib/authz";
+import { linguaUtente } from "@/lib/lingua";
+import { tImpostazioni } from "@/i18n/impostazioni";
 
 export interface EsitoCoperto {
   error?: string;
@@ -18,16 +20,17 @@ export interface EsitoCoperto {
  */
 export async function salvaCoperto(formData: FormData): Promise<EsitoCoperto> {
   const { venue } = await requireRole(["owner", "manager"]);
+  const t = tImpostazioni(await linguaUtente());
 
   const copertoEuro = Number.parseFloat(String(formData.get("coperto") ?? "0"));
   const servizio = Number.parseFloat(String(formData.get("servizio") ?? "0"));
   const etichetta = String(formData.get("etichetta") ?? "").trim() || null;
 
   if (!Number.isFinite(copertoEuro) || copertoEuro < 0 || copertoEuro > 50) {
-    return { error: "Coperto non valido (0-50 €)" };
+    return { error: t("coperto.errore.importo") };
   }
   if (!Number.isFinite(servizio) || servizio < 0 || servizio > 30) {
-    return { error: "Servizio non valido (0-30%)" };
+    return { error: t("coperto.errore.servizio") };
   }
 
   // Aliquota di coperto e servizio in fattura elettronica. Sta qui e non nel
@@ -36,7 +39,7 @@ export async function salvaCoperto(formData: FormData): Promise<EsitoCoperto> {
   // commercialista del locale, e un valore fisso non si potrebbe correggere.
   const ivaSupplementi = Number.parseFloat(String(formData.get("ivaSupplementi") ?? "10"));
   if (!Number.isFinite(ivaSupplementi) || ivaSupplementi < 0 || ivaSupplementi > 30) {
-    return { error: "Aliquota di coperto e servizio non valida (0-30%)" };
+    return { error: t("coperto.errore.iva") };
   }
 
   /*
@@ -50,7 +53,7 @@ export async function salvaCoperto(formData: FormData): Promise<EsitoCoperto> {
    */
   const intervallo = Number.parseInt(String(formData.get("intervallo") ?? "0"), 10);
   if (!Number.isFinite(intervallo) || intervallo < 0 || intervallo > 120) {
-    return { error: "Intervallo fra gli ordini non valido (0-120 minuti)" };
+    return { error: t("coperto.errore.intervallo") };
   }
 
   const sql = db();
@@ -66,10 +69,7 @@ export async function salvaCoperto(formData: FormData): Promise<EsitoCoperto> {
   revalidatePath("/dashboard/settings");
 
   if (copertoEuro === 0 && servizio === 0) {
-    return { success: "Salvato. Nessun coperto né servizio: al cliente non compare nulla." };
+    return { success: t("coperto.ok.nulla") };
   }
-  return {
-    success:
-      "Salvato. Compare sul menu del cliente e come voce a parte nel conto.",
-  };
+  return { success: t("coperto.ok") };
 }

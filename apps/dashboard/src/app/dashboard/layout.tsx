@@ -6,6 +6,8 @@ import { AvvisoConformita } from "./avviso-conformita";
 import { Notifiche } from "./notifiche";
 import { MenuNavigazione } from "./menu-navigazione";
 import { hasModulo, type Modulo } from "@repo/shared";
+import { tGuscio } from "@/i18n/guscio";
+import { linguaUtente } from "@/lib/lingua";
 
 /*
  * Due file, e non è una questione di spazio.
@@ -20,35 +22,36 @@ import { hasModulo, type Modulo } from "@repo/shared";
  * niente e senza nascondere metà gestionale dietro un gesto.
  */
 const NAV = [
-  { href: "/dashboard", label: "Tavoli", modulo: "ordini", fila: "servizio" },
-  { href: "/dashboard/avvio", label: "Primi passi", fila: "gestione" },
-  { href: "/dashboard/orders", label: "Ordini", modulo: "ordini", fila: "servizio" },
-  { href: "/dashboard/banco", label: "Banco", modulo: "ordini", fila: "servizio" },
+  { href: "/dashboard", chiave: "nav.tavoli", modulo: "ordini", fila: "servizio" },
+  { href: "/dashboard/avvio", chiave: "nav.avvio", fila: "gestione" },
+  { href: "/dashboard/orders", chiave: "nav.ordini", modulo: "ordini", fila: "servizio" },
+  { href: "/dashboard/banco", chiave: "nav.banco", modulo: "ordini", fila: "servizio" },
   {
     href: "/dashboard/reservations",
-    label: "Prenotazioni",
+    chiave: "nav.prenotazioni",
     modulo: "prenotazioni",
     fila: "servizio",
   },
-  { href: "/dashboard/menu", label: "Menu", modulo: "ordini", fila: "servizio" },
-  { href: "/dashboard/tables", label: "QR e tavoli", modulo: "ordini", fila: "servizio" },
+  { href: "/dashboard/menu", chiave: "nav.menu_locale", modulo: "ordini", fila: "servizio" },
+  { href: "/dashboard/tables", chiave: "nav.qr", modulo: "ordini", fila: "servizio" },
 
-  { href: "/dashboard/analisi", label: "Analisi", modulo: "ordini", fila: "gestione" },
-  { href: "/dashboard/invoices", label: "Fatture", modulo: "ordini", fila: "gestione" },
-  { href: "/dashboard/fiscale", label: "Corrispettivi", modulo: "ordini", fila: "gestione" },
-  { href: "/dashboard/recensioni", label: "Recensioni", fila: "gestione" },
-  { href: "/dashboard/staff", label: "Personale", fila: "gestione" },
-  { href: "/dashboard/settings", label: "Impostazioni", fila: "gestione" },
-  { href: "/dashboard/billing", label: "Abbonamento", fila: "gestione" },
-  { href: "/dashboard/assistenza", label: "Assistenza", fila: "gestione" },
+  { href: "/dashboard/analisi", chiave: "nav.analisi", modulo: "ordini", fila: "gestione" },
+  { href: "/dashboard/invoices", chiave: "nav.fatture", modulo: "ordini", fila: "gestione" },
+  { href: "/dashboard/fiscale", chiave: "nav.fiscale", modulo: "ordini", fila: "gestione" },
+  { href: "/dashboard/recensioni", chiave: "nav.recensioni", fila: "gestione" },
+  { href: "/dashboard/staff", chiave: "nav.staff", fila: "gestione" },
+  { href: "/dashboard/settings", chiave: "nav.impostazioni", fila: "gestione" },
+  { href: "/dashboard/billing", chiave: "nav.abbonamento", fila: "gestione" },
+  { href: "/dashboard/assistenza", chiave: "nav.assistenza", fila: "gestione" },
 ] satisfies Array<{
   href: string;
-  label: string;
+  chiave: Parameters<ReturnType<typeof tGuscio>>[0];
   modulo?: Modulo;
   fila: "servizio" | "gestione";
 }>;
 
 export default async function DashboardLayout({ children }: LayoutProps<"/dashboard">) {
+  const t = tGuscio(await linguaUtente());
   const session = await auth();
 
   /*
@@ -108,9 +111,9 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
     serveDpa = venue.role === "owner" && row?.dpa_version !== DPA_VERSION;
 
     datiMancanti = [
-      !row?.vat_number && !row?.fiscal_code ? "la partita IVA" : null,
-      !row?.address_city ? "l'indirizzo" : null,
-      !row?.public_email && !row?.pec ? "un contatto per i clienti" : null,
+      !row?.vat_number && !row?.fiscal_code ? t("guscio.manca.piva") : null,
+      !row?.address_city ? t("guscio.manca.indirizzo") : null,
+      !row?.public_email && !row?.pec ? t("guscio.manca.contatto") : null,
     ].filter((v): v is string => v !== null);
 
     moduliAttivi = new Set(
@@ -125,12 +128,12 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
 
   return (
     <div className="dashboard-shell flex min-h-full flex-col">
-      <a href="#main-content" className="dashboard-skip-link">Vai al contenuto</a>
+      <a href="#main-content" className="dashboard-skip-link">{t("guscio.salta")}</a>
       <header className="sticky top-0 z-10 border-b border-border backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3">
           <div className="min-w-0">
             <p className="truncate font-semibold leading-tight">
-              {venue?.venueName ?? "Gestionale"}
+              {venue?.venueName ?? t("guscio.senza_nome")}
             </p>
             <p className="truncate text-xs text-muted">{session?.user.email}</p>
           </div>
@@ -141,7 +144,7 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
             }}
           >
             <button type="submit" className="flex min-h-11 shrink-0 items-center px-3 text-sm text-muted underline">
-              Esci
+              {t("guscio.esci")}
             </button>
           </form>
         </div>
@@ -161,7 +164,7 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
               (item.href !== "/dashboard/banco" || banco || alBanco) &&
               (item.href !== "/dashboard" || !alBanco)
           ).map(
-            (item) => ({ href: item.href, label: item.label, fila: item.fila })
+            (item) => ({ href: item.href, label: t(item.chiave), fila: item.fila })
           )}
         />
       </header>

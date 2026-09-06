@@ -3,17 +3,21 @@
 import { useId, useState, useTransition } from "react";
 import { leggiDaFoto, type EsitoEtichetta } from "./etichetta-actions";
 import type { SchedaVino } from "@repo/shared/openrouter-tipi";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tMenuAdmin } from "@/i18n/menu";
 
-const CAMPI: Array<[keyof SchedaVino, string]> = [
-  ["name", "Nome"],
-  ["producer", "Produttore"],
-  ["vintage", "Annata"],
-  ["denomination", "Denominazione"],
-  ["origin", "Zona"],
-  ["abv", "Gradazione"],
-  ["ingredients", "Vitigni"],
-  ["description", "Descrizione"],
-];
+/* I campi della scheda, nell'ordine in cui si leggono su un'etichetta. La
+   chiave resta quella del modello: cambia solo come la si chiama a schermo. */
+const CAMPI = [
+  "name",
+  "producer",
+  "vintage",
+  "denomination",
+  "origin",
+  "abv",
+  "ingredients",
+  "description",
+] as const satisfies readonly (keyof SchedaVino)[];
 
 /**
  * Compilazione della scheda vino da una foto dell'etichetta.
@@ -30,6 +34,7 @@ export function EtichettaForm({
   attiva: boolean;
   onCompila: (scheda: SchedaVino) => void;
 }) {
+  const t = tMenuAdmin(useLingua());
   const inputId = useId();
   const [pending, start] = useTransition();
   const [esito, setEsito] = useState<EsitoEtichetta | null>(null);
@@ -37,8 +42,9 @@ export function EtichettaForm({
   if (!attiva) {
     return (
       <p className="text-xs text-muted">
-        Vuoi compilare la scheda fotografando l&apos;etichetta? Collega una
-        chiave OpenRouter in <em>Impostazioni</em>.
+        {t("etichetta.non.attiva.prima")}
+        <em>{t("etichetta.impostazioni")}</em>
+        {t("etichetta.non.attiva.dopo")}
       </p>
     );
   }
@@ -53,7 +59,7 @@ export function EtichettaForm({
           htmlFor={inputId}
           className="inline-flex min-h-11 cursor-pointer items-center rounded-full border border-border px-4 text-sm"
         >
-          {pending ? "Leggo l'etichetta…" : "Compila da foto dell'etichetta"}
+          {pending ? t("etichetta.leggo") : t("etichetta.compila")}
         </label>
         <input
           id={inputId}
@@ -64,7 +70,7 @@ export function EtichettaForm({
           onChange={(e) => e.currentTarget.form?.requestSubmit()}
         />
         <span className="text-xs text-muted">
-          Etichetta o scheda tecnica, fino a 800 KB
+          {t("etichetta.limiti")}
         </span>
       </form>
 
@@ -72,21 +78,23 @@ export function EtichettaForm({
 
       {esito?.scheda && (
         <div className="space-y-2">
-          <p className="text-sm font-medium">Proposta — rileggila prima di salvare</p>
+          <p className="text-sm font-medium">{t("etichetta.proposta")}</p>
           <ul className="space-y-0.5 text-sm">
-            {CAMPI.map(([chiave, etichetta]) => {
+            {CAMPI.map((chiave) => {
               const valore = esito.scheda?.[chiave];
               if (valore === undefined) return null;
               return (
-                <li key={String(chiave)}>
-                  <span className="text-muted">{etichetta}: </span>
+                <li key={chiave}>
+                  <span className="text-muted">
+                    {t(`etichetta.campo.${chiave}`)}:{" "}
+                  </span>
                   {String(valore)}
                 </li>
               );
             })}
             {esito.scheda.allergens && (
               <li>
-                <span className="text-muted">Allergeni: </span>
+                <span className="text-muted">{t("etichetta.allergeni")}</span>
                 {esito.scheda.allergens.join(", ")}
               </li>
             )}
@@ -106,7 +114,7 @@ export function EtichettaForm({
             }}
             className="min-h-11 w-full rounded-full bg-accent text-sm font-medium text-accent-foreground"
           >
-            Copia nei campi qui sotto
+            {t("etichetta.copia")}
           </button>
         </div>
       )}

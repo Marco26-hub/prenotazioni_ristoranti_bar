@@ -3,6 +3,9 @@
 import { useState, useTransition } from "react";
 import { LINGUE, type Traduzioni } from "@repo/shared/lingue";
 import { salvaTraduzione } from "./traduzioni-actions";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tComune } from "@repo/shared/i18n/comune";
+import { tMenuAdmin } from "@/i18n/menu";
 
 const CAMPO =
   "min-h-11 w-full rounded-lg border border-border bg-background px-3 text-sm";
@@ -27,6 +30,9 @@ export function TraduzioniForm({
   lingueAttive: string[];
   traduzioni: Traduzioni;
 }) {
+  const lingua = useLingua();
+  const t = tMenuAdmin(lingua);
+  const tc = tComune(lingua);
   const [aperta, setAperta] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const [esito, setEsito] = useState<string | null>(null);
@@ -38,7 +44,7 @@ export function TraduzioniForm({
   return (
     <div className="mt-3 border-t border-border pt-3">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs text-muted">Lingue</span>
+        <span className="text-xs text-muted">{t("traduzioni.lingue")}</span>
         {lingueAttive.map((codice) => {
           const l = LINGUE.find((x) => x.codice === codice);
           const fatta = tradotte.includes(codice);
@@ -80,7 +86,7 @@ export function TraduzioniForm({
 
           <div>
             <label className="mb-1 block text-xs text-muted">
-              Nome — in italiano: {nomeItaliano}
+              {t("traduzioni.nome", { italiano: nomeItaliano })}
             </label>
             <input
               name="name"
@@ -92,7 +98,7 @@ export function TraduzioniForm({
           {descrizioneItaliana && (
             <div>
               <label className="mb-1 block text-xs text-muted">
-                Descrizione — in italiano: {descrizioneItaliana}
+                {t("traduzioni.descrizione", { italiano: descrizioneItaliana })}
               </label>
               <textarea
                 name="description"
@@ -104,7 +110,9 @@ export function TraduzioniForm({
           )}
 
           <div>
-            <label className="mb-1 block text-xs text-muted">Ingredienti</label>
+            <label className="mb-1 block text-xs text-muted">
+              {t("traduzioni.ingredienti")}
+            </label>
             <textarea
               name="ingredients"
               rows={2}
@@ -114,8 +122,7 @@ export function TraduzioniForm({
           </div>
 
           <p className="text-xs text-muted">
-            I campi lasciati vuoti restano in italiano: meglio del nulla, per
-            chi legge.
+            {t("traduzioni.nota")}
           </p>
 
           {esito && <p className="text-xs text-muted">{esito}</p>}
@@ -126,14 +133,14 @@ export function TraduzioniForm({
               disabled={pending}
               className="min-h-11 flex-1 rounded-full bg-accent px-4 text-sm font-medium text-accent-foreground disabled:opacity-60"
             >
-              {pending ? "Salvo…" : "Salva traduzione"}
+              {pending ? t("traduzioni.salvo") : t("traduzioni.salva")}
             </button>
             <button
               type="button"
               onClick={() => setAperta(null)}
               className="flex min-h-11 items-center px-3 text-sm underline"
             >
-              Chiudi
+              {tc("azione.chiudi")}
             </button>
           </div>
         </form>

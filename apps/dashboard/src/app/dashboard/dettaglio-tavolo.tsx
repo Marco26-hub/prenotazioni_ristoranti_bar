@@ -1,28 +1,36 @@
 "use client";
 
 import { useEffect } from "react";
-import { formatPriceCents } from "@repo/shared";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tSala, type TSala } from "@/i18n/sala";
 import type { TavoloSala } from "./sala";
 
 const STATO_ETICHETTA: Record<string, string> = {
-  pending: "da inviare",
-  sent_to_kitchen: "in cucina",
-  preparing: "in preparazione",
-  ready: "pronto",
-  served: "servito",
+  pending: "riga.stato.pending",
+  sent_to_kitchen: "riga.stato.sent_to_kitchen",
+  preparing: "riga.stato.preparing",
+  ready: "riga.stato.ready",
+  served: "riga.stato.served",
 };
 
 /** Piatti raggruppati per dove si trovano: è la domanda vera del titolare. */
 const FASI: Array<{ chiave: string; titolo: string; stati: string[] }> = [
-  { chiave: "cucina", titolo: "In cucina", stati: ["pending", "sent_to_kitchen", "preparing"] },
-  { chiave: "passe", titolo: "Pronti al passe", stati: ["ready"] },
-  { chiave: "tavolo", titolo: "Già in tavola", stati: ["served"] },
+  {
+    chiave: "cucina",
+    titolo: "dettaglio.fase.cucina",
+    stati: ["pending", "sent_to_kitchen", "preparing"],
+  },
+  { chiave: "passe", titolo: "dettaglio.fase.passe", stati: ["ready"] },
+  { chiave: "tavolo", titolo: "dettaglio.fase.tavolo", stati: ["served"] },
 ];
 
-function durata(daISO: string, adesso: number): string {
+function durata(daISO: string, adesso: number, t: TSala): string {
   const minuti = Math.max(0, Math.floor((adesso - new Date(daISO).getTime()) / 60000));
-  if (minuti < 60) return `${minuti} min`;
-  return `${Math.floor(minuti / 60)}h ${String(minuti % 60).padStart(2, "0")}`;
+  if (minuti < 60) return t("durata.minuti", { n: minuti });
+  return t("durata.ore", {
+    ore: Math.floor(minuti / 60),
+    minuti: String(minuti % 60).padStart(2, "0"),
+  });
 }
 
 /**
@@ -44,6 +52,11 @@ export function DettaglioTavolo({
   onClose: () => void;
   onChiudiConto: () => void;
 }) {
+  /* La lingua arriva dal contesto e non come prop: la scheda si apre da un
+     punto solo, ma è annidata dentro la sala e una prop in più su questo
+     percorso è una prop che prima o poi non viene passata. */
+  const t = tSala(useLingua());
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -64,6 +77,7 @@ export function DettaglioTavolo({
       ? Math.round(daPagare / quota)
       : null;
   const totaliPiatti = tavolo.righe.reduce((s, r) => s + r.quantita, 0);
+  const mancanti = tavolo.coperti - tavolo.nPagamenti;
 
   return (
     <div
@@ -74,29 +88,34 @@ export function DettaglioTavolo({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={`Tavolo ${tavolo.codice}`}
+        aria-label={t("dettaglio.aria", { codice: tavolo.codice })}
         onClick={(e) => e.stopPropagation()}
         className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-surface pb-[max(1rem,env(safe-area-inset-bottom))] sm:rounded-2xl sm:pb-0"
       >
         <div className="sticky top-0 flex items-center justify-between gap-3 border-b border-border bg-surface/95 px-5 py-3 backdrop-blur">
           <div>
             <p className="flex items-center gap-2">
-              <span className="text-sm uppercase tracking-wide text-muted">Tavolo</span>
+              <span className="text-sm uppercase tracking-wide text-muted">
+                {t("dettaglio.tavolo")}
+              </span>
               <span className="rounded-lg bg-lime-300 px-3 py-0.5 text-3xl font-black leading-tight tracking-tight text-zinc-900">
                 {tavolo.codice}
               </span>
             </p>
             {tavolo.apertoDa && (
               <p className="text-xs text-muted">
-                Aperto da {durata(tavolo.apertoDa, adesso)} · {tavolo.coperti}{" "}
-                {tavolo.coperti === 1 ? "coperto" : "coperti"} · {totaliPiatti} piatti
+                {t("dettaglio.aperto", {
+                  durata: durata(tavolo.apertoDa, adesso, t),
+                  coperti: t.n(tavolo.coperti, "sala.riepilogo.coperti"),
+                  piatti: t.n(totaliPiatti, "dettaglio.piatti"),
+                })}
               </p>
             )}
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Chiudi"
+            aria-label={t("dettaglio.chiudi")}
             className="h-11 w-11 shrink-0 rounded-full border border-border text-lg leading-none"
           >
             ×
@@ -116,7 +135,7 @@ export function DettaglioTavolo({
                   <span
                     className={fase.chiave === "passe" ? "text-accent" : undefined}
                   >
-                    {fase.titolo}
+                    {t(fase.titolo as Parameters<typeof t>[0])}
                   </span>
                   <span className="tabular-nums">{pezzi}</span>
                 </h3>
@@ -138,11 +157,13 @@ export function DettaglioTavolo({
                           className={`text-xs ${r.trattenuto ? "font-medium text-amber-600" : "text-muted"}`}
                         >
                           {r.trattenuto
-                            ? "trattenuto"
-                            : (STATO_ETICHETTA[r.stato] ?? r.stato)}
+                            ? t("riga.trattenuto")
+                            : STATO_ETICHETTA[r.stato]
+                              ? t(STATO_ETICHETTA[r.stato] as Parameters<typeof t>[0])
+                              : r.stato}
                         </span>
                         <span className="w-16 text-right tabular-nums">
-                          {formatPriceCents(r.prezzoCents)}
+                          {t.prezzo(r.prezzoCents)}
                         </span>
                       </span>
                     </li>
@@ -153,32 +174,28 @@ export function DettaglioTavolo({
           })}
 
           {tavolo.righe.length === 0 && (
-            <p className="text-sm text-muted">
-              Il tavolo è aperto ma non ha ancora ordinato nulla.
-            </p>
+            <p className="text-sm text-muted">{t("dettaglio.vuoto")}</p>
           )}
 
           <section className="space-y-1 border-t border-border pt-3 text-sm tabular-nums">
             <p className="flex justify-between">
-              <span className="text-muted">Ordinato</span>
-              <span>{formatPriceCents(tavolo.ordinatoCents)}</span>
+              <span className="text-muted">{t("dettaglio.ordinato")}</span>
+              <span>{t.prezzo(tavolo.ordinatoCents)}</span>
             </p>
             {tavolo.pagatoCents > 0 && (
               <p className="flex justify-between text-success">
-                <span>Già pagato dai clienti</span>
-                <span>{formatPriceCents(tavolo.pagatoCents)}</span>
+                <span>{t("dettaglio.gia_pagato")}</span>
+                <span>{t.prezzo(tavolo.pagatoCents)}</span>
               </p>
             )}
             <p className="flex justify-between text-base font-semibold">
-              <span>Da incassare</span>
-              <span>{formatPriceCents(Math.max(0, daPagare))}</span>
+              <span>{t("tavolo.da_incassare")}</span>
+              <span>{t.prezzo(Math.max(0, daPagare))}</span>
             </p>
             {tavolo.coperti > 0 && tavolo.ordinatoCents > 0 && (
               <p className="flex justify-between text-xs text-muted">
-                <span>Per persona</span>
-                <span>
-                  {formatPriceCents(Math.round(tavolo./* comprende formula, coperto e servizio */ ordinatoCents / tavolo.coperti))}
-                </span>
+                <span>{t("dettaglio.per_persona")}</span>
+                <span>{t.prezzo(quota)}</span>
               </p>
             )}
 
@@ -188,24 +205,19 @@ export function DettaglioTavolo({
             {daPagare > 0 && tavolo.nPagamenti > 0 && (
               <p className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-2 text-sm text-amber-900">
                 <strong>
-                  {tavolo.nPagamenti} di {tavolo.coperti}{" "}
-                  {tavolo.nPagamenti === 1 ? "ha" : "hanno"} già pagato
+                  {t.n(tavolo.nPagamenti, "dettaglio.pagato", {
+                    coperti: tavolo.coperti,
+                  })}
                 </strong>
-                {tavolo.coperti > tavolo.nPagamenti && (
-                  <>
-                    {" — mancano "}
-                    <strong>
-                      {tavolo.coperti - tavolo.nPagamenti}{" "}
-                      {tavolo.coperti - tavolo.nPagamenti === 1 ? "persona" : "persone"}
-                    </strong>
-                  </>
+                {mancanti > 0 && (
+                  <strong>{t.n(mancanti, "dettaglio.mancano")}</strong>
                 )}
                 {quoteResidue !== null && (
                   <span className="mt-0.5 block text-xs">
-                    Restano {formatPriceCents(daPagare)}: sono {quoteResidue}{" "}
-                    {quoteResidue === 1 ? "quota" : "quote"} da{" "}
-                    {formatPriceCents(Math.round(tavolo./* comprende formula, coperto e servizio */ ordinatoCents / tavolo.coperti))},
-                    se dividono in parti uguali.
+                    {t.n(quoteResidue, "dettaglio.quote", {
+                      residuo: t.prezzo(daPagare),
+                      quota: t.prezzo(quota),
+                    })}
                   </span>
                 )}
               </p>
@@ -213,8 +225,7 @@ export function DettaglioTavolo({
 
             {daPagare > 0 && tavolo.nPagamenti === 0 && tavolo.coperti > 0 && (
               <p className="mt-2 text-xs text-muted">
-                Nessuno ha ancora pagato: {tavolo.coperti}{" "}
-                {tavolo.coperti === 1 ? "persona" : "persone"} da incassare.
+                {t.n(tavolo.coperti, "dettaglio.nessuno")}
               </p>
             )}
           </section>
@@ -224,14 +235,14 @@ export function DettaglioTavolo({
               href="/dashboard/orders"
               className="flex min-h-11 flex-1 items-center justify-center rounded-full border border-border px-4 text-sm"
             >
-              Vai alle comande
+              {t("dettaglio.comande")}
             </a>
             <button
               type="button"
               onClick={onChiudiConto}
               className="min-h-11 flex-1 rounded-full bg-accent px-4 text-sm font-medium text-accent-foreground"
             >
-              {daPagare > 0 ? "Incassa e chiudi" : "Chiudi conto"}
+              {daPagare > 0 ? t("tavolo.incassa_chiudi") : t("tavolo.chiudi_conto")}
             </button>
           </div>
         </div>

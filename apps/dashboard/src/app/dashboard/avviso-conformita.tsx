@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tGuscio } from "@/i18n/guscio";
 import { accettaDpa } from "./conformita-actions";
 
 /**
@@ -10,6 +12,10 @@ import { accettaDpa } from "./conformita-actions";
  * non accettato, oppure i dati del titolare assenti — senza i quali
  * l'informativa mostrata ai clienti non nomina nessuno e non è conforme
  * all'art. 13.1.a. Un avviso che compare sempre viene ignorato sempre.
+ *
+ * `datiMancanti` arriva già tradotto dal layout, che sa la lingua: qui si
+ * traduce solo la frase che li contiene, e l'elenco si compone con
+ * `t.elenco` perché in inglese l'ultima virgola diventa "and".
  */
 export function AvvisoConformita({
   serveDpa,
@@ -18,6 +24,7 @@ export function AvvisoConformita({
   serveDpa: boolean;
   datiMancanti: string[];
 }) {
+  const t = tGuscio(useLingua());
   const [pending, start] = useTransition();
   const [errore, setErrore] = useState<string | null>(null);
 
@@ -29,10 +36,9 @@ export function AvvisoConformita({
         {serveDpa && (
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p>
-              Per trattare i dati dei tuoi clienti serve un accordo scritto fra
-              te, che ne sei titolare, e noi che li trattiamo per tuo conto.{" "}
+              {t("conformita.dpa.testo")}{" "}
               <a href="/dpa" className="underline underline-offset-2">
-                Leggi la nomina a responsabile
+                {t("conformita.dpa.link")}
               </a>
               .
             </p>
@@ -48,20 +54,21 @@ export function AvvisoConformita({
               }}
               className="min-h-11 shrink-0 rounded-full bg-amber-900 px-5 text-sm font-medium text-amber-50 disabled:opacity-60"
             >
-              {pending ? "Registro…" : "Accetto"}
+              {pending ? t("conformita.dpa.registro") : t("conformita.dpa.accetto")}
             </button>
           </div>
         )}
 
         {datiMancanti.length > 0 && (
           <p>
-            L&apos;informativa privacy mostrata ai tuoi clienti è incompleta:
-            manca {datiMancanti.join(", ")}.{" "}
+            {t.n(datiMancanti.length, "conformita.dati", {
+              elenco: t.elenco(datiMancanti),
+            })}{" "}
             <a
               href="/dashboard/settings"
               className="underline underline-offset-2"
             >
-              Completa i dati del locale
+              {t("conformita.dati.link")}
             </a>
             .
           </p>

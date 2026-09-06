@@ -6,6 +6,9 @@ import {
   rinominaReparto,
   togliReparto,
 } from "./reparti-actions";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tComune } from "@repo/shared/i18n/comune";
+import { tMenuAdmin } from "@/i18n/menu";
 
 const CAMPO =
   "min-h-11 rounded-lg border border-border bg-background px-3 text-sm";
@@ -31,25 +34,24 @@ export function RepartiForm({
   /** Quante categorie stanno su ciascuna: si vede prima di togliere. */
   usate: Record<string, number>;
 }) {
+  const lingua = useLingua();
+  const t = tMenuAdmin(lingua);
+  const tc = tComune(lingua);
   const [nuovo, setNuovo] = useState("");
   const [avviso, setAvviso] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
   return (
     <section className="rounded-xl border border-border bg-surface p-4">
-      <h2 className="font-semibold">Postazioni</h2>
-      <p className="mt-0.5 text-sm text-muted">
-        Dove si prepara ogni categoria. Decidono su quale schermo compare la
-        comanda e chi la può muovere: il barista vede il bar, il cuoco la
-        cucina.
-      </p>
+      <h2 className="font-semibold">{t("postazione.titolo")}</h2>
+      <p className="mt-0.5 text-sm text-muted">{t("postazione.testo")}</p>
 
       <ul className="mt-3 space-y-2">
         {reparti.map((r) => (
           <li key={r.chiave} className="flex flex-wrap items-center gap-2">
             <input
               defaultValue={r.etichetta}
-              aria-label={`Nome della postazione ${r.etichetta}`}
+              aria-label={t("postazione.nome", { nome: r.etichetta })}
               maxLength={40}
               onBlur={(e) => {
                 const nome = e.target.value.trim();
@@ -62,8 +64,7 @@ export function RepartiForm({
               className={`${CAMPO} min-w-40 flex-1`}
             />
             <span className="text-xs text-muted">
-              {usate[r.chiave] ?? 0}{" "}
-              {(usate[r.chiave] ?? 0) === 1 ? "categoria" : "categorie"}
+              {t.n(usate[r.chiave] ?? 0, "postazione.categorie")}
             </span>
             <button
               type="button"
@@ -76,7 +77,7 @@ export function RepartiForm({
               }
               className="min-h-9 px-2 text-sm text-muted underline underline-offset-4 disabled:opacity-60"
             >
-              Togli
+              {t("postazione.togli")}
             </button>
           </li>
         ))}
@@ -86,8 +87,8 @@ export function RepartiForm({
         <input
           value={nuovo}
           onChange={(e) => setNuovo(e.target.value)}
-          placeholder="Forno, Friggitoria, Cucina 2, Pass…"
-          aria-label="Nuova postazione"
+          placeholder={t("postazione.nuova.segnaposto")}
+          aria-label={t("postazione.nuova")}
           maxLength={40}
           className={`${CAMPO} min-w-48 flex-1`}
         />
@@ -103,7 +104,7 @@ export function RepartiForm({
           }
           className="min-h-11 rounded-full border border-border px-5 text-sm disabled:opacity-60"
         >
-          Aggiungi
+          {tc("azione.aggiungi")}
         </button>
       </div>
 
@@ -114,8 +115,7 @@ export function RepartiForm({
       )}
 
       <p className="mt-2 text-xs text-muted">
-        Rinominare non toglie il permesso a nessuno: quello che conta resta
-        legato alla postazione, non al nome che le hai dato.
+        {t("postazione.nota")}
       </p>
     </section>
   );

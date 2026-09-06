@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ALLERGENI, normalizzaAllergeni, allergeniFuoriElenco } from "@repo/shared/allergeni";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { nomeAllergene, esempiAllergene, tMenuAdmin } from "@/i18n/menu";
 
 /**
  * Allergeni come caselle, non come campo libero.
@@ -16,6 +18,8 @@ import { ALLERGENI, normalizzaAllergeni, allergeniFuoriElenco } from "@repo/shar
  * salvati restano validi.
  */
 export function AllergeniFlag({ valori }: { valori: string[] | null }) {
+  const lingua = useLingua();
+  const t = tMenuAdmin(lingua);
   const [scelti, setScelti] = useState<string[]>(() => normalizzaAllergeni(valori));
   // Quello che era stato scritto a mano e non rientra nei quattordici: lo
   // teniamo da parte invece di buttarlo, ma segnalato.
@@ -44,7 +48,7 @@ export function AllergeniFlag({ valori }: { valori: string[] | null }) {
   return (
     <fieldset ref={ancora} className="rounded-lg border border-border p-3">
       <legend className="px-1 text-xs font-medium text-muted">
-        Allergeni — obbligatori per legge (Reg. UE 1169/2011)
+        {t("allergeni.legenda")}
       </legend>
 
       <input type="hidden" name="allergens" value={[...scelti, ...liberi].join(", ")} />
@@ -66,8 +70,12 @@ export function AllergeniFlag({ valori }: { valori: string[] | null }) {
                 className="mt-0.5 h-4 w-4 shrink-0"
               />
               <span className="min-w-0">
-                <span className="block font-medium leading-tight">{a.etichetta}</span>
-                <span className="block text-xs leading-tight text-muted">{a.esempi}</span>
+                <span className="block font-medium leading-tight">
+                  {nomeAllergene(a.chiave, lingua)}
+                </span>
+                <span className="block text-xs leading-tight text-muted">
+                  {esempiAllergene(a.chiave, lingua)}
+                </span>
               </span>
             </label>
           );
@@ -76,16 +84,15 @@ export function AllergeniFlag({ valori }: { valori: string[] | null }) {
 
       {liberi.length > 0 && (
         <p className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
-          Voci non previste dall&apos;Allegato II già salvate su questo piatto:{" "}
-          <strong>{liberi.join(", ")}</strong>. Restano sul menu, ma non valgono
-          come dichiarazione: spunta sopra l&apos;allergene corrispondente.
+          {t("allergeni.fuori.elenco.prima")}{" "}
+          <strong>{liberi.join(", ")}</strong>
+          {t("allergeni.fuori.elenco.dopo")}
         </p>
       )}
 
       {scelti.length === 0 && liberi.length === 0 && (
         <p className="mt-2 text-xs text-muted">
-          Nessuno spuntato. Se il piatto ne contiene davvero nessuno, va bene;
-          se non li hai ancora verificati, il menu non è a norma.
+          {t("allergeni.nessuno.spuntato")}
         </p>
       )}
     </fieldset>

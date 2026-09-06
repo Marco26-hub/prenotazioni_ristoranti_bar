@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tPrenota } from "@/i18n/prenota";
 
 const FIELD =
   "min-h-11 w-full rounded-lg border border-border bg-background px-3 text-base";
@@ -16,6 +18,7 @@ function minDateTimeLocal(): string {
 }
 
 export function BookingForm({ slug, venueName }: { slug: string; venueName: string }) {
+  const t = tPrenota(useLingua());
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -42,14 +45,12 @@ export function BookingForm({ slug, venueName }: { slug: string; venueName: stri
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data.error ?? "Non siamo riusciti a registrare la prenotazione");
+        setError(data.error ?? t("errore.invio"));
       } else {
-        setDone(
-          `Prenotazione ricevuta. ${venueName} ti contatterà per la conferma.`
-        );
+        setDone(t("esito.ricevuta", { nome: venueName }));
       }
     } catch {
-      setError("Connessione non riuscita. Controlla la rete e riprova.");
+      setError(t("errore.rete"));
     } finally {
       setSending(false);
     }
@@ -58,7 +59,7 @@ export function BookingForm({ slug, venueName }: { slug: string; venueName: stri
   if (done) {
     return (
       <div className="rounded-xl border border-accent bg-surface p-5 text-center">
-        <p className="text-lg font-semibold">Grazie</p>
+        <p className="text-lg font-semibold">{t("esito.grazie")}</p>
         <p className="mt-2 text-muted">{done}</p>
       </div>
     );
@@ -68,7 +69,7 @@ export function BookingForm({ slug, venueName }: { slug: string; venueName: stri
     <form onSubmit={submit} className="space-y-4">
       <div>
         <label className={LABEL} htmlFor="name">
-          Nome e cognome
+          {t("form.nome")}
         </label>
         <input id="name" name="name" required autoComplete="name" className={FIELD} />
       </div>
@@ -76,7 +77,7 @@ export function BookingForm({ slug, venueName }: { slug: string; venueName: stri
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className={LABEL} htmlFor="partySize">
-            Quante persone
+            {t("form.persone")}
           </label>
           <input
             id="partySize"
@@ -91,7 +92,7 @@ export function BookingForm({ slug, venueName }: { slug: string; venueName: stri
         </div>
         <div>
           <label className={LABEL} htmlFor="reservedAt">
-            Giorno e ora
+            {t("form.quando")}
           </label>
           <input
             id="reservedAt"
@@ -106,32 +107,30 @@ export function BookingForm({ slug, venueName }: { slug: string; venueName: stri
 
       <div>
         <label className={LABEL} htmlFor="phone">
-          Telefono
+          {t("form.telefono")}
         </label>
         <input id="phone" name="phone" type="tel" autoComplete="tel" className={FIELD} />
       </div>
 
       <div>
         <label className={LABEL} htmlFor="email">
-          Email
+          {t("form.email")}
         </label>
         <input id="email" name="email" type="email" autoComplete="email" className={FIELD} />
       </div>
 
-      <p className="text-sm text-muted">
-        Lascia almeno uno dei due: servono a confermarti il tavolo.
-      </p>
+      <p className="text-sm text-muted">{t("form.contatti")}</p>
 
       <div>
         <label className={LABEL} htmlFor="notes">
-          Richieste particolari
+          {t("form.note")}
         </label>
         <textarea
           id="notes"
           name="notes"
           rows={2}
           maxLength={300}
-          placeholder="Allergie, seggiolone, tavolo all'aperto…"
+          placeholder={t("form.note.placeholder")}
           className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base"
         />
       </div>
@@ -147,14 +146,13 @@ export function BookingForm({ slug, venueName }: { slug: string; venueName: stri
         disabled={sending}
         className="min-h-12 w-full rounded-full bg-accent font-medium text-accent-foreground active:scale-95 disabled:opacity-60"
       >
-        {sending ? "Invio…" : "Prenota il tavolo"}
+        {sending ? t("form.invio") : t("form.invia")}
       </button>
 
       <p className="text-xs text-muted">
-        Inviando accetti che {venueName} tratti i tuoi dati per gestire la
-        prenotazione. Vedi{" "}
+        {t("form.privacy", { nome: venueName })}{" "}
         <a href={`/privacy/${slug}`} className="underline underline-offset-2">
-          l&apos;informativa privacy
+          {t("form.privacy.link")}
         </a>
         .
       </p>

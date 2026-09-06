@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tSala } from "@/i18n/sala";
 import { pdfLocandine, scarica, ABBONDANZA_MM, type DatiLocandina } from "./locandina";
 
 /**
@@ -16,6 +18,7 @@ export function PdfTutti({
   tavoli: DatiLocandina[];
   nomeLocale: string;
 }) {
+  const t = tSala(useLingua());
   const [stato, setStato] = useState<string | null>(null);
   const [inCorso, setInCorso] = useState(false);
 
@@ -23,11 +26,12 @@ export function PdfTutti({
 
   return (
     <div className="rounded-xl border border-accent bg-surface p-4">
-      <h2 className="font-semibold">Tutti i cavalierini in un PDF</h2>
+      <h2 className="font-semibold">{t("locandina.tutti.titolo")}</h2>
       <p className="mt-0.5 mb-3 text-sm text-muted">
-        Un file solo con i {tavoli.length} tavoli, una pagina ciascuno, A6 con{" "}
-        {ABBONDANZA_MM} mm di abbondanza e crocini di taglio. È il file da
-        mandare allo stampatore.
+        {t("locandina.tutti.spiegazione", {
+          tavoli: tavoli.length,
+          mm: ABBONDANZA_MM,
+        })}
       </p>
 
       <div className="flex flex-wrap items-center gap-3">
@@ -38,18 +42,21 @@ export function PdfTutti({
             setInCorso(true);
             setStato(null);
             try {
-              const blob = await pdfLocandine(tavoli, (fatti, totale) =>
-                setStato(`Compongo ${fatti} di ${totale}…`)
+              const blob = await pdfLocandine(tavoli, t, (fatti, totale) =>
+                setStato(t("locandina.tutti.progresso", { fatti, totale }))
               );
               const nome = nomeLocale
                 .toLowerCase()
                 .replace(/[^a-z0-9]+/g, "-")
                 .replace(/^-|-$/g, "");
-              scarica(blob, `cavalierini-${nome || "locale"}.pdf`);
-              setStato(`Pronto: ${tavoli.length} pagine.`);
+              scarica(
+                blob,
+                `${t("locandina.file.tutti")}-${nome || t("locandina.file.locale")}.pdf`
+              );
+              setStato(t.n(tavoli.length, "locandina.tutti.pronto"));
             } catch (e) {
               setStato(
-                e instanceof Error ? e.message : "Non è stato possibile creare il PDF"
+                e instanceof Error ? e.message : t("locandina.errore.pdf")
               );
             } finally {
               setInCorso(false);
@@ -57,7 +64,9 @@ export function PdfTutti({
           }}
           className="min-h-11 rounded-full bg-accent px-5 text-sm font-medium text-accent-foreground disabled:opacity-60"
         >
-          {inCorso ? "Creo il PDF…" : `Crea PDF di tutti i ${tavoli.length} tavoli`}
+          {inCorso
+            ? t("locandina.tutti.in_corso")
+            : t("locandina.tutti.crea", { n: tavoli.length })}
         </button>
         {stato && <p className="text-sm">{stato}</p>}
       </div>

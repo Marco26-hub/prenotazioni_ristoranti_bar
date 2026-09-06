@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { requireRole } from "@/lib/authz";
+import { linguaUtente } from "@/lib/lingua";
+import { tImpostazioni } from "@/i18n/impostazioni";
 
 export interface EsitoAssistente {
   error?: string;
@@ -19,6 +21,7 @@ export interface EsitoAssistente {
  */
 export async function salvaAssistente(formData: FormData): Promise<EsitoAssistente> {
   const { venue } = await requireRole(["owner", "manager"]);
+  const t = tImpostazioni(await linguaUtente());
 
   const orari = String(formData.get("orari") ?? "").trim().slice(0, 600) || null;
   const info = String(formData.get("info") ?? "").trim().slice(0, 800) || null;
@@ -30,18 +33,12 @@ export async function salvaAssistente(formData: FormData): Promise<EsitoAssisten
     const [v] = await sql<{ openrouter_api_key: string | null }[]>`
       select openrouter_api_key from venues where id = ${venue.venueId}`;
     if (!v?.openrouter_api_key) {
-      return {
-        error:
-          "Per accendere l'assistente serve prima una chiave OpenRouter: senza, non può rispondere a nulla.",
-      };
+      return { error: t("assistente.errore.chiave") };
     }
     if (!orari) {
       // "A che ora aprite?" è la prima domanda che riceverà: senza orari
       // l'assistente farebbe una figura peggiore del silenzio.
-      return {
-        error:
-          "Indica gli orari prima di accenderlo: è la domanda che riceverai per prima.",
-      };
+      return { error: t("assistente.errore.orari") };
     }
   }
 
@@ -55,8 +52,6 @@ export async function salvaAssistente(formData: FormData): Promise<EsitoAssisten
   revalidatePath("/dashboard/settings");
 
   return {
-    success: attivo
-      ? "Assistente acceso. Compare sul menu pubblico e sulla pagina di prenotazione; ogni domanda è una chiamata addebitata sul tuo account OpenRouter."
-      : "Salvato. L'assistente è spento: nessuna chiamata, nessun costo.",
+    success: attivo ? t("assistente.ok.acceso") : t("assistente.ok.spento"),
   };
 }

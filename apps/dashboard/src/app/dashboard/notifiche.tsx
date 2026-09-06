@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tGuscio } from "@/i18n/guscio";
 
 interface Chiamata {
   tavolo: string;
@@ -29,6 +31,7 @@ const INTERVALLO_MS = 30_000;
  * fermo non fa suonare nulla e una richiesta nuova sì.
  */
 export function Notifiche() {
+  const t = tGuscio(useLingua());
   const [stato, setStato] = useState<Stato | null>(null);
   const [nuova, setNuova] = useState(false);
   const ultimaVista = useRef<string | null>(null);
@@ -101,18 +104,20 @@ export function Notifiche() {
         >
           <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-2">
             <span>
-              Tavolo {c.tavolo}:{" "}
+              {t("avvisi.tavolo", { tavolo: c.tavolo })}{" "}
               {c.motivo === "contanti"
-                ? `paga in contanti — porta ${c.documento === "fattura" ? "la fattura" : "lo scontrino"}`
+                ? c.documento === "fattura"
+                  ? t("avvisi.contanti.fattura")
+                  : t("avvisi.contanti.scontrino")
                 : c.motivo === "conto"
-                  ? "chiede il conto"
-                  : "chiama il cameriere"}
+                  ? t("avvisi.conto")
+                  : t("avvisi.cameriere")}
             </span>
             <Link
               href="/dashboard"
               className="flex min-h-11 items-center rounded-full border border-current px-4 text-sm"
             >
-              Vai in sala
+              {t("avvisi.sala")}
             </Link>
           </div>
         </div>
@@ -129,16 +134,15 @@ export function Notifiche() {
     >
       <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-2">
         <span>
-          {nuova ? "Nuova prenotazione: " : ""}
-          {daConfermare}{" "}
-          {daConfermare === 1 ? "richiesta da confermare" : "richieste da confermare"}
+          {nuova ? `${t("avvisi.nuova")} ` : ""}
+          {t.n(daConfermare, "avvisi.daconfermare")}
         </span>
         <Link
           href="/dashboard/reservations"
           onClick={() => setNuova(false)}
           className="flex min-h-11 items-center rounded-full border border-current px-4 text-sm font-medium"
         >
-          Vedi
+          {t("avvisi.vedi")}
         </Link>
       </div>
     </div>

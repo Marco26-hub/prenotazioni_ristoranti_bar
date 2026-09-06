@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useRitmo } from "@repo/shared/ritmo";
 
 import {
@@ -11,7 +18,12 @@ import {
 } from "./actions";
 import { segnalaDispositivo } from "../staff/dispositivi-actions";
 import type { OrderItemStatus, StaffRole } from "@repo/shared";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tServizio } from "@/i18n/servizio";
 import { creaRiconoscimento, interpreta, type Riconoscimento } from "./comando-vocale";
+
+/** Le chiavi del dizionario di quest'area, per gli elenchi qui sotto. */
+type ChiaveServizio = Parameters<ReturnType<typeof tServizio>>[0];
 
 interface LiveItem {
   id: string;
@@ -71,12 +83,12 @@ const COLORE_RIGA: Record<string, string> = {
  * riga: derivarlo a stringhe lasciava tre voci su cinque senza colore, e una
  * legenda incompleta è peggio di nessuna legenda.
  */
-const LEGENDA_RIGA: Array<[string, string, string]> = [
-  ["pending", "da inviare", "bg-zinc-500"],
-  ["sent_to_kitchen", "in coda", "bg-violet-500"],
-  ["preparing", "in cottura", "bg-amber-500"],
-  ["ready", "pronto", "bg-sky-500"],
-  ["served", "portato", "bg-emerald-500"],
+const LEGENDA_RIGA: Array<[string, ChiaveServizio, string]> = [
+  ["pending", "legenda.pending", "bg-zinc-500"],
+  ["sent_to_kitchen", "legenda.sent_to_kitchen", "bg-violet-500"],
+  ["preparing", "legenda.preparing", "bg-amber-500"],
+  ["ready", "legenda.ready", "bg-sky-500"],
+  ["served", "legenda.served", "bg-emerald-500"],
 ];
 
 
@@ -131,17 +143,17 @@ function scegliReparto(r: string) {
   for (const fn of ascoltatori) fn();
 }
 
-const DESTINAZIONE: Record<string, string> = {
-  sent_to_kitchen: "Metti in preparazione",
-  preparing: "Segna pronto",
-  ready: "Segna servito",
+const DESTINAZIONE: Record<string, ChiaveServizio> = {
+  sent_to_kitchen: "azione.sent_to_kitchen",
+  preparing: "azione.preparing",
+  ready: "azione.ready",
 };
 
-const ETICHETTA: Record<string, string> = {
-  sent_to_kitchen: "Da preparare",
-  preparing: "In preparazione",
-  ready: "Pronto",
-  served: "Servito",
+const ETICHETTA: Record<string, ChiaveServizio> = {
+  sent_to_kitchen: "stato.sent_to_kitchen",
+  preparing: "stato.preparing",
+  ready: "stato.ready",
+  served: "stato.served",
 };
 
 /** Ripiego se il locale non ha ancora scelto la sua soglia. */
@@ -155,6 +167,11 @@ export function LiveBoard({
   /** Le postazioni di questo locale, coi nomi che ha scelto lui. */
   reparti: { chiave: string; etichetta: string }[];
 }) {
+  const lingua = useLingua();
+  // Memoizzato perché entra nelle dipendenze dei callback qui sotto: un
+  // traduttore nuovo a ogni render li rifarebbe tutti a ogni render.
+  const t = useMemo(() => tServizio(lingua), [lingua]);
+
   /*
    * I nomi sono suoi.
    *
@@ -163,7 +180,9 @@ export function LiveBoard({
    * che non erano le loro.
    */
   const etichettaReparto = (c: string | null) =>
-    reparti.find((r) => r.chiave === (c ?? "cucina"))?.etichetta ?? c ?? "Cucina";
+    reparti.find((r) => r.chiave === (c ?? "cucina"))?.etichetta ??
+    c ??
+    t("reparto.cucina");
 
   const [items, setItems] = useState<LiveItem[]>([]);
   const [adesso, setAdesso] = useState(() => Date.now());
@@ -205,7 +224,7 @@ export function LiveBoard({
   const riconoscimentoRef = useRef<Riconoscimento | null>(null);
   const vocaleDisponibile = useSyncExternalStore(
     () => () => {},
-    () => creaRiconoscimento() !== null,
+    () => creaRiconoscimento(lingua) !== null,
     () => false
   );
 
@@ -219,6 +238,32 @@ export function LiveBoard({
    */
   const chiaveGruppo = (i: LiveItem) =>
     i.pickup_number != null ? `N. ${i.pickup_number}` : i.table_code;
+
+  /*
+   * "N. " è un pezzo di protocollo, non una parola.
+   *
+   * La chiave di gruppo viaggia fino alla Server Action, che la riconosce
+   * con un `like 'N. %'`: tradurla romperebbe l'azione in blocco al banco.
+   * Si traduce solo quello che finisce sotto gli occhi.
+   */
+  const etichettaGruppo = (codice: string) =>
+    codice.startsWith("N. ") ? t("banco.ritiro.n", { n: codice.slice(3) }) : codice;
+
+  /*
+   * Quello che questo schermo sta davvero guardando.
+   *
+   * Stava dentro il ciclo che raggruppa i tavoli, cioè dopo le azioni: le
+   * azioni lavoravano su `items`, che è tutto il locale. Il comando vocale
+   * cercava il tavolo lì dentro, e "tavolo 5 pronto" detto al banco crudo
+   * mandava pronta anche la cucina — sullo stesso tavolo, ma sui piatti di
+   * un altro. Ora il filtro è uno solo e sta prima di chi lo usa.
+   */
+  const haRango = items.some((i) => i.mio_tavolo);
+  const visibili = items.filter(
+    (i) =>
+      !(soloMiei && haRango && !i.mio_tavolo) &&
+      (reparto === "tutti" || (i.reparto ?? "cucina") === reparto)
+  );
 
   const carica = useCallback(async () => {
     /*
@@ -282,10 +327,10 @@ export function LiveBoard({
         setItems((prev) =>
           prev.map((i) => (i.id === item.id ? { ...i, status: item.status } : i))
         );
-        setNegato("Non ha funzionato: controlla la connessione e riprova.");
+        setNegato(t("avviso.non_riuscito"));
       }
     },
-    []
+    [t]
   );
 
   const trattieni = useCallback(
@@ -302,49 +347,59 @@ export function LiveBoard({
       try {
         await trattieniRiga(r.id, !r.held_at);
       } catch {
-        setNegato("Non ha funzionato: controlla la connessione e riprova.");
+        setNegato(t("avviso.non_riuscito"));
       } finally {
         // Il ricarico rimette comunque a schermo quello che il database sa:
         // l'aggiornamento ottimistico non deve sopravvivere a un errore.
         await carica();
       }
     },
-    [carica]
+    [carica, t]
   );
 
   const trattieniIlTavolo = useCallback(
     async (codice: string, valore: boolean) => {
       try {
-        await trattieniTavolo(codice, valore);
+        await trattieniTavolo(codice, valore, reparto);
       } catch {
-        setNegato("Non ha funzionato: controlla la connessione e riprova.");
+        setNegato(t("avviso.non_riuscito"));
       } finally {
         await carica();
       }
     },
-    [carica]
+    [carica, reparto, t]
   );
 
   const avanzaTavolo = useCallback(
     async (codice: string, da: OrderItemStatus, a: OrderItemStatus) => {
+      // Anche l'anticipo a schermo rispetta il reparto: senza, le righe
+      // della cucina saltavano avanti per un istante sullo schermo del
+      // banco, per poi tornare indietro al ricarico.
+      const suo = (i: LiveItem) =>
+        reparto === "tutti" || (i.reparto ?? "cucina") === reparto;
       setItems((prev) =>
         prev.map((i) =>
-          chiaveGruppo(i) === codice && i.status === da ? { ...i, status: a } : i
+          chiaveGruppo(i) === codice && i.status === da && suo(i)
+            ? { ...i, status: a }
+            : i
         )
       );
       try {
-        const r = await advanceTableItems(codice, da, a);
+        // Il reparto dello schermo va passato: il bottone conta le righe
+        // filtrate, e senza questo ne spostava molte di più di quante ne
+        // aveva contate.
+        const r = await advanceTableItems(codice, da, a, reparto);
         if (r.error) setNegato(r.error);
       } catch {
         // È il gesto che si usa davvero in cucina, ed era l'unico senza
         // rete di protezione: l'aggiornamento ottimistico spostava i piatti
         // a schermo e un errore li faceva tornare indietro senza una parola.
-        setNegato("Non ha funzionato: controlla la connessione e riprova.");
+        setNegato(t("avviso.non_riuscito"));
       } finally {
         await carica();
       }
     },
-    [carica]
+    [carica, reparto, t]
   );
 
   // --- Comando vocale ------------------------------------------------------
@@ -353,29 +408,40 @@ export function LiveBoard({
       const azione = interpreta(frase);
 
       if (azione.tipo === "sconosciuto") {
-        setUltimoComando(`Non ho capito: "${frase}"`);
+        setUltimoComando(t("vocale.non_capito", { frase }));
         return;
       }
 
       // Chi parla dice "tavolo 3", il codice può essere "T3" o "3".
-      const codice = items.find(
+      const codice = visibili.find(
         (i) =>
           i.table_code === azione.tavolo ||
           i.table_code.replace(/^\D+/, "") === azione.tavolo
       )?.table_code;
 
       if (!codice) {
-        setUltimoComando(`Tavolo ${azione.tavolo}: nessuna comanda aperta`);
+        setUltimoComando(t("vocale.tavolo.vuoto", { tavolo: azione.tavolo }));
         return;
       }
 
       if (azione.tipo === "trattieni") {
         const { aggiornate } = await trattieniTavolo(codice, azione.trattieni);
         await carica();
+        const piatti = t.n(aggiornate, "vocale.piatti");
         setUltimoComando(
           aggiornate > 0
-            ? `Tavolo ${codice}: ${aggiornate} ${aggiornate === 1 ? "piatto" : "piatti"} ${azione.trattieni ? "trattenuti" : "mandati"}`
-            : `Tavolo ${codice}: niente da ${azione.trattieni ? "trattenere" : "mandare"}`
+            ? t(
+                azione.trattieni
+                  ? "vocale.tavolo.trattenuti"
+                  : "vocale.tavolo.mandati",
+                { tavolo: codice, piatti }
+              )
+            : t(
+                azione.trattieni
+                  ? "vocale.tavolo.niente_trattenere"
+                  : "vocale.tavolo.niente_mandare",
+                { tavolo: codice }
+              )
         );
         return;
       }
@@ -393,13 +459,18 @@ export function LiveBoard({
         return;
       }
 
+      const stato = t(ETICHETTA[azione.a]);
       setUltimoComando(
         aggiornate > 0
-          ? `Tavolo ${codice}: ${aggiornate} ${aggiornate === 1 ? "piatto" : "piatti"} → ${ETICHETTA[azione.a]}`
-          : `Tavolo ${codice}: niente da spostare in ${ETICHETTA[azione.a]}`
+          ? t("vocale.tavolo.spostati", {
+              tavolo: codice,
+              piatti: t.n(aggiornate, "vocale.piatti"),
+              stato,
+            })
+          : t("vocale.tavolo.niente_spostare", { tavolo: codice, stato })
       );
     },
-    [items, carica]
+    [visibili, carica, t]
   );
 
   const eseguiRef = useRef(eseguiComando);
@@ -414,9 +485,12 @@ export function LiveBoard({
       return;
     }
 
-    const r = creaRiconoscimento();
+    // La lingua va passata: un riconoscitore fermo sull'italiano restituisce
+    // a chi detta in inglese una trascrizione che nessuna frase può
+    // soddisfare, e il comando sembra rotto invece che nella lingua sbagliata.
+    const r = creaRiconoscimento(lingua);
     if (!r) {
-      setErroreVocale("Questo browser non riconosce la voce. Usa Chrome o Safari.");
+      setErroreVocale(t("vocale.errore.browser"));
       return;
     }
 
@@ -429,8 +503,8 @@ export function LiveBoard({
     r.onerror = (e) => {
       setErroreVocale(
         e.error === "not-allowed"
-          ? "Microfono negato. Concedilo dalle impostazioni del browser."
-          : `Riconoscimento interrotto (${e.error}).`
+          ? t("vocale.errore.microfono")
+          : t("vocale.errore.interrotto", { errore: e.error })
       );
       setVocale(false);
     };
@@ -452,7 +526,7 @@ export function LiveBoard({
       r.start();
       setVocale(true);
     } catch {
-      setErroreVocale("Non è stato possibile avviare il microfono.");
+      setErroreVocale(t("vocale.errore.avvio"));
     }
   }
 
@@ -465,13 +539,13 @@ export function LiveBoard({
   }, []);
 
   // --- Raggruppamento per tavolo ------------------------------------------
-  const haRango = items.some((i) => i.mio_tavolo);
+  // I reparti da offrire nel selettore si contano su TUTTE le righe, non su
+  // quelle visibili: filtrando sul bar, il bar resterebbe l'unica voce e non
+  // si potrebbe più tornare indietro.
   const repartiPresenti = [...new Set(items.map((i) => i.reparto ?? "cucina"))].sort();
 
   const perTavolo = new Map<string, LiveItem[]>();
-  for (const i of items) {
-    if (soloMiei && haRango && !i.mio_tavolo) continue;
-    if (reparto !== "tutti" && (i.reparto ?? "cucina") !== reparto) continue;
+  for (const i of visibili) {
     const lista = perTavolo.get(chiaveGruppo(i)) ?? [];
     lista.push(i);
     perTavolo.set(chiaveGruppo(i), lista);
@@ -494,24 +568,18 @@ export function LiveBoard({
           }`}
         >
           <span aria-hidden>{vocale ? "●" : "○"}</span>
-          {vocale ? "Ascolto attivo" : "Comando vocale"}
+          {vocale ? t("vocale.attivo") : t("vocale.attiva")}
         </button>
 
-        {vocale && (
-          <p className="text-sm text-muted">Parla al tavolo, non allo schermo.</p>
-        )}
+        {vocale && <p className="text-sm text-muted">{t("vocale.parla")}</p>}
         {!vocaleDisponibile && (
-          <p className="text-sm text-muted">
-            Il comando vocale richiede Chrome o Safari.
-          </p>
+          <p className="text-sm text-muted">{t("vocale.non_disponibile")}</p>
         )}
       </div>
 
       {vocale && (
         <p className="mt-2 rounded-lg border border-border bg-surface p-3 text-xs text-muted">
-          Con l&apos;ascolto attivo il browser invia l&apos;audio al proprio
-          servizio di trascrizione — su Chrome, ai server di Google. In cucina
-          si parla di tutto: accendilo quando serve e spegnilo dopo.
+          {t("vocale.privacy")}
         </p>
       )}
 
@@ -521,45 +589,41 @@ export function LiveBoard({
           rifiutate. */}
       <details className="mt-3 rounded-lg border border-border bg-surface">
         <summary className="flex min-h-11 cursor-pointer items-center px-3 text-sm">
-          Comandi vocali che puoi usare
+          {t("vocale.aiuto.titolo")}
         </summary>
         <div className="space-y-2 px-3 pb-3 text-sm">
           <ul className="space-y-1">
             {consentiti.includes("preparing") && (
               <li>
-                <strong>&laquo;tavolo 3 in preparazione&raquo;</strong> — la cucina
-                lo prende in mano
+                <strong>{t("vocale.aiuto.preparing")}</strong> —{" "}
+                {t("vocale.aiuto.preparing.spiega")}
               </li>
             )}
             {consentiti.includes("ready") && (
               <li>
-                <strong>&laquo;tavolo 3 pronto&raquo;</strong> — è al passe, da
-                portare
+                <strong>{t("vocale.aiuto.ready")}</strong> —{" "}
+                {t("vocale.aiuto.ready.spiega")}
               </li>
             )}
             {consentiti.includes("served") && (
               <li>
-                <strong>&laquo;tavolo 3 servito&raquo;</strong> — è arrivato al
-                tavolo
+                <strong>{t("vocale.aiuto.served")}</strong> —{" "}
+                {t("vocale.aiuto.served.spiega")}
               </li>
             )}
             <li>
-              <strong>&laquo;ritarda il 3&raquo;</strong> — trattiene: la cucina
-              non lo prepara
+              <strong>{t("vocale.aiuto.trattieni")}</strong> —{" "}
+              {t("vocale.aiuto.trattieni.spiega")}
             </li>
             <li>
-              <strong>&laquo;manda il 3&raquo;</strong> — libera quello che era
-              trattenuto
+              <strong>{t("vocale.aiuto.manda")}</strong> —{" "}
+              {t("vocale.aiuto.manda.spiega")}
             </li>
           </ul>
           <p className="text-muted">
-            Vanno bene anche &laquo;pronto il tre&raquo;, &laquo;t7
-            servito&raquo;, &laquo;aspetta il quattro&raquo;: il numero può
-            essere detto a parole e l&apos;ordine non conta.
-            {ruolo === "kitchen" &&
-              " Segnare servito spetta alla sala: quel comando non ti risponde."}
-            {ruolo === "waiter" &&
-              " Segnare pronto spetta alla cucina: quel comando non ti risponde."}
+            {t("vocale.aiuto.varianti")}
+            {ruolo === "kitchen" && t("vocale.aiuto.cucina")}
+            {ruolo === "waiter" && t("vocale.aiuto.sala")}
           </p>
         </div>
       </details>
@@ -574,13 +638,13 @@ export function LiveBoard({
                   aria-hidden
                   className={`inline-block h-3 w-3 shrink-0 rounded-sm ${colore}`}
                 />
-                {testo}
+                {t(testo)}
               </li>
             )
           )}
           <li className="flex items-center gap-1.5">
             <span aria-hidden className="inline-block h-3 w-3 rounded-sm bg-danger" />
-            in ritardo
+            {t("legenda.ritardo")}
           </li>
         </ul>
       )}
@@ -590,8 +654,7 @@ export function LiveBoard({
           role="alert"
           className="mt-2 rounded-lg border border-danger bg-danger/10 p-3 text-sm font-medium text-danger"
         >
-          Schermo non aggiornato: nessuna risposta dal server. Quello che vedi
-          potrebbe non essere più vero.
+          {t("avviso.scollegato")}
         </p>
       )}
 
@@ -614,7 +677,7 @@ export function LiveBoard({
 
       {repartiPresenti.length > 1 && (
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <span className="text-sm text-muted">Questo schermo:</span>
+          <span className="text-sm text-muted">{t("filtro.schermo")}</span>
           {["tutti", ...repartiPresenti].map((r) => (
             <button
               key={r}
@@ -627,7 +690,7 @@ export function LiveBoard({
                   : "border border-border"
               }`}
             >
-              {r === "tutti" ? "Tutto" : (etichettaReparto(r))}
+              {r === "tutti" ? t("filtro.tutto") : etichettaReparto(r)}
             </button>
           ))}
         </div>
@@ -646,7 +709,7 @@ export function LiveBoard({
               soloMiei ? "bg-accent text-accent-foreground" : "border border-border"
             }`}
           >
-            I miei tavoli
+            {t("filtro.miei_tavoli")}
           </button>
           <button
             type="button"
@@ -656,16 +719,14 @@ export function LiveBoard({
               !soloMiei ? "bg-accent text-accent-foreground" : "border border-border"
             }`}
           >
-            Tutta la sala
+            {t("filtro.tutta_sala")}
           </button>
         </div>
       )}
 
       {tavoli.length === 0 ? (
         <p className="mt-4 rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted">
-          {soloMiei && haRango
-            ? "Nessun ordine sui tuoi tavoli."
-            : "Nessun ordine in corso."}
+          {soloMiei && haRango ? t("comande.vuoto.miei") : t("comande.vuoto")}
         </p>
       ) : (
         <ul className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -717,24 +778,28 @@ export function LiveBoard({
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <p className="flex items-center gap-2">
                     <span className="text-sm uppercase tracking-wide text-muted">
-                      Tavolo
+                      {t("tavolo.etichetta")}
                     </span>
                     {/* Grande e fluo: in cucina si legge di sfuggita, di
-                        lato, con le mani occupate. */}
+                        lato, con le mani occupate. A schermo va l'etichetta,
+                        non il codice grezzo: "N. 7" è la chiave che viaggia
+                        fino all'action, e al banco inglese si legge "No. 7". */}
                     <span className="rounded-lg bg-lime-300 px-3 py-0.5 text-3xl font-black leading-tight tracking-tight text-zinc-900">
-                      {codice}
+                      {etichettaGruppo(codice)}
                     </span>
                   </p>
                   {tuttoServito && (
                     <span className="text-sm font-medium text-success">
-                      tutto servito
+                      {t("tavolo.tutto_servito")}
                     </span>
                   )}
                   {!tuttoServito && attesaMin !== null && (
                     <span
                       className={`text-sm tabular-nums ${inRitardo ? "font-bold text-danger" : "text-muted"}`}
                     >
-                      {attesaMin} min{inRitardo ? " · in ritardo" : ""}
+                      {t(inRitardo ? "tavolo.attesa.ritardo" : "tavolo.attesa", {
+                        n: attesaMin,
+                      })}
                     </span>
                   )}
                 </div>
@@ -762,7 +827,7 @@ export function LiveBoard({
                         )}
                         {r.held_at && (
                           <span className="mt-0.5 block text-sm font-medium text-amber-600">
-                            Trattenuto — non preparare
+                            {t("riga.trattenuto")}
                           </span>
                         )}
                         {/* Chi ha mosso la riga per ultimo. Con più palmari,
@@ -776,22 +841,21 @@ export function LiveBoard({
                         <button
                           type="button"
                           onClick={() => trattieni(r)}
-                          aria-label={
-                            r.held_at
-                              ? `Manda ora ${r.item_name}`
-                              : `Ritarda ${r.item_name}`
-                          }
+                          aria-label={t(
+                            r.held_at ? "azione.manda.piatto" : "azione.trattieni.piatto",
+                            { piatto: r.item_name }
+                          )}
                           className={`flex min-h-11 items-center rounded-full border px-3 text-xs ${
                             r.held_at
                               ? "border-amber-500 bg-amber-500/20 font-medium"
                               : "border-border"
                           }`}
                         >
-                          {r.held_at ? "Manda ora" : "Ritarda"}
+                          {t(r.held_at ? "azione.manda" : "azione.trattieni")}
                         </button>
                         {r.status === "served" ? (
                           <span className="px-2 text-xs font-medium text-success">
-                            portato
+                            {t("riga.portato")}
                           </span>
                         ) : (
                           !r.held_at &&
@@ -801,13 +865,13 @@ export function LiveBoard({
                               onClick={() => avanza(r)}
                               className="flex min-h-11 items-center rounded-full border border-border px-3 text-xs"
                             >
-                              {DESTINAZIONE[r.status] ?? ETICHETTA[r.status]} →
+                              {t(DESTINAZIONE[r.status] ?? ETICHETTA[r.status])} →
                             </button>
                           ) : (
                             // Non un bottone spento: lo stato attuale, che è
                             // l'informazione che serve a chi non deve agire.
                             <span className="px-2 text-xs text-muted">
-                              {ETICHETTA[r.status]}
+                              {t(ETICHETTA[r.status])}
                             </span>
                           ))
                         )}
@@ -824,7 +888,7 @@ export function LiveBoard({
                       onClick={() => avanzaTavolo(codice, "sent_to_kitchen", "preparing")}
                       className="min-h-11 flex-1 rounded-full border border-border px-4 text-sm"
                     >
-                      Tutto in preparazione ({daPreparare})
+                      {t("tavolo.tutti_preparazione", { n: daPreparare })}
                     </button>
                   )}
                   {inCorso > 0 && consentiti.includes("ready") && (
@@ -833,7 +897,7 @@ export function LiveBoard({
                       onClick={() => avanzaTavolo(codice, "preparing", "ready")}
                       className="min-h-11 flex-1 rounded-full bg-accent px-4 text-sm font-medium text-accent-foreground"
                     >
-                      Tutto pronto ({inCorso})
+                      {t("tavolo.tutti_pronti", { n: inCorso })}
                     </button>
                   )}
                   {trattenuti > 0 && (
@@ -842,7 +906,7 @@ export function LiveBoard({
                       onClick={() => trattieniIlTavolo(codice, false)}
                       className="min-h-11 flex-1 rounded-full border border-amber-500 px-4 text-sm font-medium"
                     >
-                      Manda i {trattenuti} trattenuti
+                      {t("tavolo.manda_trattenuti", { n: trattenuti })}
                     </button>
                   )}
                   {daPreparare + inCorso - trattenuti > 0 && (
@@ -851,7 +915,7 @@ export function LiveBoard({
                       onClick={() => trattieniIlTavolo(codice, true)}
                       className="min-h-11 flex-1 rounded-full border border-border px-4 text-sm"
                     >
-                      Ritarda il tavolo
+                      {t("tavolo.trattieni")}
                     </button>
                   )}
                   {pronti > 0 && consentiti.includes("served") && (
@@ -860,7 +924,7 @@ export function LiveBoard({
                       onClick={() => avanzaTavolo(codice, "ready", "served")}
                       className="min-h-11 flex-1 rounded-full bg-accent px-4 text-sm font-medium text-accent-foreground"
                     >
-                      Tutto servito ({pronti})
+                      {t("tavolo.tutti_serviti", { n: pronti })}
                     </button>
                   )}
                 </div>

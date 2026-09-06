@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { impostaRepartoCategoria } from "./reparti-actions";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tMenuAdmin } from "@/i18n/menu";
 
 /**
  * Dove si prepara questa categoria.
@@ -21,6 +23,7 @@ export function RepartoCategoria({
   reparti: { chiave: string; etichetta: string }[];
   nomeCategoria: string;
 }) {
+  const t = tMenuAdmin(useLingua());
   const [scelto, setScelto] = useState(valore);
   const [avviso, setAvviso] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -30,7 +33,7 @@ export function RepartoCategoria({
       <select
         value={scelto}
         disabled={pending}
-        aria-label={`Dove si prepara ${nomeCategoria}`}
+        aria-label={t("postazione.dove.si.prepara", { categoria: nomeCategoria })}
         onChange={(e) => {
           const chiave = e.target.value;
           const prima = scelto;

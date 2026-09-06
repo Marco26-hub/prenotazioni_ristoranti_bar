@@ -6,6 +6,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@repo/shared/db";
 import { requireVenue, requireRole } from "@/lib/authz";
+import { linguaUtente } from "@/lib/lingua";
+import { tMenuAdmin } from "@/i18n/menu";
 
 export async function addCategory(formData: FormData) {
   const { venue } = await requireRole(["owner", "manager"], "ordini");
@@ -69,6 +71,9 @@ export async function updateMenuItemPrice(formData: FormData) {
  */
 export async function duplicateMenuItem(itemId: string) {
   const { venue } = await requireRole(["owner", "manager"], "ordini");
+  // Il prefisso della copia lo legge chi ha appena premuto il bottone: va
+  // nella sua lingua, non in quella in cui è scritto il menu.
+  const prefisso = tMenuAdmin(await linguaUtente())("azione.copia_di", { nome: "" });
   const sql = db();
 
   let nuovoId: string | null = null;
@@ -99,7 +104,7 @@ export async function duplicateMenuItem(itemId: string) {
         product_style, format, grape_variety, service_type, conservation,
         origin_note, translations, pairing_item_id, available, sort_order
       )
-      select venue_id, category_id, 'Copia di ' || name, description,
+      select venue_id, category_id, ${prefisso} || name, description,
              price_cents, vat_rate, image_url, allergens, dietary_tags,
              ingredients, kind, producer, vintage, denomination, origin,
              abv, serving_note, subcategory, product_style, format,
@@ -169,13 +174,15 @@ export async function duplicateMenuItem(itemId: string) {
  */
 export async function updateMenuItem(formData: FormData): Promise<{ error?: string }> {
   const { venue } = await requireRole(["owner", "manager"], "ordini");
+  const t = tMenuAdmin(await linguaUtente());
   const itemId = String(formData.get("itemId") ?? "");
   const name = String(formData.get("name") ?? "").trim();
   const priceEuro = Number.parseFloat(String(formData.get("price") ?? ""));
 
-  if (!itemId) return { error: "Piatto non indicato" };
-  if (!name) return { error: "Il nome è obbligatorio" };
-  if (!Number.isFinite(priceEuro) || priceEuro < 0) return { error: "Prezzo non valido" };
+  if (!itemId) return { error: t("errore.piatto.non.indicato") };
+  if (!name) return { error: t("errore.nome.obbligatorio") };
+  if (!Number.isFinite(priceEuro) || priceEuro < 0)
+    return { error: t("errore.prezzo") };
 
   const text = (key: string) => {
     const v = String(formData.get(key) ?? "").trim();
@@ -231,13 +238,13 @@ export async function updateMenuItem(formData: FormData): Promise<{ error?: stri
   if (categoryId) {
     const [cat] = await sql<{ id: string }[]>`
       select id from menu_categories where id = ${categoryId} and venue_id = ${venue.venueId}`;
-    if (!cat) return { error: "Categoria non valida" };
+    if (!cat) return { error: t("errore.categoria") };
   }
   if (pairingId) {
-    if (pairingId === itemId) return { error: "Un piatto non può abbinarsi a se stesso" };
+    if (pairingId === itemId) return { error: t("errore.abbinamento.se.stesso") };
     const [pair] = await sql<{ id: string }[]>`
       select id from menu_items where id = ${pairingId} and venue_id = ${venue.venueId}`;
-    if (!pair) return { error: "Abbinamento non valido" };
+    if (!pair) return { error: t("errore.abbinamento") };
   }
 
   const [updated] = await sql<{ id: string }[]>`
@@ -271,7 +278,7 @@ export async function updateMenuItem(formData: FormData): Promise<{ error?: stri
     where id = ${itemId} and venue_id = ${venue.venueId}
     returning id`;
 
-  if (!updated) return { error: "Piatto non trovato" };
+  if (!updated) return { error: t("errore.piatto.non.trovato") };
 
   revalidatePath("/dashboard/menu");
   return {};
@@ -279,9 +286,10 @@ export async function updateMenuItem(formData: FormData): Promise<{ error?: stri
 
 export async function updateCategory(formData: FormData): Promise<{ error?: string }> {
   const { venue } = await requireRole(["owner", "manager"], "ordini");
+  const t = tMenuAdmin(await linguaUtente());
   const categoryId = String(formData.get("categoryId") ?? "");
   const name = String(formData.get("name") ?? "").trim();
-  if (!categoryId || !name) return { error: "Nome categoria mancante" };
+  if (!categoryId || !name) return { error: t("errore.nome.categoria") };
 
   const sql = db();
   const [row] = await sql<{ id: string }[]>`
@@ -289,7 +297,7 @@ export async function updateCategory(formData: FormData): Promise<{ error?: stri
     where id = ${categoryId} and venue_id = ${venue.venueId}
     returning id`;
 
-  if (!row) return { error: "Categoria non trovata" };
+  if (!row) return { error: t("errore.categoria.non.trovata") };
   revalidatePath("/dashboard/menu");
   return {};
 }
@@ -301,11 +309,12 @@ export async function updateCategory(formData: FormData): Promise<{ error?: stri
  */
 export async function deleteCategory(categoryId: string): Promise<{ error?: string }> {
   const { venue } = await requireRole(["owner", "manager"], "ordini");
+  const t = tMenuAdmin(await linguaUtente());
   const sql = db();
 
   const [cat] = await sql<{ id: string }[]>`
     select id from menu_categories where id = ${categoryId} and venue_id = ${venue.venueId}`;
-  if (!cat) return { error: "Categoria non trovata" };
+  if (!cat) return { error: t("errore.categoria.non.trovata") };
 
   await sql.begin(async (tx) => {
     await tx`update menu_items set category_id = null

@@ -2,6 +2,8 @@
 
 import { useActionState, useState } from "react";
 import { salvaFormula, type EsitoFormula } from "./formula-actions";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tImpostazioni } from "@/i18n/impostazioni";
 
 const CAMPO =
   "min-h-11 w-full rounded-lg border border-border bg-background px-3 text-base";
@@ -35,6 +37,7 @@ export function FormulaForm({
   supplementoCents: number;
   nota: string;
 }) {
+  const t = tImpostazioni(useLingua());
   const [state, azione, pending] = useActionState<EsitoFormula | null, FormData>(
     async (_prec, formData) => salvaFormula(formData),
     null
@@ -57,7 +60,7 @@ export function FormulaForm({
           onChange={(e) => setAccesa(e.target.checked)}
           className="h-4 w-4"
         />
-        Il locale propone una formula a prezzo fisso
+        {t("formula.attiva")}
       </label>
 
       {accesa && (
@@ -65,7 +68,7 @@ export function FormulaForm({
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-sm" htmlFor="f-pranzo">
-                Prezzo a persona, pranzo (€)
+                {t("formula.pranzo")}
               </label>
               <input
                 id="f-pranzo"
@@ -80,7 +83,7 @@ export function FormulaForm({
             </div>
             <div>
               <label className="mb-1 block text-sm" htmlFor="f-cena">
-                Prezzo a persona, cena (€)
+                {t("formula.cena")}
               </label>
               <input
                 id="f-cena"
@@ -97,7 +100,7 @@ export function FormulaForm({
 
           <div>
             <label className="mb-1 block text-sm" htmlFor="f-ora">
-              Da che ora vale il prezzo di cena
+              {t("formula.ora")}
             </label>
             <input
               id="f-ora"
@@ -106,20 +109,16 @@ export function FormulaForm({
               defaultValue={oraCena.slice(0, 5)}
               className={`${CAMPO} sm:w-40`}
             />
-            <p className="mt-1 text-xs text-muted">
-              Conta l&apos;ora in cui il tavolo si è seduto, non quella in cui
-              chiede il conto: chi si siede alle 12:30 paga il pranzo anche se
-              esce alle 17.
-            </p>
+            <p className="mt-1 text-xs text-muted">{t("formula.ora.nota")}</p>
           </div>
 
           <fieldset>
-            <legend className="mb-1 text-sm">I bambini</legend>
+            <legend className="mb-1 text-sm">{t("formula.bambini")}</legend>
             <div className="space-y-1">
               {[
-                ["adulti", "Pagano come gli adulti"],
-                ["gratis", "Non pagano"],
-                ["ridotto", "Pagano una tariffa ridotta"],
+                ["adulti", t("formula.bambini.adulti")],
+                ["gratis", t("formula.bambini.gratis")],
+                ["ridotto", t("formula.bambini.ridotto")],
               ].map(([valore, etichetta]) => (
                 <label
                   key={valore}
@@ -141,7 +140,7 @@ export function FormulaForm({
             {modo === "ridotto" && (
               <div className="mt-2">
                 <label className="mb-1 block text-sm" htmlFor="f-bambino">
-                  Tariffa bambino (€)
+                  {t("formula.bambino.tariffa")}
                 </label>
                 <input
                   id="f-bambino"
@@ -159,7 +158,7 @@ export function FormulaForm({
             {modo !== "adulti" && (
               <div className="mt-2">
                 <label className="mb-1 block text-sm" htmlFor="f-eta">
-                  Fino a che età (anni)
+                  {t("formula.eta")}
                 </label>
                 <input
                   id="f-eta"
@@ -168,20 +167,17 @@ export function FormulaForm({
                   min="0"
                   max="17"
                   defaultValue={etaMax ?? ""}
-                  placeholder="es. 10"
+                  placeholder={t("formula.eta.placeholder")}
                   className={`${CAMPO} sm:w-40`}
                 />
-                <p className="mt-1 text-xs text-muted">
-                  Serve a scriverlo sul menu. Senza una soglia dichiarata, due
-                  tavoli identici pagano diverso a seconda di chi li serve.
-                </p>
+                <p className="mt-1 text-xs text-muted">{t("formula.eta.nota")}</p>
               </div>
             )}
           </fieldset>
 
           <div>
             <label className="mb-1 block text-sm" htmlFor="f-suppl">
-              Supplemento per l&apos;avanzato (€)
+              {t("formula.supplemento")}
             </label>
             <input
               id="f-suppl"
@@ -194,11 +190,9 @@ export function FormulaForm({
               className={`${CAMPO} sm:w-40`}
             />
             <p className="mt-1 text-xs text-muted">
-              Lo aggiunge il cameriere alla chiusura, guardando il tavolo:
-              nessun programma può sapere quanto è rimasto nel piatto. Va
-              scritto sul menu <strong>prima</strong> che si ordini — se compare
-              solo sul conto è una condizione che il cliente non ha accettato.
-              0 = non lo applichi.
+              {t("formula.supplemento.nota.prima")}{" "}
+              <strong>{t("formula.supplemento.nota.forte")}</strong>{" "}
+              {t("formula.supplemento.nota.dopo")}
             </p>
           </div>
 
@@ -209,12 +203,12 @@ export function FormulaForm({
               defaultChecked={predefinita}
               className="h-4 w-4"
             />
-            I nuovi tavoli partono già a formula
+            {t("formula.predefinita")}
           </label>
 
           <div>
             <label className="mb-1 block text-sm" htmlFor="f-nota">
-              Cosa comprende, per il cliente
+              {t("formula.nota")}
             </label>
             <textarea
               id="f-nota"
@@ -222,15 +216,15 @@ export function FormulaForm({
               rows={2}
               maxLength={500}
               defaultValue={nota}
-              placeholder="Tutto il menu esclusi dolci, caffè, amari e bevande. Ordinazioni a ondate."
+              placeholder={t("formula.nota.placeholder")}
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base"
             />
           </div>
 
           <p className="rounded-lg bg-background p-3 text-xs text-muted">
-            Le voci che restano a pagamento si segnano una per una nel menu, con
-            la spunta <strong>Fuori formula</strong>: dolci, caffè, amari,
-            bevande e i piatti premium.
+            {t("formula.fuori.prima")}{" "}
+            <strong>{t("formula.fuori.forte")}</strong>
+            {t("formula.fuori.dopo")}
           </p>
         </>
       )}
@@ -240,7 +234,7 @@ export function FormulaForm({
         disabled={pending}
         className="min-h-11 rounded-full bg-accent px-5 text-sm font-medium text-accent-foreground disabled:opacity-60"
       >
-        {pending ? "Salvo…" : "Salva formula"}
+        {pending ? t("stato.salvo") : t("formula.salva")}
       </button>
 
       {state?.error && <p className="text-sm text-danger">{state.error}</p>}

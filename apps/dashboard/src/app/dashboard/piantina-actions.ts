@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { requireRole } from "@/lib/authz";
+import { tSala } from "@/i18n/sala";
+import { linguaUtente } from "@/lib/lingua";
 
 /**
  * Piantina della sala caricata dal locale.
@@ -29,12 +31,13 @@ export async function salvaPiantina(
   formData: FormData
 ): Promise<{ ok?: string; error?: string }> {
   const { venue } = await requireRole(["owner", "manager"]);
+  const t = tSala(await linguaUtente());
   const sql = db();
 
   if (formData.get("rimuovi") === "1") {
     await sql`update venues set floor_plan_url = null where id = ${venue.venueId}`;
     revalidatePath("/dashboard");
-    return { ok: "Piantina rimossa." };
+    return { ok: t("azioni.piantina.rimossa") };
   }
 
   const opacitaGrezza = formData.get("opacita");
@@ -42,21 +45,21 @@ export async function salvaPiantina(
     const o = Math.min(100, Math.max(0, Number.parseInt(String(opacitaGrezza), 10) || 0));
     await sql`update venues set floor_plan_opacity = ${o} where id = ${venue.venueId}`;
     revalidatePath("/dashboard");
-    return { ok: "Trasparenza aggiornata." };
+    return { ok: t("azioni.piantina.trasparenza") };
   }
 
   const dataUrl = String(formData.get("dataUrl") ?? "");
-  if (!dataUrl) return { error: "Nessun file" };
+  if (!dataUrl) return { error: t("azioni.piantina.nessun_file") };
 
   const intestazione = dataUrl.match(/^data:([a-z+/-]+);base64,/i);
   if (!intestazione || !TIPI.has(intestazione[1].toLowerCase())) {
-    return { error: "Formato non supportato. Usa PDF, SVG, PNG, JPG o WEBP." };
+    return { error: t("azioni.piantina.formato") };
   }
 
   // La lunghezza della stringa base64 sovrastima del 33% i byte reali: va
   // bene, il limite serve a proteggere la riga e la pagina, non a essere esatto.
   if (dataUrl.length > LIMITE_BYTE * 1.4) {
-    return { error: "Piantina troppo pesante. Riduci le dimensioni e riprova." };
+    return { error: t("azioni.piantina.pesante") };
   }
 
   if (intestazione[1].toLowerCase() === "image/svg+xml") {
@@ -64,14 +67,11 @@ export async function salvaPiantina(
     try {
       testo = Buffer.from(dataUrl.slice(intestazione[0].length), "base64").toString("utf8");
     } catch {
-      return { error: "SVG illeggibile" };
+      return { error: t("azioni.piantina.svg_illeggibile") };
     }
-    if (!/<\s*svg/i.test(testo)) return { error: "Non sembra un SVG" };
+    if (!/<\s*svg/i.test(testo)) return { error: t("azioni.piantina.non_svg") };
     if (SVG_PERICOLOSO.test(testo)) {
-      return {
-        error:
-          "Questo SVG contiene script o contenuti esterni e non viene accettato. Esportalo come PDF o PNG.",
-      };
+      return { error: t("azioni.piantina.svg_attivo") };
     }
   }
 
@@ -86,5 +86,5 @@ export async function salvaPiantina(
      where id = ${venue.venueId}`;
 
   revalidatePath("/dashboard");
-  return { ok: "Piantina caricata." };
+  return { ok: t("azioni.piantina.caricata") };
 }

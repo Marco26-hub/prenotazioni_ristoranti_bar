@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react";
 import { MODELLI, type TipoLocale } from "@repo/shared/formati";
 import { applicaModello, type EsitoModello } from "./modello-actions";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tMenuAdmin, promemoriaTradotto } from "@/i18n/menu";
 
 /**
  * Scelta del formato di locale.
@@ -13,6 +15,8 @@ import { applicaModello, type EsitoModello } from "./modello-actions";
  * testa mentre carica il menu.
  */
 export function ModelloForm({ tipoAttuale }: { tipoAttuale: string }) {
+  const lingua = useLingua();
+  const t = tMenuAdmin(lingua);
   const [scelto, setScelto] = useState<TipoLocale | null>(null);
   const [pending, start] = useTransition();
   const [esito, setEsito] = useState<EsitoModello | null>(null);
@@ -36,8 +40,10 @@ export function ModelloForm({ tipoAttuale }: { tipoAttuale: string }) {
                 attivo ? "border-accent bg-accent/10" : "border-border"
               }`}
             >
-              <p className="text-sm font-medium">{m.nome}</p>
-              <p className="mt-0.5 text-xs leading-snug text-muted">{m.descrizione}</p>
+              <p className="text-sm font-medium">{t(`formato.${m.tipo}.nome`)}</p>
+              <p className="mt-0.5 text-xs leading-snug text-muted">
+                {t(`formato.${m.tipo}.descrizione`)}
+              </p>
             </button>
           );
         })}
@@ -46,24 +52,24 @@ export function ModelloForm({ tipoAttuale }: { tipoAttuale: string }) {
       {modello && (
         <div className="space-y-3 rounded-xl border border-border bg-surface p-4">
           <div>
-            <p className="text-sm font-medium">Categorie</p>
+            <p className="text-sm font-medium">{t("formato.categorie")}</p>
             <p className="mt-1 text-sm text-muted">{modello.categorie.map((c) => c.nome).join(" · ")}</p>
           </div>
 
           {modello.gruppi.length > 0 && (
             <div>
-              <p className="text-sm font-medium">Scelte proposte</p>
+              <p className="text-sm font-medium">{t("formato.scelte")}</p>
               <ul className="mt-1 space-y-1 text-sm text-muted">
                 {modello.gruppi.map((g) => (
                   <li key={g.nome}>
                     <strong className="font-medium text-foreground">{g.nome}</strong>{" "}
                     {g.tipo === "rimozione"
-                      ? "— cosa togliere"
+                      ? t("formato.gruppo.rimozione")
                       : g.tipo === "aggiunta"
-                        ? "— aggiunte a pagamento"
+                        ? t("formato.gruppo.aggiunta")
                         : g.obbligatorio
-                          ? "— obbligatorio"
-                          : "— facoltativo"}
+                          ? t("formato.gruppo.obbligatorio")
+                          : t("formato.gruppo.facoltativo")}
                     : {g.opzioni.map(([n]) => n).join(", ")}
                   </li>
                 ))}
@@ -73,11 +79,11 @@ export function ModelloForm({ tipoAttuale }: { tipoAttuale: string }) {
 
           <div className="rounded-lg border border-amber-300 bg-amber-50 p-3">
             <p className="text-sm font-medium text-amber-900">
-              Da tenere a mente per questo formato
+              {t("formato.promemoria.titolo")}
             </p>
             <ul className="mt-1 space-y-1 text-sm text-amber-900">
               {modello.promemoria.map((p) => (
-                <li key={p}>— {p}</li>
+                <li key={p}>— {promemoriaTradotto(p, lingua)}</li>
               ))}
             </ul>
           </div>
@@ -94,9 +100,9 @@ export function ModelloForm({ tipoAttuale }: { tipoAttuale: string }) {
               <label className="flex min-h-11 items-start gap-2 text-sm">
                 <input type="checkbox" name="soloCategorie" className="mt-0.5 h-5 w-5" />
                 <span>
-                  Solo le categorie, senza le scelte
+                  {t("formato.solo.categorie")}
                   <span className="block text-xs text-muted">
-                    Utile se le varianti le vuoi impostare tu piatto per piatto.
+                    {t("formato.solo.categorie.nota")}
                   </span>
                 </span>
               </label>
@@ -109,32 +115,26 @@ export function ModelloForm({ tipoAttuale }: { tipoAttuale: string }) {
                     className="mt-0.5 h-5 w-5"
                   />
                   <span>
-                    Parti da un listino di esempio ({modello.piatti!.length} voci)
+                    {t("formato.listino", { n: modello.piatti!.length })}
                     <span className="block text-xs text-muted">
-                      Nomi e allergeni già compilati, così non li batti a mano
-                      il primo giorno — gli allergeni sono l&apos;obbligo che
-                      costa da 3.000 a 24.000 euro. I prezzi sono indicativi e
-                      vanno rifatti: le voci nascono <strong>spente</strong> e
-                      nessun cliente le vede finché non le accendi tu, una per
-                      una.
+                      {t("formato.listino.nota.prima")}
+                      <strong>{t("formato.listino.nota.spente")}</strong>
+                      {t("formato.listino.nota.dopo")}
                     </span>
                   </span>
                 </label>
               )}
 
-              <p className="text-xs text-muted">
-                Non tocca nulla di quello che hai già: le categorie esistenti
-                restano, e un gruppo di scelte con lo stesso nome non viene
-                sovrascritto. Le scelte si applicano ai piatti già caricati
-                nelle categorie previste.
-              </p>
+              <p className="text-xs text-muted">{t("formato.nota")}</p>
 
               <button
                 type="submit"
                 disabled={pending}
                 className="min-h-11 w-full rounded-full bg-accent text-sm font-medium text-accent-foreground disabled:opacity-60"
               >
-                {pending ? "Applico…" : `Applica il modello ${modello.nome}`}
+                {pending
+                  ? t("formato.applico")
+                  : t("formato.applica", { nome: t(`formato.${modello.tipo}.nome`) })}
               </button>
             </form>
           )}

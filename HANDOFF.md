@@ -7,7 +7,7 @@ Per chi prende in mano il progetto. Descrive cosa fa il sistema, cosa è
 stato verificato, e — soprattutto — **cosa manca ancora**, perché è quella
 la parte che serve davvero a chi arriva dopo.
 
-Ultimo aggiornamento: 4 settembre 2026.
+Ultimo aggiornamento: 6 settembre 2026.
 
 ---
 
@@ -765,3 +765,186 @@ Non bastano le colonne. Vanno confrontati **colonne, indici e vincoli**, e
 vanno confrontati **dopo** ogni modifica allo schema — non prima. Due derive
 sono passate proprio così: gli stati `pending`/`declined` delle prenotazioni
 (un'installazione nuova rifiutava ogni richiesta) e il vincolo sul reparto.
+
+---
+
+## 6 settembre 2026 — italiano e inglese, e tre buchi dell'all you can eat
+
+### Il software parla due lingue
+
+Interfaccia in **italiano e inglese**, tutta: la pagina che il cliente apre
+al tavolo, il menu pubblico, le prenotazioni, il gestionale, le email, la
+ricevuta.
+
+Da non confondere con le traduzioni del **menu**, che già c'erano: quelle
+sono dieci lingue e le scrive il ristoratore sui nomi dei piatti. Questa è
+l'interfaccia, due lingue, e la scriviamo noi. Sono cose separate perché
+cambiano per ragioni diverse e le scrive gente diversa. Il ponte fra i due
+sistemi sta in `linguaContenuto()` e `linguaUIPerContenuto()`: chi legge
+"Add to order" non deve trovarci sotto "Tagliata di manzo", e chi chiede il
+menu in tedesco ha l'interfaccia in inglese, che è il meglio che abbiamo.
+
+Il motore è `packages/shared/i18n/`. L'inglese è tipato `Speculare<typeof
+IT>`: **una chiave dimenticata non compila**. È un tipo e non un controllo a
+runtime apposta — deve rompere la build, non comparire in italiano dentro una
+frase inglese davanti al cliente.
+
+Come si sceglie la lingua, in ordine di precedenza:
+
+| Dove | Ordine |
+|---|---|
+| Al tavolo | `?lang=` → cookie → lingua del telefono → italiano |
+| Nel gestionale | `users.lingua_ui` → cookie → browser |
+| Nelle email | dalla richiesta se il cliente è collegato, da `reservations.lingua` per il promemoria del giorno dopo |
+
+Quel terzo caso è il motivo della migrazione 062: il promemoria lo manda un
+cron alle nove del mattino, quando header e cookie non esistono più. Senza
+quella colonna, chi prenota in inglese riceve in italiano proprio il
+messaggio che contiene il link per disdire.
+
+**Cosa non si traduce**, e va lasciato stare: i termini fiscali italiani
+(Partita IVA, Codice Destinatario, SDI, documento commerciale, corrispettivi,
+Registratore Telematico) — sono nomi di istituti e di portali reali, e
+tradurli manda un commercialista a cercare una voce che sul sito
+dell'Agenzia non esiste. E i testi scritti dal ristoratore
+(`TESTI_PUBBLICI`): quelli sono la sua voce, traduciamo solo il nostro
+ripiego. Gli allergeni inglesi seguono l'**Allegato II del Reg. UE 1169/2011
+nella versione inglese ufficiale** — "Cereals containing gluten", non
+"Gluten": è la formula che chi è allergico cerca, ed è quella che regge a un
+controllo.
+
+Dettagli in `docs/LINGUE.md`. Collaudo in `e2e/lingue.spec.ts`.
+
+### Tre cose che si rompevano solo in un all you can eat
+
+Trovate mettendo il prodotto contro un profilo preciso — sushi a prezzo
+fisso, quaranta coperti, due turni, ottanta piatti a tavolo, due reparti che
+lavorano lo stesso tavolo — invece che contro il codice in astratto. Nessuna
+delle tre si presenta in una trattoria da venti coperti, ed è per questo che
+erano rimaste lì.
+
+**1. La stampa comande accumulava per sempre.** Chiudere il conto chiude la
+sessione ma non porta le righe a `served`, e in tutto il progetto nessuno le
+porta a `served` in blocco. In un all you can eat nessuno picchietta
+"servito" ottanta volte a tavolo. Al secondo giorno la pagina di stampa
+mostrava le comande di ieri insieme a quelle di stasera — e chi la usa come
+ripiego quando lo schermo si pianta preparava roba già mangiata e pagata.
+Ora ha `ts.status = 'open'` e un limite di ventiquattro ore, come la board.
+
+**2. «Tutto pronto» dal banco crudo mandava fuori anche i fritti.** Il filtro
+di reparto viveva solo nella pagina; l'azione in blocco restringeva al
+reparto soltanto se l'account aveva `venue_staff.reparti` valorizzati. Due
+schermi sullo stesso account padrone — il caso normale in un locale a
+gestione familiare — e il filtro spariva: il bottone diceva 4 e ne spostava
+9. Ora il reparto **dello schermo** viaggia fino alla query, e resta separato
+da `venue_staff.reparti`, che è autorizzazione. Sono due domande diverse.
+
+**3. A prezzo fisso il conto poteva nascere sbagliato in due modi.**
+
+- I **coperti** nascono a 1, perché la sessione la apre il cliente inquadrando
+  il QR prima che qualcuno del personale la guardi. Alla carta muovono il solo
+  coperto; a formula sono *tutto* il conto — un tavolo da sei pagava
+  venticinque euro invece di centocinquanta. E un tavolo da uno esiste
+  davvero, quindi `guest_count = 1` non distingue il non dichiarato dal
+  reale: serve `coperti_confermati`. Finché la sala non conferma, il cliente
+  non vede un totale e non può pagare con carta — vede scritto che lo
+  conferma il personale, e il tasto contanti resta, perché quello chiama il
+  cameriere, che è proprio quello che serve. Il blocco è **anche nelle rotte
+  di pagamento**, non solo nel bottone: sono POST pubblici come tutti gli
+  altri.
+- La **fascia** pranzo/cena si decideva dall'ora di apertura senza appello. Il
+  tavolo seduto alle 18:30 dove la cena parte alle 19 pagava il pranzo per
+  tutta la sera: su quattro persone con dieci euro di differenza, quaranta
+  euro a tavolo. L'orario resta il predefinito ed è giusto quasi sempre, ma
+  ora `table_sessions.fascia` lo corregge.
+
+Migrazione 063. Provati sul codice vero e sul database vero, non a memoria.
+
+**4. E una quarta, che era una decisione presa da noi al posto del cliente.**
+`venues.sessione_max_ore` diceva da sempre sei ore e non c'era modo di
+cambiarlo da nessuna schermata. Un tavolo lasciato aperto resta lo stesso
+conto: chi inquadra il QR dopo si aggiunge a quello di prima. Sei ore vanno
+bene a una trattoria e sono sbagliate per due turni — chi si siede alle 21:30
+si attaccava alla sessione delle 19:00, e a prezzo fisso sono dodici persone
+su una formula sola. Ora sta in **Impostazioni → Quando un tavolo riparte da
+zero**, con scritto in chiaro che chi fa due turni deve metterlo sotto la
+distanza fra l'uno e l'altro.
+
+### «In quanti siete?», chiesto al tavolo
+
+Il seguito naturale del punto 3: i coperti servono, e chiederli a chi è
+seduto è più veloce che farli contare da lontano. Appena inquadra il QR, un
+tavolo a prezzo fisso trova la domanda in cima alla pagina — non in una
+finestra sopra, perché al telefono un pop-up è la cosa che si chiude senza
+leggerla per arrivare al menu.
+
+**È una proposta, non una decisione.** Scrive `guest_count` e segna
+`coperti_dal_tavolo`, ma non tocca `coperti_confermati`: la conferma resta
+un gesto del personale, ed è quella che sblocca il pagamento con carta. Un
+tavolo da sei che ne dichiara quattro risparmia cinquantadue euro e nessun
+programma può accorgersene — la decisione sui soldi resta al locale.
+
+In sala la card mostra «Il tavolo dice: 6 coperti» con un bottone
+**Accetta**: un tocco, non un modulo. E compare **solo se nessuno ha messo i
+coperti sedendo il tavolo** — se il locale lavora come lavorano le casse del
+mestiere, cioè segnando i coperti quando fa sedere la gente, quel bottone non
+si vede mai e al cliente la domanda non compare nemmeno. È il recupero di una
+dimenticanza, non un passaggio del flusso normale.
+
+Migrazione 064. Collaudo in `e2e/coperti.spec.ts`, cinque casi, compreso
+quello che conta: chi conosce l'id di una sessione **non** può riabbassare a
+uno un tavolo che il personale aveva già confermato a sei.
+
+### Un difetto trovato scrivendo quel collaudo, e la lezione
+
+`api/bill/route.ts` costruiva la risposta ricopiando la formula **campo per
+campo**. `copertiDaConfermare` non era nell'elenco: il conto sapeva
+benissimo che i coperti non erano dichiarati, e la pagina mostrava lo stesso
+il totale di una persona sola. Nessun errore, da nessuna parte —
+`NextResponse.json()` accetta qualunque oggetto, quindi il tipo non
+proteggeva niente, e il componente riscriveva il tipo a mano invece di
+derivarlo.
+
+Il guardiano sui soldi ha retto lo stesso, perché le rotte di pagamento
+chiamano `contoSessione` per conto loro invece di fidarsi di quel JSON. Ma
+per due ore la schermata ha detto una cosa falsa a chi mangiava.
+
+**Una risposta JSON ricopiata a mano è un tipo che non esiste.** Dove il
+consumatore deve stare in pari con la sorgente, si manda l'oggetto e si
+importa il tipo — come fa ora `formula`.
+
+### Cosa cambia nel lavoro di sala, a prezzo fisso
+
+Vale la pena dirlo perché è l'unico attrito nuovo: **su un tavolo a formula
+qualcuno deve scrivere i coperti**, altrimenti quel tavolo non vede un totale
+e non può pagare con carta. È un tocco sulla card del tavolo. In cima alla
+sala compare quanti tavoli lo stanno aspettando, così non lo si scopre dal
+cliente che chiama.
+
+Non è pignoleria: a prezzo fisso i coperti *sono* il conto, e chiuso il conto
+quel numero entra nel documento commerciale e non torna più indietro. Il tasto
+contanti resta sempre attivo, perché quello chiama il cameriere — che è
+esattamente quello che serve.
+
+### Una trappola per chi scriverà i prossimi test
+
+`playwright.config.ts` ora dichiara `locale: "it-IT"`, e non è un dettaglio.
+Playwright lancia il suo Chromium **in inglese a prescindere da come è
+impostato il computer**: da quando l'applicazione parla due lingue, le prove
+scritte contro l'italiano — "Accedi", "Il conto", "Compreso nella formula" —
+cercavano parole che la pagina non scriveva più. Fallivano in blocco, e
+accusavano il codice di qualcosa che non aveva fatto.
+
+Chi scrive una prova sulla lingua si apre il suo contesto
+(`browser.newContext({ locale: "en-GB" })`), come fa `e2e/lingue.spec.ts`.
+
+### Uno strumento nuovo: `node db/confronta.mjs`
+
+Applica `schema.sql` più tutte le migrazioni dentro uno schema temporaneo e
+lo confronta con la produzione: **colonne, indici e vincoli**. Esisteva come
+procedura a mano ed è per questo che due volte è passata inosservata — il
+CHECK vecchio sulle prenotazioni e quello sui reparti. Ora è un comando, e
+ignora `schema_migrations` apposta: una differenza che c'è sempre è una
+differenza che si impara a ignorare.
+
+Va rilanciato **dopo** ogni modifica allo schema, non prima.

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { db } from "@repo/shared/db";
 import { requireVenue } from "@/lib/authz";
+import { linguaUtente } from "@/lib/lingua";
+import { tAnalisi } from "@/i18n/analisi";
 
 /**
  * Cosa manca per aprire.
@@ -15,6 +17,8 @@ import { requireVenue } from "@/lib/authz";
  * prende una multa. Le altre stanno sotto, e sotto restano.
  */
 
+type Traduttore = ReturnType<typeof tAnalisi>;
+
 interface Passo {
   fatto: boolean;
   titolo: string;
@@ -25,6 +29,7 @@ interface Passo {
 
 export default async function AvvioPage() {
   const { venue } = await requireVenue();
+  const t = tAnalisi(await linguaUtente());
   const sql = db();
 
   const [v] = await sql<
@@ -72,44 +77,40 @@ export default async function AvvioPage() {
   const perAprire: Passo[] = [
     {
       fatto: Boolean(v?.vat_number || v?.fiscal_code) && Boolean(v?.address_city),
-      titolo: "I dati del locale",
-      perche:
-        "Partita IVA e indirizzo finiscono sulle pagine che vede il cliente e sulle fatture. Senza, il gestionale non può emettere niente.",
-      dove: "Impostazioni",
+      titolo: t("avvio.passo.dati.titolo"),
+      perche: t("avvio.passo.dati.perche"),
+      dove: t("avvio.dove.impostazioni"),
       href: "/dashboard/settings",
     },
     {
       fatto: conteggi.piatti > 0,
-      titolo: "Il menu",
-      perche:
-        "Caricalo a mano o importalo da un file o dalla cassa. Puoi partire da un modello: crea le categorie del tuo tipo di locale senza toccare quello che hai già.",
-      dove: "Menu",
+      titolo: t("avvio.passo.menu.titolo"),
+      perche: t("avvio.passo.menu.perche"),
+      dove: t("avvio.dove.menu"),
       href: "/dashboard/menu",
     },
     {
       fatto: conteggi.piatti > 0 && conteggi.senza_allergeni === 0,
-      titolo: "Gli allergeni su ogni piatto",
+      titolo: t("avvio.passo.allergeni.titolo"),
       perche:
         conteggi.senza_allergeni > 0
-          ? `${conteggi.senza_allergeni} ${conteggi.senza_allergeni === 1 ? "piatto è ancora scoperto" : "piatti sono ancora scoperti"}. Il Reg. UE 1169/2011 li vuole tutti, e la sanzione va da 3.000 a 24.000 euro.`
-          : "Tutti coperti. È l'obbligo che fa prendere le multe più salate.",
-      dove: "Menu",
+          ? t.n(conteggi.senza_allergeni, "avvio.passo.allergeni.scoperti")
+          : t("avvio.passo.allergeni.coperti"),
+      dove: t("avvio.dove.menu"),
       href: "/dashboard/menu",
     },
     {
       fatto: conteggi.tavoli > 0,
-      titolo: "I tavoli e i loro QR",
-      perche:
-        "Un QR per tavolo, da mandare in tipografia con il PDF già impaginato. La sala si dispone trascinando i tavoli come pedine.",
-      dove: "QR e tavoli",
+      titolo: t("avvio.passo.tavoli.titolo"),
+      perche: t("avvio.passo.tavoli.perche"),
+      dove: t("avvio.dove.tavoli"),
       href: "/dashboard/tables",
     },
     {
       fatto: Boolean(v?.stripe_account_id || v?.satispay_key_id),
-      titolo: "Come incassi",
-      perche:
-        "Collega Stripe o Satispay. Senza, il cliente ordina ma non può pagare dal telefono: si paga al banco come sempre.",
-      dove: "Impostazioni",
+      titolo: t("avvio.passo.incassi.titolo"),
+      perche: t("avvio.passo.incassi.perche"),
+      dove: t("avvio.dove.impostazioni"),
       href: "/dashboard/settings",
     },
   ];
@@ -118,34 +119,30 @@ export default async function AvvioPage() {
   const poi: Passo[] = [
     {
       fatto: conteggi.personale > 1,
-      titolo: "Il personale",
-      perche:
-        "Ognuno con il suo accesso: sala, cucina, bar. Chi è in sala non vede gli incassi, e il codice operatore fa entrare in fretta dal tablet condiviso.",
-      dove: "Personale",
+      titolo: t("avvio.passo.personale.titolo"),
+      perche: t("avvio.passo.personale.perche"),
+      dove: t("avvio.dove.personale"),
       href: "/dashboard/staff",
     },
     {
       fatto: Boolean(v?.logo_url),
-      titolo: "Logo e colori",
-      perche:
-        "Le pagine che vede il cliente portano il tuo marchio, non il nostro. Il nostro nome non compare mai.",
-      dove: "Impostazioni",
+      titolo: t("avvio.passo.logo.titolo"),
+      perche: t("avvio.passo.logo.perche"),
+      dove: t("avvio.dove.impostazioni"),
       href: "/dashboard/settings",
     },
     {
       fatto: Boolean(v?.resend_from),
-      titolo: "Le email ai clienti",
-      perche:
-        "Conferme di prenotazione, promemoria del giorno prima, fatture. Senza, non parte niente.",
-      dove: "Impostazioni",
+      titolo: t("avvio.passo.email.titolo"),
+      perche: t("avvio.passo.email.perche"),
+      dove: t("avvio.dove.impostazioni"),
       href: "/dashboard/settings",
     },
     {
       fatto: v?.rt_attivo ?? false,
-      titolo: "Il registratore telematico",
-      perche:
-        "Il gestionale incassa, il registratore certifica. Se non lo colleghi, in Corrispettivi trovi il riepilogo di giornata per metodo di pagamento, da battere in cassa.",
-      dove: "Corrispettivi",
+      titolo: t("avvio.passo.rt.titolo"),
+      perche: t("avvio.passo.rt.perche"),
+      dove: t("avvio.dove.corrispettivi"),
       href: "/dashboard/fiscale",
     },
   ];
@@ -153,31 +150,33 @@ export default async function AvvioPage() {
   /* --- Solo se ti servono -------------------------------------------- */
   const facoltative = [
     {
-      titolo: "Prenotazioni online",
-      perche:
-        "Una pagina da mettere sul tuo sito, con promemoria e disdetta automatici.",
-      stato: v?.reservation_capacity ? "impostata" : "da impostare",
+      titolo: t("avvio.opzione.prenotazioni.titolo"),
+      perche: t("avvio.opzione.prenotazioni.perche"),
+      stato: v?.reservation_capacity
+        ? t("avvio.stato.impostata")
+        : t("avvio.stato.da_impostare"),
       href: "/dashboard/reservations",
     },
     {
-      titolo: "Formula a prezzo fisso",
-      perche:
-        "All you can eat: si paga a persona e i piatti compresi non si sommano. Con l'attesa fra un'ordinazione e l'altra, se ti serve.",
-      stato: v?.formula_attiva ? "attiva" : "spenta",
+      titolo: t("avvio.opzione.formula.titolo"),
+      perche: t("avvio.opzione.formula.perche"),
+      stato: v?.formula_attiva ? t("avvio.stato.attiva") : t("avvio.stato.spenta"),
       href: "/dashboard/settings",
     },
     {
-      titolo: "Numeri di ritiro al banco",
-      perche:
-        "Per chi consegna al bancone invece che al tavolo. Segnaposto, cercapersone o avviso sul telefono.",
-      stato: v?.pickup_numbering_enabled ? "attivi" : "spenti",
+      titolo: t("avvio.opzione.ritiro.titolo"),
+      perche: t("avvio.opzione.ritiro.perche"),
+      stato: v?.pickup_numbering_enabled
+        ? t("avvio.stato.attivi")
+        : t("avvio.stato.spenti"),
       href: "/dashboard/settings",
     },
     {
-      titolo: "Coperto e servizio",
-      perche:
-        "Se li applichi vanno dichiarati al cliente insieme ai prezzi: la legge li tratta come una voce di menu.",
-      stato: v?.cover_charge_cents ? "impostato" : "nessuno",
+      titolo: t("avvio.opzione.coperto.titolo"),
+      perche: t("avvio.opzione.coperto.perche"),
+      stato: v?.cover_charge_cents
+        ? t("avvio.stato.impostato")
+        : t("avvio.stato.nessuno"),
       href: "/dashboard/settings",
     },
   ];
@@ -187,45 +186,43 @@ export default async function AvvioPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-5">
-      <h1 className="text-xl font-semibold">Primi passi</h1>
+      <h1 className="text-xl font-semibold">{t("avvio.titolo")}</h1>
       <p className="mt-1 text-sm text-muted">
         {mancanti === 0
           ? conteggi.ordini > 0
-            ? "Tutto pronto, e il primo ordine è già arrivato."
-            : "Tutto pronto. Inquadra un QR da un telefono e prova a ordinare."
-          : `${pronti} su ${perAprire.length}. Quello che manca è qui sotto, in ordine.`}
+            ? t("avvio.pronto_con_ordini")
+            : t("avvio.pronto")
+          : t("avvio.avanzamento", { fatti: pronti, totale: perAprire.length })}
       </p>
 
       <section className="mt-5">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-muted">
-          Senza queste non si apre
+          {t("avvio.sezione.per_aprire")}
         </h2>
         <ul className="mt-2 space-y-2">
           {perAprire.map((p) => (
-            <Voce key={p.titolo} passo={p} />
+            <Voce key={p.titolo} passo={p} t={t} />
           ))}
         </ul>
       </section>
 
       <section className="mt-6">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-muted">
-          Poi, appena puoi
+          {t("avvio.sezione.poi")}
         </h2>
         <ul className="mt-2 space-y-2">
           {poi.map((p) => (
-            <Voce key={p.titolo} passo={p} />
+            <Voce key={p.titolo} passo={p} t={t} />
           ))}
         </ul>
       </section>
 
       <section className="mt-6">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-muted">
-          Solo se ti servono
+          {t("avvio.sezione.facoltative")}
         </h2>
         <p className="mt-1 text-xs text-muted">
-          Non dipendono dal tipo di locale: una piadineria può fare la formula
-          del venerdì e un ristorante può consegnare al banco. Accendi quello
-          che usi.
+          {t("avvio.sezione.facoltative.nota")}
         </p>
         <ul className="mt-2 space-y-2">
           {facoltative.map((f) => (
@@ -251,7 +248,7 @@ export default async function AvvioPage() {
   );
 }
 
-function Voce({ passo }: { passo: Passo }) {
+function Voce({ passo, t }: { passo: Passo; t: Traduttore }) {
   return (
     <li
       className={`rounded-xl border p-3 ${
@@ -273,7 +270,9 @@ function Voce({ passo }: { passo: Passo }) {
           <p className="font-medium">
             {passo.titolo}
             {passo.fatto && (
-              <span className="ml-2 text-xs font-normal text-success">fatto</span>
+              <span className="ml-2 text-xs font-normal text-success">
+                {t("avvio.voce.fatto")}
+              </span>
             )}
           </p>
           <p className="mt-0.5 text-sm text-muted">{passo.perche}</p>
@@ -282,7 +281,7 @@ function Voce({ passo }: { passo: Passo }) {
               href={passo.href}
               className="mt-1.5 inline-flex min-h-9 items-center text-sm font-medium underline underline-offset-4"
             >
-              Vai a {passo.dove}
+              {t("avvio.voce.vai", { dove: passo.dove })}
             </Link>
           )}
         </div>

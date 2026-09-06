@@ -3,6 +3,82 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  COOKIE_LINGUA,
+  LINGUE_UI,
+  NOME_LINGUA_UI,
+  type LinguaUI,
+} from "@repo/shared/i18n";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tComune } from "@repo/shared/i18n/comune";
+import { tGuscio } from "@/i18n/guscio";
+import { scegliLinguaMia } from "./lingua-actions";
+
+/**
+ * Il cambio di lingua, dove si vede senza cercarlo.
+ *
+ * Sta nella barra e non dentro le impostazioni di proposito: chi non legge
+ * l'italiano non arriva a "Impostazioni" — è una parola italiana in fondo a
+ * un elenco di parole italiane. Il selettore lo trova invece nel punto dove
+ * sta già guardando, e da lì il resto del gestionale diventa leggibile.
+ *
+ * Scrive il cookie e ricarica: il testo lo compongono i componenti server,
+ * quindi non basta uno stato del browser, la pagina va ricostruita di là.
+ */
+/*
+ * Fuori dal componente perché scrivere `document.cookie` è una mutazione di
+ * qualcosa che vive fuori da React, e dentro un componente il compilatore la
+ * rifiuta — giustamente: da lì non si distingue da uno stato scritto male.
+ * Qui è quello che è, un effetto sul browser, e si vede.
+ */
+function ricordaLingua(l: LinguaUI): void {
+  // Un anno: la lingua non è una cosa che si cambia a ogni turno.
+  document.cookie = `${COOKIE_LINGUA}=${l}; path=/; max-age=31536000; samesite=lax`;
+}
+
+function SelettoreLingua() {
+  const lingua = useLingua();
+  const c = tComune(lingua);
+
+  const cambia = (l: LinguaUI) => {
+    if (l === lingua) return;
+    // Il cookie serve a chi non ha ancora un accesso — la pagina di login e
+    // quella di registrazione. Per chi è dentro conta la colonna, perché è
+    // quella che `linguaUtente()` guarda per prima: senza, il selettore
+    // sarebbe muto per chiunque abbia toccato una volta le impostazioni.
+    ricordaLingua(l);
+    void scegliLinguaMia(l)
+      .catch(() => {
+        // Sessione scaduta o rete giù: resta il cookie, che comunque copre
+        // il caso di chi non ha una preferenza salvata.
+      })
+      .finally(() => window.location.reload());
+  };
+
+  return (
+    <div
+      role="group"
+      aria-label={c("lingua.scegli")}
+      className="flex shrink-0 items-center gap-0.5 rounded-full border border-border p-0.5"
+    >
+      {LINGUE_UI.map((l) => (
+        <button
+          key={l}
+          type="button"
+          onClick={() => cambia(l)}
+          aria-pressed={l === lingua}
+          className={`flex min-h-9 items-center rounded-full px-3 text-xs ${
+            l === lingua
+              ? "bg-background font-semibold text-foreground"
+              : "text-muted"
+          }`}
+        >
+          {NOME_LINGUA_UI[l]}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export interface VoceNav {
   href: string;
@@ -29,6 +105,7 @@ export interface VoceNav {
  * mangerebbero mezzo schermo prima di aver mostrato qualcosa.
  */
 export function MenuNavigazione({ voci }: { voci: VoceNav[] }) {
+  const t = tGuscio(useLingua());
   const percorso = usePathname();
 
   // Il menu è aperto solo per il percorso su cui è stato aperto: cambiando
@@ -55,31 +132,34 @@ export function MenuNavigazione({ voci }: { voci: VoceNav[] }) {
   const attiva = (href: string) =>
     href === "/dashboard" ? percorso === href : percorso.startsWith(href);
 
-  const corrente = voci.find((v) => attiva(v.href))?.label ?? "Menu";
+  const corrente = voci.find((v) => attiva(v.href))?.label ?? t("nav.menu");
 
   return (
     <>
       {/* --- Telefono: un bottone che apre tutto ------------------------ */}
       <div className="px-4 pb-2 lg:hidden">
-        <button
-          type="button"
-          onClick={() => setAperto((v) => !v)}
-          aria-expanded={aperto}
-          aria-controls="nav-gestionale"
-          className="flex min-h-11 w-full items-center justify-between rounded-lg border border-border px-3 text-sm font-medium"
-        >
-          <span className="flex items-center gap-2">
-            <span aria-hidden className="flex flex-col gap-[3px]">
-              <span className="block h-0.5 w-4 bg-current" />
-              <span className="block h-0.5 w-4 bg-current" />
-              <span className="block h-0.5 w-4 bg-current" />
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setAperto((v) => !v)}
+            aria-expanded={aperto}
+            aria-controls="nav-gestionale"
+            className="flex min-h-11 flex-1 items-center justify-between rounded-lg border border-border px-3 text-sm font-medium"
+          >
+            <span className="flex items-center gap-2">
+              <span aria-hidden className="flex flex-col gap-[3px]">
+                <span className="block h-0.5 w-4 bg-current" />
+                <span className="block h-0.5 w-4 bg-current" />
+                <span className="block h-0.5 w-4 bg-current" />
+              </span>
+              {corrente}
             </span>
-            {corrente}
-          </span>
-          <span aria-hidden className="text-xs text-muted">
-            {aperto ? "chiudi" : "menu"}
-          </span>
-        </button>
+            <span aria-hidden className="text-xs text-muted">
+              {aperto ? t("nav.chiudi") : t("nav.apri")}
+            </span>
+          </button>
+          <SelettoreLingua />
+        </div>
 
         {aperto && (
           <ul
@@ -107,7 +187,7 @@ export function MenuNavigazione({ voci }: { voci: VoceNav[] }) {
           per peso e non per colore: la prima porta le voci che si toccano
           con la sala piena, la seconda quelle che si aprono il lunedì. */}
       <nav
-        aria-label="Sezioni del gestionale"
+        aria-label={t("nav.etichetta")}
         className="mx-auto hidden max-w-7xl px-4 pb-2 lg:block"
       >
         <ul className="flex flex-wrap items-center gap-0.5">
@@ -148,6 +228,9 @@ export function MenuNavigazione({ voci }: { voci: VoceNav[] }) {
                 </Link>
               </li>
             ))}
+          <li className="ml-auto">
+            <SelettoreLingua />
+          </li>
         </ul>
       </nav>
 

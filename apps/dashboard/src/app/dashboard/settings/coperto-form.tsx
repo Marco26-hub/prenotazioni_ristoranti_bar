@@ -2,6 +2,9 @@
 
 import { useActionState } from "react";
 import { salvaCoperto, type EsitoCoperto } from "./coperto-actions";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tImpostazioni } from "@/i18n/impostazioni";
+import { tComune } from "@repo/shared/i18n/comune";
 
 const CAMPO = "min-h-11 w-full rounded-lg border border-border bg-background px-3 text-sm";
 
@@ -18,6 +21,8 @@ export function CopertoForm({
   intervallo: number;
   etichetta: string | null;
 }) {
+  const t = tImpostazioni(useLingua());
+  const c = tComune(useLingua());
   const [state, formAction, pending] = useActionState<EsitoCoperto | null, FormData>(
     async (_prev, formData) => salvaCoperto(formData),
     null
@@ -28,7 +33,7 @@ export function CopertoForm({
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm" htmlFor="coperto">
-            Coperto a persona (€)
+            {t("coperto.importo")}
           </label>
           <input
             id="coperto"
@@ -43,7 +48,7 @@ export function CopertoForm({
         </div>
         <div>
           <label className="mb-1 block text-sm" htmlFor="servizio">
-            Servizio (%)
+            {t("coperto.servizio")}
           </label>
           <input
             id="servizio"
@@ -60,7 +65,7 @@ export function CopertoForm({
 
       <div>
         <label className="mb-1 block text-sm" htmlFor="ivaSupplementi">
-          IVA su coperto e servizio (%)
+          {t("coperto.iva")}
         </label>
         <input
           id="ivaSupplementi"
@@ -72,16 +77,12 @@ export function CopertoForm({
           defaultValue={ivaSupplementi}
           className={CAMPO}
         />
-        <p className="mt-1 text-xs text-muted">
-          Vale solo in fattura elettronica. Di norma è l&apos;aliquota della
-          somministrazione, ma chiedilo al tuo commercialista: qui il
-          programma non decide al posto suo.
-        </p>
+        <p className="mt-1 text-xs text-muted">{t("coperto.iva.nota")}</p>
       </div>
 
       <div>
           <label className="mb-1 block text-sm" htmlFor="intervallo">
-            Attesa fra un&apos;ordinazione e la successiva (minuti)
+            {t("coperto.intervallo")}
           </label>
           <input
             id="intervallo"
@@ -93,35 +94,23 @@ export function CopertoForm({
             defaultValue={intervallo}
             className={CAMPO}
           />
-          <p className="mt-1 text-xs text-muted">
-            Il metodo dell&apos;all you can eat: si ordina a ondate. Senza, un
-            tavolo da sei manda ottanta piatti in tre minuti, la cucina li
-            prepara tutti insieme e metà restano nel piatto. Il cliente vede
-            il tempo che manca sul pulsante, non lo scopre premendo. 0 =
-            nessuna attesa.
-          </p>
+          <p className="mt-1 text-xs text-muted">{t("coperto.intervallo.nota")}</p>
       </div>
 
       <div>
         <label className="mb-1 block text-sm" htmlFor="etichetta">
-          Come si chiama in conto
+          {t("coperto.etichetta")}
         </label>
         <input
           id="etichetta"
           name="etichetta"
           defaultValue={etichetta ?? ""}
-          placeholder="Coperto · Pane e coperto · Servizio"
+          placeholder={t("coperto.etichetta.placeholder")}
           className={CAMPO}
         />
       </div>
 
-      <p className="text-xs text-muted">
-        Il coperto si moltiplica per i coperti indicati dallo staff sulla
-        scheda del tavolo. Il servizio si calcola sull&apos;ordinato, non sul
-        coperto. Entrambi compaiono al cliente già sul menu: la legge li
-        tratta come una voce di prezzo, non come una sorpresa in fondo al
-        conto.
-      </p>
+      <p className="text-xs text-muted">{t("coperto.nota")}</p>
 
       {state?.error && <p className="text-sm text-danger">{state.error}</p>}
       {state?.success && <p className="text-sm text-success">{state.success}</p>}
@@ -131,7 +120,7 @@ export function CopertoForm({
         disabled={pending}
         className="min-h-11 w-full rounded-full bg-accent font-medium text-accent-foreground disabled:opacity-50"
       >
-        {pending ? "Salvataggio…" : "Salva"}
+        {pending ? t("stato.salvataggio") : c("azione.salva")}
       </button>
     </form>
   );

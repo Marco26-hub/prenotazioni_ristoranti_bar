@@ -5,6 +5,8 @@ import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { requireRole } from "@/lib/authz";
+import { linguaUtente } from "@/lib/lingua";
+import { tPersone } from "@/i18n/persone";
 import type { StaffRole } from "@repo/shared";
 
 export interface StaffResult {
@@ -20,15 +22,16 @@ export async function addStaff(formData: FormData): Promise<StaffResult> {
   // Solo il titolare gestisce gli accessi: un manager che potesse creare
   // utenti potrebbe promuoversi a owner.
   const { venue } = await requireRole(["owner"]);
+  const t = tPersone(await linguaUtente());
 
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
   const name = String(formData.get("name") ?? "").trim() || null;
   const role = String(formData.get("role") ?? "") as StaffRole;
 
-  if (!email.includes("@")) return { error: "Email non valida" };
-  if (password.length < 8) return { error: "La password deve essere di almeno 8 caratteri" };
-  if (!ROLES.includes(role)) return { error: "Ruolo non valido" };
+  if (!email.includes("@")) return { error: t("azione.email_non_valida") };
+  if (password.length < 8) return { error: t("azione.password_corta") };
+  if (!ROLES.includes(role)) return { error: t("azione.ruolo_non_valido") };
 
   const sql = db();
 
@@ -38,7 +41,7 @@ export async function addStaff(formData: FormData): Promise<StaffResult> {
   // aprendo la dashboard.
   const [existing] = await sql<{ id: string }[]>`select id from users where email = ${email}`;
   if (existing) {
-    return { error: "Esiste già un account con questa email" };
+    return { error: t("azione.email_esistente") };
   }
 
   await sql.begin(async (tx) => {
@@ -57,16 +60,17 @@ export async function addStaff(formData: FormData): Promise<StaffResult> {
 
 export async function removeStaff(staffId: string): Promise<StaffResult> {
   const { venue, userId } = await requireRole(["owner"]);
+  const t = tPersone(await linguaUtente());
   const sql = db();
 
   const [member] = await sql<{ user_id: string; role: StaffRole }[]>`
     select user_id, role from venue_staff
     where id = ${staffId} and venue_id = ${venue.venueId}`;
 
-  if (!member) return { error: "Membro non trovato" };
+  if (!member) return { error: t("azione.membro_non_trovato") };
 
   if (member.user_id === userId) {
-    return { error: "Non puoi rimuovere te stesso" };
+    return { error: t("azione.non_rimuovere_te") };
   }
 
   // Un locale senza titolari resterebbe senza nessuno in grado di gestire
@@ -75,7 +79,7 @@ export async function removeStaff(staffId: string): Promise<StaffResult> {
     const [{ n }] = await sql<{ n: number }[]>`
       select count(*)::int as n from venue_staff
       where venue_id = ${venue.venueId} and role = 'owner'`;
-    if (n <= 1) return { error: "Deve restare almeno un titolare" };
+    if (n <= 1) return { error: t("azione.almeno_un_titolare") };
   }
 
   await sql`delete from venue_staff where id = ${staffId} and venue_id = ${venue.venueId}`;
@@ -86,23 +90,24 @@ export async function removeStaff(staffId: string): Promise<StaffResult> {
 
 export async function changeStaffRole(staffId: string, role: StaffRole): Promise<StaffResult> {
   const { venue, userId } = await requireRole(["owner"]);
-  if (!ROLES.includes(role)) return { error: "Ruolo non valido" };
+  const t = tPersone(await linguaUtente());
+  if (!ROLES.includes(role)) return { error: t("azione.ruolo_non_valido") };
 
   const sql = db();
   const [member] = await sql<{ user_id: string; role: StaffRole }[]>`
     select user_id, role from venue_staff
     where id = ${staffId} and venue_id = ${venue.venueId}`;
 
-  if (!member) return { error: "Membro non trovato" };
+  if (!member) return { error: t("azione.membro_non_trovato") };
   if (member.user_id === userId) {
-    return { error: "Non puoi cambiare il tuo stesso ruolo" };
+    return { error: t("azione.non_cambiare_te") };
   }
 
   if (member.role === "owner" && role !== "owner") {
     const [{ n }] = await sql<{ n: number }[]>`
       select count(*)::int as n from venue_staff
       where venue_id = ${venue.venueId} and role = 'owner'`;
-    if (n <= 1) return { error: "Deve restare almeno un titolare" };
+    if (n <= 1) return { error: t("azione.almeno_un_titolare") };
   }
 
   await sql`
@@ -126,12 +131,13 @@ export async function assegnaTavoli(
   tableIds: string[]
 ): Promise<StaffResult> {
   const { venue } = await requireRole(["owner", "manager"]);
+  const t = tPersone(await linguaUtente());
   const sql = db();
 
   const [membro] = await sql<{ id: string }[]>`
     select id from venue_staff
      where venue_id = ${venue.venueId} and user_id = ${userId}`;
-  if (!membro) return { error: "Questa persona non fa parte del locale" };
+  if (!membro) return { error: t("azione.non_del_locale") };
 
   const ids = (tableIds ?? []).filter((t) => typeof t === "string" && t.length === 36);
 
@@ -152,7 +158,12 @@ export async function assegnaTavoli(
   revalidatePath("/dashboard/staff");
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/orders");
-  return { ok: ids.length === 0 ? "Rango svuotato." : `${ids.length} tavoli assegnati.` };
+  return {
+    ok:
+      ids.length === 0
+        ? t("azione.rango_svuotato")
+        : t.n(ids.length, "azione.tavoli_assegnati"),
+  };
 }
 
 
@@ -169,6 +180,7 @@ export async function assegnaReparti(
   reparti: string[]
 ): Promise<StaffResult> {
   const { venue } = await requireRole(["owner", "manager"]);
+  const t = tPersone(await linguaUtente());
   const sql = db();
 
   /*
@@ -187,15 +199,15 @@ export async function assegnaReparti(
      where venue_id = ${venue.venueId} and user_id = ${userId}
     returning id`;
 
-  if (!row) return { error: "Questa persona non fa parte del locale" };
+  if (!row) return { error: t("azione.non_del_locale") };
 
   revalidatePath("/dashboard/staff");
   revalidatePath("/dashboard/orders");
   return {
     ok:
       puliti.length === 0
-        ? "Può operare su tutti i reparti."
-        : `Opera su: ${puliti.join(", ")}.`,
+        ? t("azione.tutti_i_reparti")
+        : t("azione.opera_su", { reparti: t.elenco(puliti) }),
   };
 }
 
@@ -216,12 +228,13 @@ export async function impostaCodiceOperatore(
   codice: string
 ): Promise<StaffResult> {
   const { venue } = await requireRole(["owner", "manager"]);
+  const t = tPersone(await linguaUtente());
   const sql = db();
 
   const [membro] = await sql<{ role: string }[]>`
     select role from venue_staff
      where venue_id = ${venue.venueId} and user_id = ${userId}`;
-  if (!membro) return { error: "Questa persona non fa parte del locale" };
+  if (!membro) return { error: t("azione.non_del_locale") };
 
   const pulito = codice.trim();
 
@@ -230,29 +243,26 @@ export async function impostaCodiceOperatore(
       update venue_staff set codice_hash = null, codice_suffisso = null
        where venue_id = ${venue.venueId} and user_id = ${userId}`;
     revalidatePath("/dashboard/staff");
-    return { ok: "Codice rimosso: entrerà con email e password." };
+    return { ok: t("azione.codice_rimosso") };
   }
 
   if (membro.role === "owner" || membro.role === "manager") {
-    return {
-      error:
-        "Titolare e responsabile entrano con la password: il codice non protegge incassi e dati fiscali.",
-    };
+    return { error: t("azione.codice_vietato") };
   }
 
   if (!/^\d{4,6}$/.test(pulito)) {
-    return { error: "Il codice è da 4 a 6 cifre" };
+    return { error: t("azione.codice_cifre") };
   }
   // Sequenze ovvie: su un tablet appoggiato al passe le prova chiunque.
   if (/^(\d)\1+$/.test(pulito) || "0123456789".includes(pulito)) {
-    return { error: "Codice troppo facile da indovinare: cambialo" };
+    return { error: t("azione.codice_facile") };
   }
 
   const [occupato] = await sql<{ user_id: string }[]>`
     select user_id from venue_staff
      where venue_id = ${venue.venueId} and codice_suffisso = ${pulito}
        and user_id <> ${userId}`;
-  if (occupato) return { error: "Questo codice è già di un'altra persona" };
+  if (occupato) return { error: t("azione.codice_occupato") };
 
   await sql`
     update venue_staff
@@ -261,5 +271,5 @@ export async function impostaCodiceOperatore(
      where venue_id = ${venue.venueId} and user_id = ${userId}`;
 
   revalidatePath("/dashboard/staff");
-  return { ok: `Codice ${pulito} assegnato.` };
+  return { ok: t("azione.codice_assegnato", { codice: pulito }) };
 }

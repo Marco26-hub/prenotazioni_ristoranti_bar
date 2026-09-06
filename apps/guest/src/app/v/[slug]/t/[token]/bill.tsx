@@ -8,8 +8,11 @@ import {
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
-import { formatPriceCents } from "@repo/shared";
 import { useRitmo } from "@repo/shared/ritmo";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import type { Formula } from "@/lib/balance";
+import { tComune } from "@repo/shared/i18n/comune";
+import { tConto } from "@/i18n/conto";
 
 interface UnpaidItem {
   id: string;
@@ -30,15 +33,14 @@ interface BillState {
   googleReviewUrl: string | null;
   unpaidItems: UnpaidItem[];
   /** Presente solo se il tavolo è a prezzo fisso. */
-  formula: {
-    fascia: "pranzo" | "cena";
-    prezzoUnitarioCents: number;
-    adulti: number;
-    bambini: number;
-    prezzoBambinoCents: number | null;
-    supplementoCents: number;
-    totaleCents: number;
-  } | null;
+  /*
+   * Il tipo viene da `Formula`, non riscritto a mano.
+   *
+   * Riscritto, restava indietro senza che niente lo dicesse: la rotta
+   * mandava un campo, la pagina non sapeva di averlo, e il conto mostrava
+   * il totale sbagliato in silenzio.
+   */
+  formula: Formula | null;
 }
 
 const stripeCache = new Map<string, Promise<Stripe | null>>();
@@ -61,6 +63,9 @@ export function Bill({
   privacyHref: string;
   token: string;
 }) {
+  const lingua = useLingua();
+  const t = tConto(lingua);
+  const tc = tComune(lingua);
   const [bill, setBill] = useState<BillState | null>(null);
   // L'ultimo aggiornamento non è riuscito: l'importo a schermo può non
   // essere più quello vero.
@@ -86,10 +91,10 @@ export function Bill({
         body: JSON.stringify({ token, motivo: "contanti", documento }),
       });
       const data = await res.json();
-      if (!res.ok) setError(data.error ?? "Non riesco a chiamare il personale");
+      if (!res.ok) setError(data.error ?? t("errore.chiamata"));
       else setChiamato(data.messaggio);
     } catch {
-      setError("Nessuna connessione: chiama il personale a voce");
+      setError(t("errore.chiamata.rete"));
     } finally {
       setChiamando(false);
     }
@@ -172,12 +177,12 @@ export function Bill({
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "Errore avvio pagamento");
+        setError(data.error ?? t("errore.pagamento"));
         return;
       }
       setClientSecret(data.clientSecret);
     } catch {
-      setError("Connessione assente — riprova.");
+      setError(tc("stato.errore.rete"));
     }
   };
 
@@ -191,14 +196,14 @@ export function Bill({
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "Errore avvio pagamento Satispay");
+        setError(data.error ?? t("errore.pagamento.satispay"));
         return;
       }
       // Satispay non offre un widget embeddable: il pagamento si completa
       // sulla loro pagina/app, poi torna sul redirect_url configurato.
-      window.location.href = data.redirectUrl;
+      window.location.assign(data.redirectUrl);
     } catch {
-      setError("Connessione assente — riprova.");
+      setError(tc("stato.errore.rete"));
     }
   };
 
@@ -207,7 +212,7 @@ export function Bill({
   if (paid) {
     return (
       <section className="mt-8 space-y-4 rounded-xl border border-border bg-surface p-5">
-        <p className="font-medium text-success">Conto saldato, grazie!</p>
+        <p className="font-medium text-success">{t("conto.saldato")}</p>
 
         <div className="grid gap-2 sm:grid-cols-2">
           <a
@@ -216,14 +221,11 @@ export function Bill({
             rel="noreferrer"
             className="flex min-h-12 items-center justify-center rounded-full border border-border px-5 text-center text-sm font-medium hover:bg-background focus-visible:ring-2 focus-visible:ring-accent"
           >
-            Ricevuta di pagamento
+            {t("conto.ricevuta")}
           </a>
           <InvoiceRequest sessionId={sessionId} privacyHref={privacyHref} />
         </div>
-        <p className="text-xs text-muted">
-          La ricevuta di pagamento non sostituisce lo scontrino fiscale. Per la
-          fattura elettronica inserisci i dati fiscali.
-        </p>
+        <p className="text-xs text-muted">{t("conto.ricevuta.nota")}</p>
 
         {/* Il momento subito dopo il pagamento è quello in cui le persone
             sono più disposte a lasciare una recensione: chiederla dopo, per
@@ -235,7 +237,7 @@ export function Bill({
             rel="noreferrer"
             className="flex min-h-12 items-center justify-center rounded-full bg-accent px-5 font-medium text-accent-foreground"
           >
-            Lascia una recensione
+            {t("conto.recensione")}
           </a>
         )}
 
@@ -251,14 +253,48 @@ export function Bill({
         .reduce((sum, i) => sum + i.totalCents, 0)
     : bill.balanceCents;
 
+  /*
+   * A prezzo fisso, finché la sala non dice in quanti sono, il totale non
+   * esiste.
+   *
+   * La sessione la apre chi inquadra il QR e nasce a un coperto: il numero
+   * che sapremmo mostrare sarebbe quello di una persona sola per un tavolo
+   * da sei. Mostrarlo, e per giunta lasciarlo pagare, vuol dire incassare
+   * venticinque euro dove ce n'erano centocinquanta — e accorgersene dopo,
+   * quando il tavolo se n'è andato.
+   */
+  const copertiDaConfermare = Boolean(bill.formula?.copertiDaConfermare);
+  /*
+   * Due schermate diverse, non una.
+   *
+   * «Non sappiamo in quanti siete» e «avete detto sei, lo stiamo
+   * confermando» sono due cose diverse per chi legge. Nella seconda il
+   * numero c'è: mostrare un trattino a chi ha appena risposto sembrerebbe
+   * che la risposta si sia persa.
+   */
+  const provvisorio = Boolean(bill.formula?.copertiDalTavolo);
+
   return (
     <section className="mt-8 rounded-xl border border-border bg-surface p-5">
       <div className="mb-4 flex items-baseline justify-between">
-        <h2 className="text-base font-semibold">Il conto</h2>
+        <h2 className="text-base font-semibold">{t("conto.titolo")}</h2>
         <span className="text-xl font-semibold tabular-nums">
-          {formatPriceCents(bill.balanceCents, bill.currency)}
+          {copertiDaConfermare && !provvisorio
+            ? "—"
+            : t.prezzo(bill.balanceCents, bill.currency)}
         </span>
       </div>
+
+      {copertiDaConfermare && (
+        <p
+          role="status"
+          className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900"
+        >
+          {provvisorio
+            ? t("conto.coperti_provvisori")
+            : t("conto.coperti_da_confermare")}
+        </p>
+      )}
 
       {/*
         A formula il totale non torna con la somma dei piatti, ed è giusto
@@ -270,9 +306,7 @@ export function Bill({
           role="alert"
           className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900"
         >
-          Il conto non si sta aggiornando: quello che vedi potrebbe non essere
-          l&apos;importo corrente. Controlla la connessione, o chiedi al
-          personale.
+          {t("conto.fermo")}
         </p>
       )}
 
@@ -280,13 +314,13 @@ export function Bill({
         <dl className="mb-4 space-y-1 rounded-lg bg-background p-3 text-sm">
           <div className="flex justify-between gap-3">
             <dt>
-              Formula {bill.formula.fascia}
+              {t(`formula.${bill.formula.fascia}`)}
               {bill.formula.adulti > 0 && (
-                <> · {bill.formula.adulti} × {formatPriceCents(bill.formula.prezzoUnitarioCents, bill.currency)}</>
+                <> · {bill.formula.adulti} × {t.prezzo(bill.formula.prezzoUnitarioCents, bill.currency)}</>
               )}
             </dt>
             <dd className="tabular-nums">
-              {formatPriceCents(
+              {t.prezzo(
                 bill.formula.adulti * bill.formula.prezzoUnitarioCents,
                 bill.currency
               )}
@@ -296,16 +330,15 @@ export function Bill({
           {bill.formula.bambini > 0 && (
             <div className="flex justify-between gap-3">
               <dt>
-                {bill.formula.bambini}{" "}
-                {bill.formula.bambini === 1 ? "bambino" : "bambini"}
+                {t.n(bill.formula.bambini, "formula.bambini")}
                 {bill.formula.prezzoBambinoCents !== null && (
                   <>
-                    {" "}· {formatPriceCents(bill.formula.prezzoBambinoCents, bill.currency)}
+                    {" "}· {t.prezzo(bill.formula.prezzoBambinoCents, bill.currency)}
                   </>
                 )}
               </dt>
               <dd className="tabular-nums">
-                {formatPriceCents(
+                {t.prezzo(
                   bill.formula.bambini *
                     (bill.formula.prezzoBambinoCents ?? bill.formula.prezzoUnitarioCents),
                   bill.currency
@@ -316,28 +349,26 @@ export function Bill({
 
           {bill.formula.supplementoCents > 0 && (
             <div className="flex justify-between gap-3">
-              <dt>Supplemento per l&apos;avanzato</dt>
+              <dt>{t("formula.supplemento")}</dt>
               <dd className="tabular-nums">
-                {formatPriceCents(bill.formula.supplementoCents, bill.currency)}
+                {t.prezzo(bill.formula.supplementoCents, bill.currency)}
               </dd>
             </div>
           )}
 
-          <p className="pt-1 text-xs text-muted">
-            I piatti della formula sono compresi. Dolci, caffè, amari, bevande e
-            le voci segnate come extra si pagano a parte e li trovi qui sotto.
-          </p>
+          <p className="pt-1 text-xs text-muted">{t("formula.compresi")}</p>
         </dl>
       )}
 
       {!bill.stripeAccountId && !bill.satispayEnabled && (
         <p className="rounded-lg bg-background p-3 text-sm text-muted">
-          Il pagamento con carta non è attivo in questo locale: si paga in
-          contanti al tavolo.
+          {t("pagamento.non_attivo")}
         </p>
       )}
 
-      {(bill.stripeAccountId || bill.satispayEnabled) && !clientSecret && (
+      {(bill.stripeAccountId || bill.satispayEnabled) &&
+        !clientSecret &&
+        !copertiDaConfermare && (
         <div className="space-y-3">
           {bill.unpaidItems.length > 1 && (
             <div className="rounded-lg border border-border p-3">
@@ -350,14 +381,14 @@ export function Bill({
                   }}
                   className={`rounded border px-3 py-1 text-sm ${!splitMode ? "bg-accent text-accent-foreground" : ""}`}
                 >
-                  Pago tutto
+                  {t("pagamento.tutto")}
                 </button>
                 <button
                   type="button"
                   onClick={() => setSplitMode(true)}
                   className={`rounded border px-3 py-1 text-sm ${splitMode ? "bg-accent text-accent-foreground" : ""}`}
                 >
-                  Pago solo i miei piatti
+                  {t("pagamento.mia_parte")}
                 </button>
               </div>
 
@@ -379,7 +410,7 @@ export function Bill({
                         />
                         <span>
                           {item.quantity}× {item.name} —{" "}
-                          {formatPriceCents(item.totalCents, bill.currency)}
+                          {t.prezzo(item.totalCents, bill.currency)}
                         </span>
                       </label>
                     </li>
@@ -391,7 +422,7 @@ export function Bill({
 
           {bill.tipsEnabled && (
             <div>
-              <label className="mb-1 block text-sm">Mancia per il personale</label>
+              <label className="mb-1 block text-sm">{t("mancia.etichetta")}</label>
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -400,7 +431,7 @@ export function Bill({
                     tipCents === 0 ? "bg-accent text-accent-foreground" : ""
                   }`}
                 >
-                  Nessuna
+                  {t("mancia.nessuna")}
                 </button>
                 {bill.tipPercents.map((pct, i) => {
                   const cents = Math.round((payableCents * pct) / 100);
@@ -423,9 +454,11 @@ export function Bill({
                     >
                       {pct}%
                       <span className="ml-1 opacity-70">
-                        {formatPriceCents(cents, bill.currency)}
+                        {t.prezzo(cents, bill.currency)}
                       </span>
-                      {suggested && <span className="ml-1 text-xs">· più scelta</span>}
+                      {suggested && (
+                        <span className="ml-1 text-xs">{t("mancia.suggerita")}</span>
+                      )}
                     </button>
                   );
                 })}
@@ -440,13 +473,15 @@ export function Bill({
               disabled={splitMode && selectedItems.length === 0}
               className="min-h-12 w-full rounded-full bg-accent font-medium text-accent-foreground active:scale-95 disabled:opacity-50"
             >
-              Paga con carta — {formatPriceCents(payableCents + tipCents, bill.currency)}
+              {t("pagamento.carta", {
+                importo: t.prezzo(payableCents + tipCents, bill.currency),
+              })}
             </button>
           )}
 
           {bill.satispayEnabled && splitMode && (
             <p className="text-xs text-muted">
-              Satispay al momento accetta solo il pagamento dell&apos;intero conto.
+              {t("pagamento.satispay.intero")}
             </p>
           )}
 
@@ -456,7 +491,9 @@ export function Bill({
               onClick={startSatispayCheckout}
               className="min-h-12 w-full rounded-full border border-border font-medium active:scale-95"
             >
-              Paga con Satispay — {formatPriceCents(bill.balanceCents + tipCents, bill.currency)}
+              {t("pagamento.satispay", {
+                importo: t.prezzo(bill.balanceCents + tipCents, bill.currency),
+              })}
             </button>
           )}
 
@@ -477,7 +514,7 @@ export function Bill({
           onClick={() => setContanti(true)}
           className="min-h-12 w-full rounded-full border border-border font-medium active:scale-95"
         >
-          Pago in contanti
+          {t("contanti.paga")}
         </button>
       ) : chiamato ? (
         <p
@@ -488,10 +525,10 @@ export function Bill({
         </p>
       ) : (
         <div className="space-y-3 rounded-xl border border-border p-4">
-          <p className="font-medium">Paghi al tavolo in contanti</p>
+          <p className="font-medium">{t("contanti.titolo")}</p>
           <fieldset>
             <legend className="mb-2 text-sm text-muted">
-              Cosa ti serve
+              {t("contanti.documento")}
             </legend>
             <div className="flex gap-2">
           {(["scontrino", "fattura"] as const).map((d) => (
@@ -508,7 +545,7 @@ export function Bill({
                     onChange={() => setDocumento(d)}
                     className="sr-only"
                   />
-              {d === "scontrino" ? "Scontrino" : "Fattura"}
+              {d === "scontrino" ? t("contanti.scontrino") : t("contanti.fattura")}
                 </label>
               ))}
             </div>
@@ -519,14 +556,14 @@ export function Bill({
             disabled={chiamando}
             className="min-h-12 w-full rounded-full bg-accent font-medium text-accent-foreground active:scale-95 disabled:opacity-60"
           >
-        {chiamando ? "Chiamo…" : "Chiama il cameriere"}
+        {chiamando ? t("contanti.chiamo") : t("contanti.chiama")}
           </button>
           <button
             type="button"
             onClick={() => setContanti(false)}
             className="min-h-11 w-full text-sm underline underline-offset-4"
           >
-            Torna ai pagamenti
+            {t("contanti.torna")}
           </button>
         </div>
       )}
@@ -574,6 +611,9 @@ function InvoiceRequest({
   sessionId: string;
   privacyHref: string;
 }) {
+  const lingua = useLingua();
+  const t = tConto(lingua);
+  const tc = tComune(lingua);
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<"privato" | "azienda" | "estero">("privato");
   const [firstName, setFirstName] = useState("");
@@ -639,22 +679,22 @@ function InvoiceRequest({
 
       if (!res.ok) {
         setStatus("error");
-        setError(data.error ?? "Errore invio fattura");
+        setError(data.error ?? t("errore.fattura"));
         return;
       }
       setEmailSent(data.emailSent === true);
       setStatus("sent");
     } catch {
       setStatus("error");
-      setError("Connessione assente — riprova.");
+      setError(tc("stato.errore.rete"));
     }
   };
 
   if (status === "sent") {
     return (
       <p className="text-sm font-medium text-success sm:col-span-2">
-        Fattura trasmessa al Sistema di Interscambio.
-        {emailSent ? " La copia è stata inviata anche via email." : " Il recapito fiscale resta attivo anche se la copia email non è partita."}
+        {t("fattura.inviata")}
+        {emailSent ? t("fattura.inviata.email") : t("fattura.inviata.email_no")}
       </p>
     );
   }
@@ -666,7 +706,7 @@ function InvoiceRequest({
         onClick={() => setOpen(true)}
         className="min-h-12 rounded-full bg-accent px-5 text-sm font-medium text-accent-foreground"
       >
-        Richiedi fattura
+        {t("fattura.richiedi")}
       </button>
     );
   }
@@ -677,12 +717,12 @@ function InvoiceRequest({
   return (
     <form onSubmit={onSubmit} className="space-y-5 sm:col-span-2">
       <fieldset>
-        <legend className="mb-2 text-sm font-medium">Intestatario</legend>
+        <legend className="mb-2 text-sm font-medium">{t("fattura.intestatario")}</legend>
         <div className="grid grid-cols-3 gap-1 rounded-lg border border-border bg-background p-1">
           {([
-            ["privato", "Privato"],
-            ["azienda", "Azienda"],
-            ["estero", "Estero"],
+            ["privato", "fattura.privato"],
+            ["azienda", "fattura.azienda"],
+            ["estero", "fattura.estero"],
           ] as const).map(([value, label]) => (
             <button
               key={value}
@@ -691,7 +731,7 @@ function InvoiceRequest({
               aria-pressed={type === value}
               className={`min-h-10 rounded-md px-2 text-sm font-medium transition-colors ${type === value ? "bg-accent text-accent-foreground" : "text-muted hover:bg-surface"}`}
             >
-              {label}
+              {t(label)}
             </button>
           ))}
         </div>
@@ -700,67 +740,69 @@ function InvoiceRequest({
       {type === "privato" ? (
         <div className="grid gap-4 sm:grid-cols-2">
           <label>
-            <span className={labelClass}>Nome</span>
+            <span className={labelClass}>{t("campo.nome")}</span>
             <input required autoComplete="given-name" value={firstName} onChange={(e) => setFirstName(e.target.value)} className={fieldClass} />
           </label>
           <label>
-            <span className={labelClass}>Cognome</span>
+            <span className={labelClass}>{t("campo.cognome")}</span>
             <input required autoComplete="family-name" value={lastName} onChange={(e) => setLastName(e.target.value)} className={fieldClass} />
           </label>
           <label className="sm:col-span-2">
-            <span className={labelClass}>Codice fiscale</span>
+            <span className={labelClass}>{t("campo.codice_fiscale")}</span>
             <input required minLength={16} maxLength={16} value={fiscalCode} onChange={(e) => setFiscalCode(e.target.value.toUpperCase())} className={fieldClass} />
           </label>
         </div>
       ) : type === "azienda" ? (
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="sm:col-span-2">
-            <span className={labelClass}>Ragione sociale</span>
+            <span className={labelClass}>{t("campo.ragione_sociale")}</span>
             <input required autoComplete="organization" value={companyName} onChange={(e) => setCompanyName(e.target.value)} className={fieldClass} />
           </label>
           <label>
-            <span className={labelClass}>Partita IVA</span>
+            <span className={labelClass}>{t("campo.partita_iva")}</span>
             <input required inputMode="numeric" minLength={11} maxLength={13} value={vatNumber} onChange={(e) => setVatNumber(e.target.value.toUpperCase())} className={fieldClass} />
           </label>
           <label>
-            <span className={labelClass}>Codice destinatario</span>
-            <input maxLength={7} placeholder="7 caratteri" value={sdiCode} onChange={(e) => setSdiCode(e.target.value.toUpperCase())} className={fieldClass} />
+            <span className={labelClass}>{t("campo.codice_destinatario")}</span>
+            <input maxLength={7} placeholder={t("campo.codice_destinatario.esempio")} value={sdiCode} onChange={(e) => setSdiCode(e.target.value.toUpperCase())} className={fieldClass} />
           </label>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="sm:col-span-2">
-            <span className={labelClass}>Nome o ragione sociale</span>
+            <span className={labelClass}>{t("campo.nome_o_ragione_sociale")}</span>
             <input required autoComplete="organization" value={customerName} onChange={(e) => setCustomerName(e.target.value)} className={fieldClass} />
           </label>
           <label>
-            <span className={labelClass}>Paese (codice ISO)</span>
+            <span className={labelClass}>{t("campo.paese")}</span>
             <input required minLength={2} maxLength={2} placeholder="FR" value={countryCode} onChange={(e) => setCountryCode(e.target.value.toUpperCase())} className={fieldClass} />
           </label>
           <label>
-            <span className={labelClass}>Identificativo fiscale estero</span>
+            <span className={labelClass}>{t("campo.identificativo_estero")}</span>
             <input required maxLength={28} value={taxId} onChange={(e) => setTaxId(e.target.value)} className={fieldClass} />
           </label>
         </div>
       )}
 
       <fieldset className="grid gap-4 border-t border-border pt-5 sm:grid-cols-6">
-        <legend className="px-1 text-sm font-semibold">Sede di fatturazione</legend>
+        <legend className="px-1 text-sm font-semibold">{t("fattura.sede")}</legend>
         <label className="sm:col-span-6">
-          <span className={labelClass}>Indirizzo</span>
+          <span className={labelClass}>{t("campo.indirizzo")}</span>
           <input required autoComplete="street-address" value={addressStreet} onChange={(e) => setAddressStreet(e.target.value)} className={fieldClass} />
         </label>
         <label className="sm:col-span-2">
-          <span className={labelClass}>{type === "estero" ? "Codice postale" : "CAP"}</span>
+          <span className={labelClass}>
+            {type === "estero" ? t("campo.codice_postale") : t("campo.cap")}
+          </span>
           <input required inputMode={type === "estero" ? "text" : "numeric"} maxLength={type === "estero" ? 12 : 5} autoComplete="postal-code" value={addressZip} onChange={(e) => setAddressZip(e.target.value)} className={fieldClass} />
         </label>
         <label className={type === "estero" ? "sm:col-span-4" : "sm:col-span-3"}>
-          <span className={labelClass}>Città</span>
+          <span className={labelClass}>{t("campo.citta")}</span>
           <input required autoComplete="address-level2" value={addressCity} onChange={(e) => setAddressCity(e.target.value)} className={fieldClass} />
         </label>
         {type !== "estero" && (
           <label className="sm:col-span-1">
-            <span className={labelClass}>Prov.</span>
+            <span className={labelClass}>{t("campo.provincia")}</span>
             <input required minLength={2} maxLength={2} autoComplete="address-level1" value={addressProvince} onChange={(e) => setAddressProvince(e.target.value.toUpperCase())} className={fieldClass} />
           </label>
         )}
@@ -768,12 +810,14 @@ function InvoiceRequest({
 
       <div className="grid gap-4 border-t border-border pt-5 sm:grid-cols-2">
         <label className={type === "estero" ? "sm:col-span-2" : ""}>
-          <span className={labelClass}>Email per la copia</span>
+          <span className={labelClass}>{t("campo.email_copia")}</span>
           <input type="email" inputMode="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={fieldClass} />
         </label>
         {type !== "estero" && (
           <label>
-            <span className={labelClass}>PEC {type === "azienda" ? "(alternativa al codice destinatario)" : "(facoltativa)"}</span>
+            <span className={labelClass}>
+              {type === "azienda" ? t("campo.pec.azienda") : t("campo.pec.privato")}
+            </span>
             <input type="email" inputMode="email" value={pec} onChange={(e) => setPec(e.target.value)} className={fieldClass} />
           </label>
         )}
@@ -781,9 +825,9 @@ function InvoiceRequest({
 
       {error && <p className="text-sm text-danger">{error}</p>}
       <p className="text-xs text-muted">
-        I dati saranno usati per emettere e recapitare la fattura elettronica.{" "}
+        {t("fattura.privacy")}{" "}
         <a href={privacyHref} className="underline">
-          Informativa privacy
+          {t("fattura.privacy.link")}
         </a>
         .
       </p>
@@ -792,13 +836,14 @@ function InvoiceRequest({
         disabled={status === "sending"}
         className="min-h-12 w-full rounded-full bg-accent font-medium text-accent-foreground active:scale-95 disabled:opacity-50"
       >
-        {status === "sending" ? "Invio..." : "Invia richiesta fattura"}
+        {status === "sending" ? t("fattura.invio") : t("fattura.invia")}
       </button>
     </form>
   );
 }
 
 function PaymentForm({ onSuccess }: { onSuccess: () => void }) {
+  const t = tConto(useLingua());
   const stripe = useStripe();
   const elements = useElements();
   const [submitting, setSubmitting] = useState(false);
@@ -818,7 +863,7 @@ function PaymentForm({ onSuccess }: { onSuccess: () => void }) {
     setSubmitting(false);
 
     if (confirmError) {
-      setError(confirmError.message ?? "Pagamento non riuscito");
+      setError(confirmError.message ?? t("errore.pagamento.fallito"));
       return;
     }
     onSuccess();
@@ -833,7 +878,7 @@ function PaymentForm({ onSuccess }: { onSuccess: () => void }) {
         disabled={!stripe || submitting}
         className="min-h-12 w-full rounded-full bg-accent font-medium text-accent-foreground active:scale-95 disabled:opacity-50"
       >
-        {submitting ? "Elaborazione..." : "Conferma pagamento"}
+        {submitting ? t("pagamento.elaborazione") : t("pagamento.conferma")}
       </button>
     </form>
   );

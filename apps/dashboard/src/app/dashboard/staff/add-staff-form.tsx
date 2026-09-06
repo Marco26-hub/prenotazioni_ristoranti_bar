@@ -2,8 +2,11 @@
 
 import { useActionState } from "react";
 import { addStaff, type StaffResult } from "./actions";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tPersone } from "@/i18n/persone";
 
 export function AddStaffForm() {
+  const t = tPersone(useLingua());
   const [state, formAction, pending] = useActionState<StaffResult | null, FormData>(
     async (_prev, formData) => addStaff(formData),
     null
@@ -13,20 +16,20 @@ export function AddStaffForm() {
     <form action={formAction} className="space-y-2">
       <input
         name="name"
-        placeholder="Nome (facoltativo)"
+        placeholder={t("aggiungi.nome")}
         className="min-h-11 w-full rounded-lg border border-border bg-background px-3"
       />
       <input
         name="email"
         type="email"
-        placeholder="Email"
+        placeholder={t("aggiungi.email")}
         required
         className="min-h-11 w-full rounded-lg border border-border bg-background px-3"
       />
       <input
         name="password"
         type="password"
-        placeholder="Password iniziale (min 8 caratteri)"
+        placeholder={t("aggiungi.password")}
         required
         minLength={8}
         className="min-h-11 w-full rounded-lg border border-border bg-background px-3"
@@ -36,16 +39,16 @@ export function AddStaffForm() {
         defaultValue="waiter"
         className="min-h-11 w-full rounded-lg border border-border bg-background px-3"
       >
-        <option value="waiter">Sala</option>
-        <option value="kitchen">Cucina</option>
-        <option value="manager">Responsabile</option>
-        <option value="owner">Titolare</option>
+        <option value="waiter">{t("ruolo.waiter")}</option>
+        <option value="kitchen">{t("ruolo.kitchen")}</option>
+        <option value="manager">{t("ruolo.manager")}</option>
+        <option value="owner">{t("ruolo.owner")}</option>
       </select>
 
       {state?.error && <p className="text-sm text-danger">{state.error}</p>}
       {state?.createdEmail && (
         <p className="text-sm text-success">
-          Accesso creato per {state.createdEmail}. Comunicagli la password.
+          {t("aggiungi.creato", { email: state.createdEmail })}
         </p>
       )}
 
@@ -54,7 +57,7 @@ export function AddStaffForm() {
         disabled={pending}
         className="min-h-11 w-full rounded-full bg-accent font-medium text-accent-foreground disabled:opacity-50"
       >
-        {pending ? "Creazione..." : "Crea accesso"}
+        {pending ? t("aggiungi.creazione") : t("aggiungi.crea")}
       </button>
     </form>
   );

@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { requireRole } from "@/lib/authz";
+import { linguaUtente } from "@/lib/lingua";
+import { tImpostazioni } from "@/i18n/impostazioni";
 
 export interface EsitoPrenotazioni {
   error?: string;
@@ -13,14 +15,15 @@ export async function salvaImpostazioniPrenotazioni(
   formData: FormData
 ): Promise<EsitoPrenotazioni> {
   const { venue } = await requireRole(["owner", "manager"]);
+  const t = tImpostazioni(await linguaUtente());
 
   const email = String(formData.get("reservationEmail") ?? "").trim() || null;
-  if (email && !email.includes("@")) return { error: "Email non valida" };
+  if (email && !email.includes("@")) return { error: t("prenotazioni.errore.email") };
 
   const capienzaGrezza = String(formData.get("capacity") ?? "").trim();
   const capienza = capienzaGrezza === "" ? null : Number.parseInt(capienzaGrezza, 10);
   if (capienza !== null && (!Number.isInteger(capienza) || capienza < 1 || capienza > 2000)) {
-    return { error: "Capienza non valida" };
+    return { error: t("prenotazioni.errore.capienza") };
   }
 
   const auto = formData.get("autoConfirm") === "on";
@@ -29,9 +32,7 @@ export async function salvaImpostazioniPrenotazioni(
   // accettare qualunque richiesta: è il modo più veloce per ritrovarsi il
   // doppio dei coperti che il locale può servire.
   if (auto && capienza === null) {
-    return {
-      error: "Per la conferma automatica devi indicare quanti coperti puoi servire.",
-    };
+    return { error: t("prenotazioni.errore.auto") };
   }
 
   const sql = db();
@@ -47,7 +48,7 @@ export async function salvaImpostazioniPrenotazioni(
 
   return {
     success: auto
-      ? `Salvato. Le richieste fino a ${capienza} coperti per fascia vengono accettate da sole.`
-      : "Salvato. Confermerai tu ogni richiesta dal calendario.",
+      ? t("prenotazioni.ok.auto", { capienza: capienza ?? 0 })
+      : t("prenotazioni.ok.manuale"),
   };
 }

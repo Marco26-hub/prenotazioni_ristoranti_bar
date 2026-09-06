@@ -2,6 +2,9 @@
 
 import { useActionState } from "react";
 import { saveBranding, type BrandResult } from "./brand-actions";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tImpostazioni } from "@/i18n/impostazioni";
+import { tComune } from "@repo/shared/i18n/comune";
 
 export function BrandForm({
   defaults,
@@ -17,6 +20,8 @@ export function BrandForm({
     googleReviewUrl: string | null;
   };
 }) {
+  const t = tImpostazioni(useLingua());
+  const c = tComune(useLingua());
   const [state, formAction, pending] = useActionState<BrandResult | null, FormData>(
     async (_prev, formData) => saveBranding(formData),
     null
@@ -25,7 +30,7 @@ export function BrandForm({
   return (
     <form action={formAction} className="space-y-3">
       <div>
-        <label className="mb-1 block text-sm">Nome mostrato ai clienti</label>
+        <label className="mb-1 block text-sm">{t("brand.nome")}</label>
         <input
           name="displayName"
           defaultValue={defaults.name}
@@ -35,18 +40,18 @@ export function BrandForm({
       </div>
 
       <div>
-        <label className="mb-1 block text-sm">Logo</label>
+        <label className="mb-1 block text-sm">{t("brand.logo")}</label>
         {defaults.logoUrl && (
           <div className="mb-2 flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={defaults.logoUrl}
-              alt="Logo attuale"
+              alt={t("brand.logo.alt")}
               className="h-12 w-12 rounded-lg object-contain"
             />
             <label className="flex items-center gap-2 text-sm text-muted">
               <input type="checkbox" name="removeLogo" />
-              Rimuovi
+              {c("azione.rimuovi")}
             </label>
           </div>
         )}
@@ -56,24 +61,22 @@ export function BrandForm({
           accept="image/png,image/jpeg,image/webp,image/svg+xml"
           className="w-full text-sm"
         />
-        <p className="mt-1 text-xs text-muted">PNG, JPG, WEBP o SVG, massimo 200 KB.</p>
+        <p className="mt-1 text-xs text-muted">{t("brand.logo.nota")}</p>
       </div>
 
       <div>
-        <label className="mb-1 block text-sm">Colore principale</label>
+        <label className="mb-1 block text-sm">{t("brand.colore")}</label>
         <input
           name="brandColor"
           type="color"
           defaultValue={defaults.brandColor ?? "#b4451f"}
           className="h-11 w-20 rounded-lg border border-border bg-background"
         />
-        <p className="mt-1 text-xs text-muted">
-          Usato per pulsanti ed evidenziazioni nella pagina che vedono i clienti.
-        </p>
+        <p className="mt-1 text-xs text-muted">{t("brand.colore.nota")}</p>
       </div>
 
       <div>
-        <label className="mb-1 block text-sm">Telefono pubblico</label>
+        <label className="mb-1 block text-sm">{t("brand.telefono")}</label>
         <input
           name="publicPhone"
           defaultValue={defaults.publicPhone ?? ""}
@@ -82,7 +85,7 @@ export function BrandForm({
       </div>
 
       <div>
-        <label className="mb-1 block text-sm">Email pubblica</label>
+        <label className="mb-1 block text-sm">{t("brand.email")}</label>
         <input
           name="publicEmail"
           type="email"
@@ -94,7 +97,7 @@ export function BrandForm({
       <div className="border-t border-border pt-3">
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="tipsEnabled" defaultChecked={defaults.tipsEnabled} />
-          Proponi la mancia al cliente
+          {t("brand.mancia")}
         </label>
         <input
           name="tipPercents"
@@ -102,14 +105,11 @@ export function BrandForm({
           placeholder="5,10,15"
           className="mt-2 min-h-11 w-full rounded-lg border border-border bg-background px-3"
         />
-        <p className="mt-1 text-xs text-muted">
-          Percentuali separate da virgola. Quella centrale viene indicata al
-          cliente come &quot;più scelta&quot;.
-        </p>
+        <p className="mt-1 text-xs text-muted">{t("brand.mancia.nota")}</p>
       </div>
 
       <div>
-        <label className="mb-1 block text-sm">Link per le recensioni Google</label>
+        <label className="mb-1 block text-sm">{t("brand.recensioni")}</label>
         <input
           name="googleReviewUrl"
           type="url"
@@ -117,21 +117,18 @@ export function BrandForm({
           placeholder="https://g.page/r/..../review"
           className="min-h-11 w-full rounded-lg border border-border bg-background px-3"
         />
-        <p className="mt-1 text-xs text-muted">
-          Dal tuo profilo Google Business, voce &quot;Chiedi recensioni&quot;. Compare
-          al cliente subito dopo il pagamento, quando è più disposto a lasciarla.
-        </p>
+        <p className="mt-1 text-xs text-muted">{t("brand.recensioni.nota")}</p>
       </div>
 
       {state?.error && <p className="text-sm text-danger">{state.error}</p>}
-      {state?.success && <p className="text-sm text-success">Personalizzazione salvata.</p>}
+      {state?.success && <p className="text-sm text-success">{t("brand.salvato")}</p>}
 
       <button
         type="submit"
         disabled={pending}
         className="min-h-11 w-full rounded-full bg-accent font-medium text-accent-foreground active:scale-95 disabled:opacity-50"
       >
-        {pending ? "Salvataggio..." : "Salva personalizzazione"}
+        {pending ? t("stato.salvataggio_punti") : t("brand.salva")}
       </button>
     </form>
   );

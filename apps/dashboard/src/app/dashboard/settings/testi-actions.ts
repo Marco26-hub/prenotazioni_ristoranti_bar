@@ -4,11 +4,14 @@ import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { requireRole } from "@/lib/authz";
 import { TESTI_PUBBLICI, normalizzaTesti } from "@repo/shared/testi";
+import { linguaUtente } from "@/lib/lingua";
+import { tImpostazioni } from "@/i18n/impostazioni";
 
 export async function salvaTestiPubblici(
   formData: FormData
 ): Promise<{ ok?: string; error?: string }> {
   const { venue } = await requireRole(["owner", "manager"]);
+  const t = tImpostazioni(await linguaUtente());
 
   const grezzi: Record<string, string> = {};
   for (const slot of TESTI_PUBBLICI) {
@@ -23,7 +26,7 @@ export async function salvaTestiPubblici(
      where id = ${venue.venueId}
     returning slug`;
 
-  if (!row) return { error: "Locale non trovato" };
+  if (!row) return { error: t("testi.errore.locale") };
 
   // Le pagine pubbliche sono statiche fino al prossimo rebuild: senza questo
   // il ristoratore salva, va a vedere e trova ancora il testo vecchio.
@@ -31,5 +34,5 @@ export async function salvaTestiPubblici(
   revalidatePath(`/p/${row.slug}`);
   revalidatePath(`/m/${row.slug}`);
 
-  return { ok: "Testi salvati." };
+  return { ok: t("testi.ok") };
 }

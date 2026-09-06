@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { db } from "@repo/shared/db";
 import { checkRateLimit, clientKey } from "@repo/shared/rate-limit";
+import { tEmail } from "@repo/shared/i18n/email";
+import { linguaRichiesta } from "@/i18n/api";
 
 function escapeHtml(value: unknown): string {
   return String(value ?? "")
@@ -11,26 +13,23 @@ function escapeHtml(value: unknown): string {
     .replaceAll("'", "&#039;");
 }
 
-function formatMoney(cents: number, currency: string): string {
-  return new Intl.NumberFormat("it-IT", {
-    style: "currency",
-    currency,
-  }).format(cents / 100);
-}
-
-function formatDate(value: Date): string {
-  return new Intl.DateTimeFormat("it-IT", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(value);
-}
+/*
+ * La ricevuta la scarica il cliente dal suo telefono, quindi segue la sua
+ * lingua come tutto il resto della pagina tavolo. Importi e date passano dai
+ * formattatori del traduttore: una ricevuta con la data all'americana, sotto
+ * un conto che diceva 19:30, fa dubitare che sia la stessa serata.
+ */
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
+  const t = tEmail(linguaRichiesta(request));
+  const formatMoney = (cents: number, currency: string) => t.prezzo(cents, currency);
+  const formatDate = (value: Date) => t.dataOra(value);
+
   const { allowed } = await checkRateLimit(clientKey(request, "receipt"), 30, 60);
-  if (!allowed) return new NextResponse("Troppe richieste", { status: 429 });
+  if (!allowed) return new NextResponse(t("ricevuta.troppe"), { status: 429 });
 
   const { sessionId } = await params;
   const sql = db();
@@ -55,7 +54,7 @@ export async function GET(
       join venues v on v.id = ts.venue_id
      where ts.id = ${sessionId}`;
 
-  if (!session) return new NextResponse("Sessione non trovata", { status: 404 });
+  if (!session) return new NextResponse(t("ricevuta.non_trovata"), { status: 404 });
 
   const payments = await sql<
     { amount_cents: number; tip_cents: number; method: string; created_at: Date }[]
@@ -66,9 +65,7 @@ export async function GET(
      order by created_at`;
 
   if (payments.length === 0) {
-    return new NextResponse("Il pagamento e ancora in elaborazione. Riprova tra pochi secondi.", {
-      status: 409,
-    });
+    return new NextResponse(t("ricevuta.in_corso"), { status: 409 });
   }
 
   const items = await sql<
@@ -117,16 +114,21 @@ export async function GET(
 
   const methods = [...new Set(payments.map((payment) => payment.method))]
     .map((method) =>
-      method === "satispay" ? "Satispay" : method === "cash" ? "Contanti" : "Carta"
+      // Satispay è un marchio: non si traduce in nessuna lingua.
+      method === "satispay"
+        ? "Satispay"
+        : method === "cash"
+          ? t("ricevuta.metodo.contanti")
+          : t("ricevuta.metodo.carta")
     )
     .join(", ");
 
   const html = `<!doctype html>
-  <html lang="it">
+  <html lang="${t.lingua}">
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1">
-      <title>Ricevuta di pagamento - ${escapeHtml(session.venue_name)}</title>
+      <title>${escapeHtml(t("ricevuta.titolo"))} - ${escapeHtml(session.venue_name)}</title>
       <style>
         :root { color-scheme: light; font-family: Inter, system-ui, sans-serif; color: #24211e; background: #f3f0ea; }
         * { box-sizing: border-box; }
@@ -153,17 +155,17 @@ export async function GET(
           <h1>${escapeHtml(session.venue_name)}</h1>
           ${address ? `<p>${address}</p>` : ""}
           ${session.vat_number ? `<p>P.IVA ${escapeHtml(session.vat_number)}</p>` : ""}
-          <p>Tavolo ${escapeHtml(session.table_code)} · ${escapeHtml(formatDate(date))}</p>
+          <p>${escapeHtml(t("ricevuta.tavolo", { codice: session.table_code }))} · ${escapeHtml(formatDate(date))}</p>
         </header>
         <table><tbody>${itemRows}</tbody></table>
         <div class="totals">
-          <div class="row"><span>Piatti e bevande</span><strong>${escapeHtml(formatMoney(itemTotal, currency))}</strong></div>
-          ${extrasTotal > 0 ? `<div class="row"><span>Coperto e servizio</span><strong>${escapeHtml(formatMoney(extrasTotal, currency))}</strong></div>` : ""}
-          ${tipTotal > 0 ? `<div class="row"><span>Mancia</span><strong>${escapeHtml(formatMoney(tipTotal, currency))}</strong></div>` : ""}
-          <div class="row total"><span>Pagato</span><span>${escapeHtml(formatMoney(paidTotal + tipTotal, currency))}</span></div>
+          <div class="row"><span>${escapeHtml(t("ricevuta.piatti"))}</span><strong>${escapeHtml(formatMoney(itemTotal, currency))}</strong></div>
+          ${extrasTotal > 0 ? `<div class="row"><span>${escapeHtml(t("ricevuta.supplementi"))}</span><strong>${escapeHtml(formatMoney(extrasTotal, currency))}</strong></div>` : ""}
+          ${tipTotal > 0 ? `<div class="row"><span>${escapeHtml(t("ricevuta.mancia"))}</span><strong>${escapeHtml(formatMoney(tipTotal, currency))}</strong></div>` : ""}
+          <div class="row total"><span>${escapeHtml(t("ricevuta.pagato"))}</span><span>${escapeHtml(formatMoney(paidTotal + tipTotal, currency))}</span></div>
         </div>
-        <p class="notice">Pagamento effettuato con ${escapeHtml(methods)}. Documento di cortesia non fiscale.</p>
-        <button type="button" onclick="window.print()">Stampa o salva in PDF</button>
+        <p class="notice">${escapeHtml(t("ricevuta.metodo", { metodi: methods }))}</p>
+        <button type="button" onclick="window.print()">${escapeHtml(t("ricevuta.stampa"))}</button>
       </main>
     </body>
   </html>`;

@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useSyncExternalStore } from "react";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tTavoloExtra } from "@/i18n/tavolo-extra";
 
 /**
  * Piccolo archivio attorno a localStorage.
@@ -63,6 +65,7 @@ export function AnnuncioLocale({
   annuncio: Annuncio;
   venueSlug: string;
 }) {
+  const t = tTavoloExtra(useLingua());
   const chiave = `annuncio:${venueSlug}:${annuncio.versione}`;
 
   const chiuso = useSyncExternalStore(
@@ -101,7 +104,7 @@ export function AnnuncioLocale({
           <button
             type="button"
             onClick={chiudi}
-            aria-label="Chiudi l'annuncio"
+            aria-label={t("annuncio.chiudi")}
             className="h-11 w-11 rounded-full border border-border text-lg leading-none"
           >
             ×
@@ -138,7 +141,7 @@ export function AnnuncioLocale({
             onClick={chiudi}
             className="min-h-12 w-full rounded-full border border-border font-medium"
           >
-            Vai al menu
+            {t("annuncio.vai_al_menu")}
           </button>
         </div>
       </div>

@@ -5,6 +5,8 @@ import { decryptSecret } from "@repo/shared/crypto";
 import { auth } from "@/auth";
 import { invoicetronicClient } from "@/lib/invoicetronic";
 import { revalidatePath } from "next/cache";
+import { linguaUtente } from "@/lib/lingua";
+import { tSoldi } from "@/i18n/soldi";
 
 const STATUS: Record<string, string> = {
   Inviato: "sent",
@@ -20,15 +22,16 @@ const STATUS: Record<string, string> = {
 
 export async function syncInvoice(invoiceId: string) {
   const session = await auth();
+  const t = tSoldi(await linguaUtente());
   const venue = session?.venues[0];
-  if (!venue) return { error: "Non autorizzato" };
+  if (!venue) return { error: t("errore.non_autorizzato") };
 
   const sql = db();
   const [row] = await sql<{ provider_invoice_id: string | null; invoice_provider_api_key: string | null }[]>`
     select i.provider_invoice_id, v.invoice_provider_api_key
       from invoices i join venues v on v.id = i.venue_id
      where i.id = ${invoiceId} and i.venue_id = ${venue.venueId}`;
-  if (!row?.provider_invoice_id || !row.invoice_provider_api_key) return { error: "Fattura o API key non disponibile" };
+  if (!row?.provider_invoice_id || !row.invoice_provider_api_key) return { error: t("fattura.errore.non_disponibile") };
 
   try {
     const provider = await invoicetronicClient(decryptSecret(row.invoice_provider_api_key)).sendIdGet(Number(row.provider_invoice_id), false);
@@ -42,6 +45,6 @@ export async function syncInvoice(invoiceId: string) {
     revalidatePath(`/dashboard/invoices/${invoiceId}`);
     return { success: true };
   } catch (error) {
-    return { error: error instanceof Error ? error.message : "Sincronizzazione non riuscita" };
+    return { error: error instanceof Error ? error.message : t("fattura.errore.sync") };
   }
 }

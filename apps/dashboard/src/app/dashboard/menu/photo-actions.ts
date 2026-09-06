@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { requireRole } from "@/lib/authz";
+import { linguaUtente } from "@/lib/lingua";
+import { tMenuAdmin } from "@/i18n/menu";
 
 export interface PhotoResult {
   error?: string;
@@ -22,12 +24,13 @@ const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 export async function saveDishPhoto(formData: FormData): Promise<PhotoResult> {
   const { venue } = await requireRole(["owner", "manager"], "ordini");
+  const t = tMenuAdmin(await linguaUtente());
 
   const itemId = String(formData.get("itemId") ?? "");
   const remove = formData.get("removePhoto") === "on";
   const photo = formData.get("photo");
 
-  if (!itemId) return { error: "Piatto non indicato" };
+  if (!itemId) return { error: t("foto.errore.piatto") };
 
   const sql = db();
 
@@ -40,13 +43,13 @@ export async function saveDishPhoto(formData: FormData): Promise<PhotoResult> {
   }
 
   if (!(photo instanceof File) || photo.size === 0) {
-    return { error: "Nessuna immagine selezionata" };
+    return { error: t("foto.errore.nessuna") };
   }
   if (!ALLOWED_TYPES.includes(photo.type)) {
-    return { error: "Formato non supportato: usa JPG, PNG o WEBP" };
+    return { error: t("foto.errore.formato") };
   }
   if (photo.size > MAX_PHOTO_BYTES) {
-    return { error: "Immagine troppo pesante (massimo 300 KB)" };
+    return { error: t("foto.errore.peso") };
   }
 
   const base64 = Buffer.from(await photo.arrayBuffer()).toString("base64");
@@ -58,7 +61,7 @@ export async function saveDishPhoto(formData: FormData): Promise<PhotoResult> {
     where id = ${itemId} and venue_id = ${venue.venueId}
     returning id`;
 
-  if (righe.length === 0) return { error: "Piatto non trovato" };
+  if (righe.length === 0) return { error: t("foto.errore.non.trovato") };
 
   revalidatePath("/dashboard/menu");
   return { success: true };

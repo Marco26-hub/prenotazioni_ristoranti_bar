@@ -7,6 +7,8 @@ import { db } from "@repo/shared/db";
 import { requireSuperAdmin } from "@/lib/authz";
 import { applicaFormato } from "@/lib/formato";
 import { type Modulo } from "@repo/shared";
+import { tSuperAdmin } from "@/i18n/superadmin";
+import { linguaUtente } from "@/lib/lingua";
 
 const VALIDI: Modulo[] = ["ordini", "prenotazioni"];
 
@@ -27,12 +29,13 @@ export async function impostaModuli(
   nota: string
 ): Promise<{ ok?: string; error?: string }> {
   const admin = await requireSuperAdmin();
+  const t = tSuperAdmin(await linguaUtente());
   const puliti = [...new Set((moduli ?? []).filter((m) => VALIDI.includes(m as Modulo)))];
 
   const sql = db();
   const [v] = await sql<{ name: string }[]>`
     update venues set modules = ${puliti} where id = ${venueId} returning name`;
-  if (!v) return { error: "Locale non trovato" };
+  if (!v) return { error: t("azione.locale_non_trovato") };
 
   await sql`
     insert into platform_events (venue_id, admin_id, admin_label, azione, dettaglio)
@@ -40,7 +43,7 @@ export async function impostaModuli(
             ${`${puliti.join(", ") || "nessuno"}${nota ? " — " + nota.slice(0, 200) : ""}`})`;
 
   revalidatePath("/admin");
-  return { ok: `${v.name}: ${puliti.join(", ") || "nessun modulo"}.` };
+  return { ok: `${v.name}: ${puliti.join(", ") || t("azione.moduli.nessuno")}.` };
 }
 
 /**
@@ -67,11 +70,12 @@ export async function impostaAbbonamento(
   nota: string
 ): Promise<{ ok?: string; error?: string }> {
   const admin = await requireSuperAdmin();
+  const t = tSuperAdmin(await linguaUtente());
 
   const statiValidi = ["trialing", "active", "past_due", "canceled", "none"];
-  if (!statiValidi.includes(stato)) return { error: "Stato non valido" };
+  if (!statiValidi.includes(stato)) return { error: t("azione.stato_non_valido") };
   if (giorni !== null && (!Number.isFinite(giorni) || giorni < 0 || giorni > 1095)) {
-    return { error: "Giorni fra 0 e 1095, oppure vuoto per non cambiare la scadenza" };
+    return { error: t("azione.giorni_non_validi") };
   }
 
   const sql = db();
@@ -87,7 +91,7 @@ export async function impostaAbbonamento(
            }
      where id = ${venueId}
     returning name`;
-  if (!v) return { error: "Locale non trovato" };
+  if (!v) return { error: t("azione.locale_non_trovato") };
 
   await sql`
     insert into platform_events (venue_id, admin_id, admin_label, azione, dettaglio)
@@ -104,10 +108,10 @@ export async function impostaAbbonamento(
   return {
     ok: `${v.name}: ${stato}${
       giorni === null
-        ? ", scadenza invariata"
+        ? t("azione.abbonamento.invariata")
         : giorni > 0
-          ? `, ancora ${giorni} giorni`
-          : ", senza scadenza"
+          ? t.n(giorni, "azione.abbonamento.ancora")
+          : t("azione.abbonamento.senza_scadenza")
     }.`,
   };
 }
@@ -123,16 +127,17 @@ export async function cambiaPasswordAdmin(
   formData: FormData
 ): Promise<{ ok?: string; error?: string }> {
   const admin = await requireSuperAdmin();
+  const t = tSuperAdmin(await linguaUtente());
 
   const nuova = String(formData.get("nuova") ?? "");
   const conferma = String(formData.get("conferma") ?? "");
 
   if (nuova.length < 12) {
-    return { error: "Almeno 12 caratteri: questo accesso vede tutti i locali." };
+    return { error: t("azione.password.corta") };
   }
-  if (nuova !== conferma) return { error: "Le due password non coincidono" };
+  if (nuova !== conferma) return { error: t("azione.password.diverse") };
   if (/^[a-z]+$/i.test(nuova) || /^\d+$/.test(nuova)) {
-    return { error: "Mescola lettere, numeri e almeno un simbolo." };
+    return { error: t("azione.password.debole") };
   }
 
   const sql = db();
@@ -147,7 +152,7 @@ export async function cambiaPasswordAdmin(
     values (${admin.userId}, ${admin.email}, 'password cambiata')`;
 
   revalidatePath("/admin");
-  return { ok: "Password aggiornata." };
+  return { ok: t("azione.password.ok") };
 }
 
 /** Referente e stato del rapporto: quello che il database non sa da solo. */
@@ -163,14 +168,15 @@ export async function salvaScheda(
   }
 ): Promise<{ ok?: string; error?: string }> {
   await requireSuperAdmin();
+  const t = tSuperAdmin(await linguaUtente());
 
   const testo = (v: string, max = 120) => {
-    const t = String(v ?? "").trim();
-    return t ? t.slice(0, max) : null;
+    const pulito = String(v ?? "").trim();
+    return pulito ? pulito.slice(0, max) : null;
   };
   const data = String(campi.ricontattare_il ?? "").trim();
   if (data && !/^\d{4}-\d{2}-\d{2}$/.test(data)) {
-    return { error: "Data non valida" };
+    return { error: t("azione.scheda.data") };
   }
 
   const sql = db();
@@ -185,9 +191,9 @@ export async function salvaScheda(
     where id = ${venueId}
     returning name`;
 
-  if (!v) return { error: "Locale non trovato" };
+  if (!v) return { error: t("azione.locale_non_trovato") };
   revalidatePath("/admin");
-  return { ok: "Scheda salvata." };
+  return { ok: t("azione.scheda.ok") };
 }
 
 /**
@@ -202,16 +208,17 @@ export async function aggiungiNota(
   testo: string
 ): Promise<{ ok?: string; error?: string }> {
   const admin = await requireSuperAdmin();
-  const t = String(testo ?? "").trim();
-  if (!t) return { error: "Scrivi qualcosa" };
+  const t = tSuperAdmin(await linguaUtente());
+  const scritto = String(testo ?? "").trim();
+  if (!scritto) return { error: t("azione.nota.vuota") };
 
   const sql = db();
   await sql`
     insert into venue_notes (venue_id, autore_id, autore_label, testo)
-    values (${venueId}, ${admin.userId}, ${admin.email}, ${t.slice(0, 2000)})`;
+    values (${venueId}, ${admin.userId}, ${admin.email}, ${scritto.slice(0, 2000)})`;
 
   revalidatePath("/admin");
-  return { ok: "Nota aggiunta." };
+  return { ok: t("azione.nota.ok") };
 }
 
 /** Risponde a una richiesta di assistenza e ne cambia lo stato. */
@@ -221,12 +228,13 @@ export async function rispondiTicket(
   stato: "aperto" | "in_corso" | "risolto"
 ): Promise<{ ok?: string; error?: string }> {
   const admin = await requireSuperAdmin();
+  const t = tSuperAdmin(await linguaUtente());
   if (!["aperto", "in_corso", "risolto"].includes(stato)) {
-    return { error: "Stato non valido" };
+    return { error: t("azione.stato_non_valido") };
   }
 
   const sql = db();
-  const [t] = await sql<{ id: string }[]>`
+  const [riga] = await sql<{ id: string }[]>`
     update support_tickets
        set risposta = ${String(risposta ?? "").trim().slice(0, 4000) || null},
            stato = ${stato},
@@ -236,9 +244,9 @@ export async function rispondiTicket(
      where id = ${ticketId}
     returning id`;
 
-  if (!t) return { error: "Richiesta non trovata" };
+  if (!riga) return { error: t("azione.ticket.non_trovato") };
   revalidatePath("/admin");
-  return { ok: stato === "risolto" ? "Segnata risolta." : "Risposta salvata." };
+  return { ok: stato === "risolto" ? t("azione.ticket.risolto") : t("azione.ticket.ok") };
 }
 
 /**
@@ -258,16 +266,17 @@ export async function creaTitolare(
   email: string
 ): Promise<{ ok?: string; error?: string; password?: string }> {
   const admin = await requireSuperAdmin();
+  const t = tSuperAdmin(await linguaUtente());
 
   const mail = String(email ?? "").trim().toLowerCase();
   const chi = String(nome ?? "").trim();
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)) return { error: "Email non valida" };
-  if (!chi) return { error: "Serve il nome del referente" };
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)) return { error: t("azione.titolare.email") };
+  if (!chi) return { error: t("azione.titolare.nome") };
 
   const sql = db();
   const [locale] = await sql<{ name: string }[]>`
     select name from venues where id = ${venueId}`;
-  if (!locale) return { error: "Locale non trovato" };
+  if (!locale) return { error: t("azione.locale_non_trovato") };
 
   const [esistente] = await sql<{ id: string }[]>`
     select id from users where email = ${mail}`;
@@ -276,7 +285,7 @@ export async function creaTitolare(
     const [gia] = await sql<{ id: string }[]>`
       select id from venue_staff
        where venue_id = ${venueId} and user_id = ${esistente.id}`;
-    if (gia) return { error: "Questa persona è già nel locale" };
+    if (gia) return { error: t("azione.titolare.gia_dentro") };
 
     await sql`
       insert into venue_staff (venue_id, user_id, role)
@@ -285,7 +294,7 @@ export async function creaTitolare(
       insert into platform_events (venue_id, admin_id, admin_label, azione, dettaglio)
       values (${venueId}, ${admin.userId}, ${admin.email}, 'titolare collegato', ${mail})`;
     revalidatePath("/admin");
-    return { ok: `${mail} è ora titolare di ${locale.name}. Usa la password che ha già.` };
+    return { ok: t("azione.titolare.collegato", { email: mail, locale: locale.name }) };
   }
 
   // Password iniziale generata: leggibile a voce, ma non indovinabile.
@@ -313,7 +322,7 @@ export async function creaTitolare(
 
   revalidatePath("/admin");
   return {
-    ok: `Titolare creato per ${locale.name}.`,
+    ok: t("azione.titolare.creato", { locale: locale.name }),
     // Mostrata una volta sola: non la salviamo in chiaro da nessuna parte.
     password,
   };
@@ -338,6 +347,7 @@ export async function impostaFormato(
   conListino = false
 ): Promise<{ ok?: string; error?: string }> {
   const admin = await requireSuperAdmin();
+  const t = tSuperAdmin(await linguaUtente());
 
   const esito = await applicaFormato(venueId, tipo, soloCategorie, conListino);
   if (esito.error) return { error: esito.error };
@@ -354,5 +364,5 @@ export async function impostaFormato(
             ${`${tipo}${soloCategorie ? " (solo categorie)" : ""}`})`;
 
   revalidatePath("/admin");
-  return { ok: `${v?.name ?? "Locale"}: ${esito.success ?? "formato applicato."}` };
+  return { ok: `${v?.name ?? t("azione.locale")}: ${esito.success ?? t("azione.formato.ok")}` };
 }

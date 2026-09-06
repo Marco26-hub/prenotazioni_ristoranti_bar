@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { requireVenue } from "@/lib/authz";
+import { tPersone } from "@/i18n/persone";
+import { linguaUtente } from "@/lib/lingua";
 
 /**
  * Il locale chiede assistenza dal proprio gestionale.
@@ -15,6 +17,7 @@ export async function apriTicket(
   formData: FormData
 ): Promise<{ ok?: string; error?: string }> {
   const { venue, userId } = await requireVenue();
+  const t = tPersone(await linguaUtente());
 
   const oggetto = String(formData.get("oggetto") ?? "").trim();
   const messaggio = String(formData.get("messaggio") ?? "").trim();
@@ -22,7 +25,7 @@ export async function apriTicket(
   const urgenza =
     formData.get("urgenza") === "blocca_servizio" ? "blocca_servizio" : "normale";
 
-  if (!oggetto || !messaggio) return { error: "Scrivi oggetto e messaggio" };
+  if (!oggetto || !messaggio) return { error: t("assistenza.errore.campi") };
   const sql = db();
   const [u] = await sql<{ etichetta: string }[]>`
     select coalesce(name, email) as etichetta from users where id = ${userId}`;
@@ -61,8 +64,8 @@ export async function apriTicket(
     revalidatePath("/dashboard/assistenza");
     return {
       ok: saleUrgenza
-        ? "Aggiunto alla richiesta che avevi già aperto, segnalata come urgente."
-        : "Aggiunto alla richiesta che avevi già aperto: la stiamo guardando.",
+        ? t("assistenza.ok.aggiunta_urgente")
+        : t("assistenza.ok.aggiunta"),
     };
   }
 
@@ -73,5 +76,5 @@ export async function apriTicket(
             ${oggetto.slice(0, 120)}, ${messaggio.slice(0, 4000)}, ${urgenza})`;
 
   revalidatePath("/dashboard/assistenza");
-  return { ok: "Richiesta inviata. Ti rispondiamo qui dentro." };
+  return { ok: t("assistenza.ok.inviata") };
 }

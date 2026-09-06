@@ -1,6 +1,9 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tComune } from "@repo/shared/i18n/comune";
+import { tMenu } from "@/i18n/menu";
 
 interface Messaggio {
   chi: "cliente" | "locale";
@@ -15,11 +18,11 @@ interface Messaggio {
  * chiedere al telefono tutto il giorno.
  */
 const SUGGERITE = [
-  "A che ora siete aperti?",
-  "Avete piatti vegetariani?",
-  "Quali piatti consigliate?",
-  "Dove siete e c'è parcheggio?",
-];
+  "assistente.suggerita.orari",
+  "assistente.suggerita.vegetariani",
+  "assistente.suggerita.consigli",
+  "assistente.suggerita.dove",
+] as const;
 
 export function Assistente({
   slug,
@@ -28,6 +31,9 @@ export function Assistente({
   slug: string;
   nomeLocale: string;
 }) {
+  const lingua = useLingua();
+  const t = tMenu(lingua);
+  const tc = tComune(lingua);
   const [aperto, setAperto] = useState(false);
   const [messaggi, setMessaggi] = useState<Messaggio[]>([]);
   const [inCorso, setInCorso] = useState(false);
@@ -54,12 +60,12 @@ export function Assistente({
         ...m,
         res.ok
           ? { chi: "locale", testo: dati.risposta }
-          : { chi: "locale", testo: dati.error ?? "Non riesco a rispondere adesso." },
+          : { chi: "locale", testo: dati.error ?? t("assistente.errore") },
       ]);
     } catch {
       setMessaggi((m) => [
         ...m,
-        { chi: "locale", testo: "Connessione non riuscita. Riprova." },
+        { chi: "locale", testo: t("assistente.errore.rete") },
       ]);
     } finally {
       setInCorso(false);
@@ -77,7 +83,7 @@ export function Assistente({
         className="fixed bottom-4 right-4 z-40 flex min-h-12 items-center gap-2 rounded-full bg-accent px-5 text-sm font-medium text-accent-foreground shadow-lg"
       >
         <span aria-hidden>?</span>
-        Chiedi al locale
+        {t("assistente.apri")}
       </button>
     );
   }
@@ -87,13 +93,15 @@ export function Assistente({
       <div className="max-h-[80vh] overflow-hidden rounded-t-2xl border border-border bg-surface shadow-2xl sm:mb-4 sm:rounded-2xl">
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <div>
-            <p className="font-medium leading-tight">Chiedi a {nomeLocale}</p>
-            <p className="text-xs text-muted">Risponde con quello che è scritto qui</p>
+            <p className="font-medium leading-tight">
+              {t("assistente.titolo", { nome: nomeLocale })}
+            </p>
+            <p className="text-xs text-muted">{t("assistente.sottotitolo")}</p>
           </div>
           <button
             type="button"
             onClick={() => setAperto(false)}
-            aria-label="Chiudi"
+            aria-label={tc("azione.chiudi")}
             className="h-11 w-11 shrink-0 rounded-full border border-border text-lg leading-none"
           >
             ×
@@ -103,18 +111,15 @@ export function Assistente({
         <div className="max-h-[45vh] space-y-3 overflow-y-auto px-4 py-3">
           {messaggi.length === 0 && (
             <div className="space-y-2">
-              <p className="text-sm text-muted">
-                Orari, piatti, come arrivare. Per allergie e intolleranze
-                conferma sempre con il personale.
-              </p>
-              {SUGGERITE.map((d) => (
+              <p className="text-sm text-muted">{t("assistente.invito")}</p>
+              {SUGGERITE.map((chiave) => (
                 <button
-                  key={d}
+                  key={chiave}
                   type="button"
-                  onClick={() => chiedi(d)}
+                  onClick={() => chiedi(t(chiave))}
                   className="flex min-h-11 w-full items-center rounded-xl border border-border px-3 text-left text-sm"
                 >
-                  {d}
+                  {t(chiave)}
                 </button>
               ))}
             </div>
@@ -137,7 +142,7 @@ export function Assistente({
             </div>
           ))}
 
-          {inCorso && <p className="text-sm text-muted">Sto guardando…</p>}
+          {inCorso && <p className="text-sm text-muted">{t("assistente.attesa")}</p>}
           <div ref={fondoRef} />
         </div>
 
@@ -151,8 +156,8 @@ export function Assistente({
           <input
             ref={inputRef}
             maxLength={300}
-            placeholder="Scrivi una domanda"
-            aria-label="La tua domanda"
+            placeholder={t("assistente.placeholder")}
+            aria-label={t("assistente.campo")}
             className="min-h-11 w-full min-w-0 flex-1 rounded-full border border-border bg-background px-4 text-base"
           />
           <button
@@ -160,7 +165,7 @@ export function Assistente({
             disabled={inCorso}
             className="min-h-11 shrink-0 rounded-full bg-accent px-5 text-sm font-medium text-accent-foreground disabled:opacity-50"
           >
-            Chiedi
+            {t("assistente.invia")}
           </button>
         </form>
       </div>

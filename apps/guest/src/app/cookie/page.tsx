@@ -1,7 +1,20 @@
-export const metadata = {
-  title: "Informativa cookie",
-  robots: { index: false, follow: true },
-};
+import type { Metadata } from "next";
+import { LinguaProvider } from "@repo/shared/i18n/contesto";
+import { linguaPagina } from "@/lib/lingua";
+import { tLegale } from "@/i18n/legale";
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ lang?: string }>;
+}): Promise<Metadata> {
+  const { lang } = await searchParams;
+  const t = tLegale(await linguaPagina(lang));
+  return {
+    title: t("cookie.titolo"),
+    robots: { index: false, follow: true },
+  };
+}
 
 /**
  * Informativa cookie.
@@ -15,90 +28,86 @@ export const metadata = {
  * Se un giorno si aggiunge uno strumento di analisi, questa pagina va
  * riscritta e va introdotto un banner con consenso preventivo.
  */
-export default function CookiePage() {
+export default async function CookiePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ lang?: string }>;
+}) {
+  const { lang } = await searchParams;
+  const lingua = await linguaPagina(lang);
+  const t = tLegale(lingua);
+
   return (
-    <main className="mx-auto max-w-2xl space-y-4 px-4 py-6 text-sm leading-relaxed">
-      <h1 className="text-2xl font-semibold tracking-tight">Informativa cookie</h1>
+    <LinguaProvider lingua={lingua}>
+      <main className="mx-auto max-w-2xl space-y-4 px-4 py-6 text-sm leading-relaxed">
+        <h1 className="text-2xl font-semibold tracking-tight">{t("cookie.titolo")}</h1>
 
-      <p>
-        Questo servizio <strong>non usa cookie di profilazione</strong>, non
-        raccoglie statistiche di navigazione, non ospita pixel pubblicitari e
-        non condivide dati con reti di advertising. Per questo non trovi un
-        banner che ti chiede di accettare qualcosa: non c&apos;è nulla da
-        accettare.
-      </p>
+        {/* L'italiano è il testo che fa fede: chi legge l'inglese deve saperlo
+            prima di leggere il resto, non in fondo. */}
+        {t.lingua === "en" && (
+          <p className="text-muted">{t("legale.prevalenza")}</p>
+        )}
 
-      <h2 className="pt-3 font-semibold">Cosa viene effettivamente salvato</h2>
+        <p>
+          {t("cookie.intro.a")} <strong>{t("cookie.intro.forte")}</strong>
+          {t("cookie.intro.b")}
+        </p>
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[34rem] border-collapse text-left">
-          <thead>
-            <tr className="border-b border-border">
-              <th className="py-2 pr-3 font-medium">Nome</th>
-              <th className="py-2 pr-3 font-medium">Chi lo imposta</th>
-              <th className="py-2 pr-3 font-medium">A cosa serve</th>
-              <th className="py-2 font-medium">Durata</th>
-            </tr>
-          </thead>
-          <tbody className="align-top">
-            <tr className="border-b border-border/70">
-              <td className="py-2 pr-3">
-                <code>__stripe_mid</code>, <code>__stripe_sid</code>
-              </td>
-              <td className="py-2 pr-3">Stripe, solo nella pagina di pagamento</td>
-              <td className="py-2 pr-3">
-                Riconoscere tentativi di frode con carta. Senza, il pagamento
-                non può essere messo in sicurezza.
-              </td>
-              <td className="py-2">1 anno e 30 minuti</td>
-            </tr>
-            <tr>
-              <td className="py-2 pr-3">
-                <code>__Secure-authjs.session-token</code>
-              </td>
-              <td className="py-2 pr-3">
-                Il gestionale del locale, non le pagine cliente
-              </td>
-              <td className="py-2 pr-3">
-                Tenere collegato il personale dopo l&apos;accesso
-              </td>
-              <td className="py-2">12 ore</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+        <h2 className="pt-3 font-semibold">{t("cookie.salvato.titolo")}</h2>
 
-      <p>
-        Sono entrambi <strong>cookie tecnici</strong>: servono a erogare un
-        servizio che hai chiesto tu — pagare in sicurezza, restare collegato — e
-        secondo le Linee guida del Garante del 10 giugno 2021 non richiedono
-        consenso preventivo. Le pagine che vedi al tavolo, quando non stai
-        pagando, non impostano alcun cookie.
-      </p>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[34rem] border-collapse text-left">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="py-2 pr-3 font-medium">{t("cookie.tabella.nome")}</th>
+                <th className="py-2 pr-3 font-medium">{t("cookie.tabella.chi")}</th>
+                <th className="py-2 pr-3 font-medium">{t("cookie.tabella.scopo")}</th>
+                <th className="py-2 font-medium">{t("cookie.tabella.durata")}</th>
+              </tr>
+            </thead>
+            <tbody className="align-top">
+              <tr className="border-b border-border/70">
+                <td className="py-2 pr-3">
+                  <code>__stripe_mid</code>, <code>__stripe_sid</code>
+                </td>
+                <td className="py-2 pr-3">{t("cookie.stripe.chi")}</td>
+                <td className="py-2 pr-3">{t("cookie.stripe.scopo")}</td>
+                <td className="py-2">{t("cookie.stripe.durata")}</td>
+              </tr>
+              <tr>
+                <td className="py-2 pr-3">
+                  <code>__Secure-authjs.session-token</code>
+                </td>
+                <td className="py-2 pr-3">{t("cookie.sessione.chi")}</td>
+                <td className="py-2 pr-3">{t("cookie.sessione.scopo")}</td>
+                <td className="py-2">{t("cookie.sessione.durata")}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-      <h2 className="pt-3 font-semibold">Memoria del browser</h2>
-      <p>
-        Il servizio non usa <code>localStorage</code>, <code>sessionStorage</code>{" "}
-        né impronte digitali del dispositivo. Il carrello vive nella pagina
-        aperta e sparisce quando la chiudi.
-      </p>
+        <p>
+          {t("cookie.tecnici.a")} <strong>{t("cookie.tecnici.forte")}</strong>
+          {t("cookie.tecnici.b")}
+        </p>
 
-      <h2 className="pt-3 font-semibold">Come rimuoverli</h2>
-      <p>
-        I cookie tecnici si cancellano dalle impostazioni del browser, alla voce
-        dati dei siti. Bloccando quelli di Stripe il pagamento con carta smette
-        di funzionare: in quel caso puoi pagare al banco.
-      </p>
+        <h2 className="pt-3 font-semibold">{t("cookie.memoria.titolo")}</h2>
+        <p>
+          {t("cookie.memoria.a")} <code>localStorage</code>,{" "}
+          <code>sessionStorage</code> {t("cookie.memoria.b")}
+        </p>
 
-      <h2 className="pt-3 font-semibold">Se qualcosa cambia</h2>
-      <p>
-        Se in futuro venisse introdotto uno strumento di misurazione o di
-        marketing, questa pagina verrebbe aggiornata e comparirebbe una
-        richiesta di consenso <em>prima</em> dell&apos;installazione, con la
-        possibilità di rifiutare senza perdere l&apos;uso del servizio.
-      </p>
+        <h2 className="pt-3 font-semibold">{t("cookie.rimuovere.titolo")}</h2>
+        <p>{t("cookie.rimuovere.testo")}</p>
 
-      <p className="pt-4 text-muted">Ultimo aggiornamento: settembre 2026.</p>
-    </main>
+        <h2 className="pt-3 font-semibold">{t("cookie.cambia.titolo")}</h2>
+        <p>
+          {t("cookie.cambia.a")} <em>{t("cookie.cambia.enfasi")}</em>{" "}
+          {t("cookie.cambia.b")}
+        </p>
+
+        <p className="pt-4 text-muted">{t("legale.aggiornamento")}</p>
+      </main>
+    </LinguaProvider>
   );
 }

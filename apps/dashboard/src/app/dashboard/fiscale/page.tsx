@@ -1,15 +1,10 @@
 import { db } from "@repo/shared/db";
-import { formatPriceCents } from "@repo/shared";
 import { requireRole } from "@/lib/authz";
 import { RtForm } from "./rt-form";
 import { RigaDocumento } from "./riga-documento";
-
-const METODO: Record<string, string> = {
-  card: "Carta",
-  cash: "Contanti",
-  satispay: "Satispay",
-  manual: "Incassato al banco",
-};
+import { linguaUtente } from "@/lib/lingua";
+import { tSoldi } from "@/i18n/soldi";
+import { LinguaProvider } from "@repo/shared/i18n/contesto";
 
 /**
  * Corrispettivi: cosa è stato certificato e cosa no.
@@ -29,6 +24,17 @@ export default async function FiscalePage() {
    * essere del personale.
    */
   const { venue } = await requireRole(["owner", "manager"]);
+  const lingua = await linguaUtente();
+  const t = tSoldi(lingua);
+
+  // Le etichette del metodo: le chiavi a database restano card/cash/…
+  const METODO: Record<string, string> = {
+    card: t("fiscale.metodo.card"),
+    cash: t("fiscale.metodo.cash"),
+    satispay: t("fiscale.metodo.satispay"),
+    manual: t("fiscale.metodo.manual"),
+  };
+
   const sql = db();
 
   const [locale] = await sql<
@@ -122,148 +128,127 @@ export default async function FiscalePage() {
   );
   const totaleGiornata = perMetodo.reduce((s, r) => s + Number(r.totale), 0);
 
-  const dataIt = new Intl.DateTimeFormat("it-IT", {
-    dateStyle: "short",
-    timeStyle: "short",
-  });
-
   return (
-    <main className="mx-auto max-w-4xl px-4 py-5">
-      <h1 className="text-xl font-semibold">Corrispettivi</h1>
-      <p className="mt-1 text-sm text-muted">
-        Il gestionale incassa, il registratore certifica. Qui si controlla che
-        i due numeri coincidano.
-      </p>
+    <LinguaProvider lingua={lingua}>
+      <main className="mx-auto max-w-4xl px-4 py-5">
+        <h1 className="text-xl font-semibold">{t("fiscale.titolo")}</h1>
+        <p className="mt-1 text-sm text-muted">{t("fiscale.sottotitolo")}</p>
 
-      {/* --- Riepilogo di giornata ------------------------------------- */}
-      <section className="mt-4 rounded-xl border border-border bg-surface p-4">
-        <h2 className="font-semibold">Oggi, per metodo di pagamento</h2>
-        <p className="mt-0.5 text-xs text-muted">
-          Dal 1° gennaio 2026 il documento commerciale deve riportare come è
-          stato pagato, e l&apos;Agenzia incrocia questi importi con i dati
-          degli acquirer. Se batti a mano, questi sono i numeri da battere.
-        </p>
+        {/* --- Riepilogo di giornata ------------------------------------- */}
+        <section className="mt-4 rounded-xl border border-border bg-surface p-4">
+          <h2 className="font-semibold">{t("fiscale.oggi.titolo")}</h2>
+          <p className="mt-0.5 text-xs text-muted">{t("fiscale.oggi.nota")}</p>
 
-        {perMetodo.length === 0 ? (
-          <p className="mt-3 text-sm text-muted">
-            Nessun conto chiuso oggi.
-          </p>
-        ) : (
-          <dl className="mt-3 space-y-1 text-sm">
-            {perMetodo.map((r) => (
-              <div key={r.metodo} className="flex justify-between gap-3">
-                <dt>{METODO[r.metodo] ?? r.metodo}</dt>
-                <dd className="font-medium tabular-nums">
-                  {formatPriceCents(Number(r.totale))}
-                </dd>
+          {perMetodo.length === 0 ? (
+            <p className="mt-3 text-sm text-muted">{t("fiscale.oggi.vuoto")}</p>
+          ) : (
+            <dl className="mt-3 space-y-1 text-sm">
+              {perMetodo.map((r) => (
+                <div key={r.metodo} className="flex justify-between gap-3">
+                  <dt>{METODO[r.metodo] ?? r.metodo}</dt>
+                  <dd className="font-medium tabular-nums">
+                    {t.prezzo(Number(r.totale))}
+                  </dd>
+                </div>
+              ))}
+              <div className="flex justify-between gap-3 border-t border-border pt-1 font-semibold">
+                <dt>{t("fiscale.totale")}</dt>
+                <dd className="tabular-nums">{t.prezzo(totaleGiornata)}</dd>
               </div>
-            ))}
-            <div className="flex justify-between gap-3 border-t border-border pt-1 font-semibold">
-              <dt>Totale</dt>
-              <dd className="tabular-nums">{formatPriceCents(totaleGiornata)}</dd>
-            </div>
-          </dl>
-        )}
-      </section>
-
-      {locale?.rt_attivo && scoperti.length > 0 && (
-        <section className="mt-4 rounded-xl border border-danger bg-danger/5 p-4">
-          <h2 className="font-semibold text-danger">
-            {scoperti.length}{" "}
-            {scoperti.length === 1 ? "conto chiuso" : "conti chiusi"} senza
-            documento
-          </h2>
-          <p className="mt-0.5 text-sm">
-            Sono incassi che non risultano certificati. Succede se qualcosa è
-            andato storto mentre il conto si chiudeva: il tavolo si chiude
-            comunque, perché fermare la sala sarebbe peggio, ma il documento
-            va emesso a mano.
-          </p>
-          <ul className="mt-2 space-y-1 text-sm">
-            {scoperti.slice(0, 10).map((s) => (
-              <li key={s.id} className="flex justify-between gap-3">
-                <span className="text-muted">{dataIt.format(s.chiuso)}</span>
-                <span className="font-medium tabular-nums">
-                  {formatPriceCents(s.incassato)}
-                </span>
-              </li>
-            ))}
-          </ul>
-          {scoperti.length > 10 && (
-            <p className="mt-1 text-xs text-muted">
-              e altri {scoperti.length - 10}.
-            </p>
+            </dl>
           )}
         </section>
-      )}
 
-      {/* --- Collegamento ---------------------------------------------- */}
-      <section className="mt-4 rounded-xl border border-border bg-surface p-4">
-        <h2 className="mb-1 font-semibold">Il tuo registratore</h2>
-        <RtForm
-          attivo={locale?.rt_attivo ?? false}
-          modalita={locale?.rt_modalita ?? "manuale"}
-          matricola={locale?.rt_matricola ?? ""}
-          haCodice={Boolean(locale?.rt_agente_hash)}
-          agenteVistoIl={
-            locale?.rt_agente_visto_at
-              ? dataIt.format(locale.rt_agente_visto_at)
-              : null
-          }
-          agenteFermo={locale?.agente_fermo ?? true}
-          marca={locale?.rt_marca ?? "epson"}
-          operatore={locale?.rt_operatore ?? 1}
-          percorso={locale?.rt_percorso ?? ""}
-          reparti={locale?.rt_reparti ?? {}}
-          stacco={locale?.giornata_stacco_ora ?? 5}
-          aliquote={aliquote.map((a) => Number(a.v))}
-        />
-      </section>
-
-      {/* --- Documenti -------------------------------------------------- */}
-      <section className="mt-4">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="font-semibold">Documenti</h2>
-          {daFare.length > 0 && (
-            <p className="text-sm text-danger">
-              {daFare.length} da certificare
-            </p>
-          )}
-        </div>
-
-        {documenti.length === 0 ? (
-          <p className="mt-2 rounded-xl border border-border bg-surface p-4 text-sm text-muted">
-            {locale?.rt_attivo
-              ? "Ancora niente: i documenti compaiono qui quando si chiude un conto."
-              : "Il collegamento è spento, quindi non viene messo in coda niente. Finché resta così i documenti li batti in cassa come hai sempre fatto."}
-          </p>
-        ) : (
-          <ul className="mt-2 space-y-2">
-            {documenti.map((d) => (
-              <RigaDocumento
-                key={d.id}
-                id={d.id}
-                totale={formatPriceCents(d.totale_cents)}
-                stato={d.stato}
-                numero={d.numero_documento}
-                errore={d.errore}
-                quando={dataIt.format(d.created_at)}
-                pagamenti={Object.entries(d.pagamenti ?? {})
-                  .map(([m, c]) => `${METODO[m] ?? m} ${formatPriceCents(Number(c))}`)
-                  .join(" · ")}
-              />
-            ))}
-          </ul>
+        {locale?.rt_attivo && scoperti.length > 0 && (
+          <section className="mt-4 rounded-xl border border-danger bg-danger/5 p-4">
+            <h2 className="font-semibold text-danger">
+              {t.n(scoperti.length, "fiscale.scoperti")}
+            </h2>
+            <p className="mt-0.5 text-sm">{t("fiscale.scoperti.testo")}</p>
+            <ul className="mt-2 space-y-1 text-sm">
+              {scoperti.slice(0, 10).map((s) => (
+                <li key={s.id} className="flex justify-between gap-3">
+                  <span className="text-muted">{t.dataOra(s.chiuso)}</span>
+                  <span className="font-medium tabular-nums">
+                    {t.prezzo(s.incassato)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {scoperti.length > 10 && (
+              <p className="mt-1 text-xs text-muted">
+                {t("fiscale.scoperti.altri", { n: scoperti.length - 10 })}
+              </p>
+            )}
+          </section>
         )}
-      </section>
 
-      <p className="mt-6 rounded-xl border border-border p-4 text-xs leading-relaxed text-muted">
-        Questo gestionale <strong>non sostituisce il registratore
-        telematico</strong>: prepara i documenti e, se colleghi il programma
-        sulla cassa, glieli fa emettere. Come vada dichiarato quello che
-        incassi tramite la piattaforma lo stabilisce il tuo commercialista —
-        qui trovi i numeri per farlo, non il parere.
-      </p>
-    </main>
+        {/* --- Collegamento ---------------------------------------------- */}
+        <section className="mt-4 rounded-xl border border-border bg-surface p-4">
+          <h2 className="mb-1 font-semibold">{t("fiscale.rt.titolo")}</h2>
+          <RtForm
+            attivo={locale?.rt_attivo ?? false}
+            modalita={locale?.rt_modalita ?? "manuale"}
+            matricola={locale?.rt_matricola ?? ""}
+            haCodice={Boolean(locale?.rt_agente_hash)}
+            agenteVistoIl={
+              locale?.rt_agente_visto_at
+                ? t.dataOra(locale.rt_agente_visto_at)
+                : null
+            }
+            agenteFermo={locale?.agente_fermo ?? true}
+            marca={locale?.rt_marca ?? "epson"}
+            operatore={locale?.rt_operatore ?? 1}
+            percorso={locale?.rt_percorso ?? ""}
+            reparti={locale?.rt_reparti ?? {}}
+            stacco={locale?.giornata_stacco_ora ?? 5}
+            aliquote={aliquote.map((a) => Number(a.v))}
+          />
+        </section>
+
+        {/* --- Documenti -------------------------------------------------- */}
+        <section className="mt-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="font-semibold">{t("fiscale.documenti.titolo")}</h2>
+            {daFare.length > 0 && (
+              <p className="text-sm text-danger">
+                {t("fiscale.documenti.da_certificare", { n: daFare.length })}
+              </p>
+            )}
+          </div>
+
+          {documenti.length === 0 ? (
+            <p className="mt-2 rounded-xl border border-border bg-surface p-4 text-sm text-muted">
+              {locale?.rt_attivo
+                ? t("fiscale.documenti.vuoto.attivo")
+                : t("fiscale.documenti.vuoto.spento")}
+            </p>
+          ) : (
+            <ul className="mt-2 space-y-2">
+              {documenti.map((d) => (
+                <RigaDocumento
+                  key={d.id}
+                  id={d.id}
+                  totale={t.prezzo(d.totale_cents)}
+                  stato={d.stato}
+                  numero={d.numero_documento}
+                  errore={d.errore}
+                  quando={t.dataOra(d.created_at)}
+                  pagamenti={Object.entries(d.pagamenti ?? {})
+                    .map(([m, c]) => `${METODO[m] ?? m} ${t.prezzo(Number(c))}`)
+                    .join(" · ")}
+                />
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <p className="mt-6 rounded-xl border border-border p-4 text-xs leading-relaxed text-muted">
+          {t("fiscale.avvertenza.prima")}{" "}
+          <strong>{t("fiscale.avvertenza.forte")}</strong>
+          {t("fiscale.avvertenza.dopo")}
+        </p>
+      </main>
+    </LinguaProvider>
   );
 }

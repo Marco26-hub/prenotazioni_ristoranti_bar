@@ -3,9 +3,12 @@ import { db } from "@repo/shared/db";
 import { requireSuperAdmin } from "@/lib/authz";
 import { LocaleRiga, type LocaleAdmin } from "./locale-riga";
 import { TicketRiga } from "./ticket-riga";
+import { tSuperAdmin } from "@/i18n/superadmin";
+import { linguaUtente } from "@/lib/lingua";
 
 export default async function AdminPage() {
   const admin = await requireSuperAdmin();
+  const t = tSuperAdmin(await linguaUtente());
 
   // Finché la password iniziale è ancora in uso non si entra da nessun'altra
   // parte: è l'unica cosa che deve poter fare.
@@ -165,24 +168,23 @@ export default async function AdminPage() {
   return (
     <main className="mx-auto max-w-5xl space-y-5 px-4 py-6">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h1 className="text-lg font-semibold">Locali</h1>
+        <h1 className="text-lg font-semibold">{t("pagina.titolo")}</h1>
         <p className="text-sm text-muted">
-          {dati.length} in tutto · {attivi} con almeno un modulo attivo
+          {t("pagina.conteggio", { n: dati.length, attivi })}
         </p>
       </div>
 
       <p className="rounded-xl border border-border bg-surface p-4 text-sm text-muted">
-        Chi paga con carta viene attivato da solo dal webhook di Stripe, con i
-        moduli scritti nei metadata del prezzo. Qui si interviene per gli
-        altri casi: bonifico, prova estesa concordata, condizioni particolari.
-        Ogni modifica resta scritta accanto al locale.
+        {t("pagina.spiegazione")}
       </p>
 
       {ticket.length > 0 && (
         <section>
           <h2 className="mb-2 font-semibold">
-            Assistenza{" "}
-            <span className="font-normal text-muted">({ticket.length} da gestire)</span>
+            {t("assistenza.titolo")}{" "}
+            <span className="font-normal text-muted">
+              {t("assistenza.conteggio", { n: ticket.length })}
+            </span>
           </h2>
           <ul className="space-y-2">
             {ticket.map((t) => (
@@ -208,9 +210,9 @@ export default async function AdminPage() {
       {inScadenza.length > 0 && (
         <section>
           <h2 className="mb-2 font-semibold">
-            In scadenza{" "}
+            {t("scadenze.titolo")}{" "}
             <span className="font-normal text-muted">
-              (entro 14 giorni, o già scaduti)
+              {t("scadenze.sottotitolo")}
             </span>
           </h2>
           <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
@@ -223,10 +225,12 @@ export default async function AdminPage() {
                 >
                   <span className="font-medium">{v.nome}</span>
                   <span className={g < 0 ? "font-medium text-danger" : "text-amber-700"}>
-                    {g < 0 ? `scaduto da ${Math.abs(g)} giorni` : `fra ${g} giorni`}
+                    {g < 0
+                      ? t.n(Math.abs(g), "scadenze.scaduto")
+                      : t.n(g, "scadenze.fra")}
                     {v.pagaConCarta
-                      ? " · rinnovo automatico"
-                      : " · da rinnovare a mano"}
+                      ? t("scadenze.automatico")
+                      : t("scadenze.a_mano")}
                   </span>
                 </li>
               );
@@ -236,7 +240,7 @@ export default async function AdminPage() {
       )}
 
       <section>
-        <h2 className="mb-2 font-semibold">Tutti i locali</h2>
+        <h2 className="mb-2 font-semibold">{t("pagina.tutti")}</h2>
         <ul className="space-y-3">
           {dati.map((v) => (
             <LocaleRiga key={v.id} locale={v} />

@@ -2,9 +2,12 @@ import { NextResponse } from "next/server";
 import { db } from "@repo/shared/db";
 import { checkRateLimit, clientKey } from "@repo/shared/rate-limit";
 import { inviaEmail } from "@repo/shared/email";
-import { formattaOrario } from "@repo/shared/prenotazioni";
+import { formattaOrarioLingua } from "@repo/shared/prenotazioni";
 import { messaggioErrore } from "@repo/shared/errori";
 import { decryptSecret } from "@repo/shared/crypto";
+import { tApi, linguaRichiesta } from "@/i18n/api";
+import { tEmail } from "@repo/shared/i18n/email";
+import { normalizzaLinguaUI } from "@repo/shared/i18n";
 
 /**
  * Disdetta della prenotazione da parte del cliente.
@@ -17,18 +20,20 @@ import { decryptSecret } from "@repo/shared/crypto";
  * libero alle nove di sera no.
  */
 export async function POST(request: Request) {
+  const t = tApi(linguaRichiesta(request));
+
   const corpo = (await request.json().catch(() => null)) as { token?: string } | null;
   const token = corpo?.token?.trim();
 
   if (!token || token.length < 16 || token.length > 64) {
-    return NextResponse.json({ error: "Link non valido" }, { status: 400 });
+    return NextResponse.json({ error: t("disdetta.errore.link_non_valido") }, { status: 400 });
   }
 
   // Il token è segreto e non si indovina, ma il limite ferma comunque chi
   // prova a farlo a raffica.
   const { allowed } = await checkRateLimit(clientKey(request, "disdici"), 20, 3600);
   if (!allowed) {
-    return NextResponse.json({ error: "Troppi tentativi" }, { status: 429 });
+    return NextResponse.json({ error: t("disdetta.errore.troppi_tentativi") }, { status: 429 });
   }
 
   const sql = db();
@@ -65,7 +70,7 @@ export async function POST(request: Request) {
   if (!r) {
     // Già disdetta, passata, o token inesistente: la pagina lo spiega senza
     // dire quale dei tre, che sarebbe un modo per sondare i token altrui.
-    return NextResponse.json({ error: "Prenotazione non disdicibile" }, { status: 409 });
+    return NextResponse.json({ error: t("disdetta.errore.non_disdicibile") }, { status: 409 });
   }
 
   // Il tavolo assegnato torna libero: resta occupato solo finché la
@@ -81,15 +86,28 @@ export async function POST(request: Request) {
       timezone: string | null;
       resend_api_key: string | null;
       resend_from: string | null;
+      lingua_predefinita: string;
     }[]
   >`select name, slug, reservation_email, public_email, timezone,
-           resend_api_key, resend_from
+           resend_api_key, resend_from, lingua_predefinita
       from venues where id = ${r.venue_id}`;
 
   const destinatario = venue?.reservation_email ?? venue?.public_email;
 
   if (destinatario) {
-    const quando = formattaOrario(r.reserved_at, venue?.timezone ?? "Europe/Rome");
+    /*
+     * L'avviso lo legge il locale, non il cliente: la lingua non è quella
+     * della richiesta — quella è del cliente che ha disdetto — ma quella che
+     * il locale ha dichiarato per sé. Non c'è un utente collegato da cui
+     * dedurla, e un locale che ha messo le sue pagine in inglese è un locale
+     * dove in inglese si legge.
+     */
+    const tl = tEmail(normalizzaLinguaUI(venue?.lingua_predefinita) ?? "it");
+    const quando = formattaOrarioLingua(
+      r.reserved_at,
+      venue?.timezone ?? "Europe/Rome",
+      tl.lingua
+    );
     const esito = await inviaEmail({
       a: destinatario,
       mittenteLocale: (() => {
@@ -103,15 +121,19 @@ export async function POST(request: Request) {
           return undefined;
         }
       })(),
-      oggetto: `Disdetta — ${r.customer_name}, ${r.party_size}p, ${quando}`,
+      oggetto: tl("disdetta.locale.oggetto", {
+        nome: r.customer_name,
+        persone: r.party_size,
+        quando,
+      }),
       testo: [
-        "Una prenotazione è stata disdetta dal cliente.",
+        tl("disdetta.locale.testo"),
         "",
-        `Nome: ${r.customer_name}`,
-        `Persone: ${r.party_size}`,
-        `Quando era: ${quando}`,
+        tl("disdetta.locale.nome", { nome: r.customer_name }),
+        tl("disdetta.locale.persone", { persone: r.party_size }),
+        tl("disdetta.locale.quando", { quando }),
         "",
-        "Il tavolo è tornato libero ed è di nuovo prenotabile.",
+        tl("disdetta.locale.libero"),
       ].join("\n"),
     });
 

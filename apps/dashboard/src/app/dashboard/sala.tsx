@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { formatPriceCents } from "@repo/shared";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tSala, type TSala } from "@/i18n/sala";
 import { impostaCoperti } from "./sala-actions";
 import { FormulaTavolo } from "./formula-tavolo";
 import { DettaglioTavolo } from "./dettaglio-tavolo";
@@ -33,6 +34,12 @@ export interface TavoloSala {
   /** Il tavolo paga a formula invece che a piatto. */
   formula: boolean;
   bambini: number;
+  /** A formula, nessuno ha ancora dichiarato in quanti sono. */
+  copertiDaConfermare: boolean;
+  /** Il numero l'ha scritto il tavolo dal QR: alla sala basta accettarlo. */
+  copertiDalTavolo: boolean;
+  /** Fascia scelta a mano; null = la decide l'orario di apertura. */
+  fascia: "pranzo" | "cena" | null;
   supplementoCents: number;
   /** Il dovuto per intero: piatti, formula, coperto e servizio. */
   ordinatoCents: number;
@@ -43,10 +50,13 @@ export interface TavoloSala {
 }
 
 /** Dove porta il tocco, e come si chiama il gesto. */
-const AVANTI: Record<string, { a: string; testo: string }> = {
-  sent_to_kitchen: { a: "preparing", testo: "In cottura" },
-  preparing: { a: "ready", testo: "Pronto" },
-  ready: { a: "served", testo: "Portato" },
+const AVANTI: Record<
+  string,
+  { a: string; testo: "riga.avanza.preparing" | "riga.avanza.ready" | "riga.avanza.served" }
+> = {
+  sent_to_kitchen: { a: "preparing", testo: "riga.avanza.preparing" },
+  preparing: { a: "ready", testo: "riga.avanza.ready" },
+  ready: { a: "served", testo: "riga.avanza.served" },
 };
 
 const COLORE_STATO: Record<string, string> = {
@@ -57,12 +67,19 @@ const COLORE_STATO: Record<string, string> = {
   served: "text-emerald-500",
 };
 
-const STATO_ETICHETTA: Record<string, string> = {
-  pending: "da inviare",
-  sent_to_kitchen: "in cucina",
-  preparing: "in preparazione",
-  ready: "pronto",
-  served: "servito",
+const STATO_ETICHETTA: Record<
+  string,
+  | "riga.stato.pending"
+  | "riga.stato.sent_to_kitchen"
+  | "riga.stato.preparing"
+  | "riga.stato.ready"
+  | "riga.stato.served"
+> = {
+  pending: "riga.stato.pending",
+  sent_to_kitchen: "riga.stato.sent_to_kitchen",
+  preparing: "riga.stato.preparing",
+  ready: "riga.stato.ready",
+  served: "riga.stato.served",
 };
 
 /**
@@ -73,19 +90,19 @@ const STATO_ETICHETTA: Record<string, string> = {
  * recuperabile subito se qualcuno lo sparecchia.
  */
 function statoTavolo(
-  t: TavoloSala,
+  tav: TavoloSala,
   sogliaMin: number,
   adesso: number,
   sogliaLiberazioneMin = 15
 ): StatoTavolo {
-  if (!t.sessionId) return "libero";
+  if (!tav.sessionId) return "libero";
 
   // Il ritardo viene prima del pronto: chi aspetta da mezz'ora senza niente
   // davanti sta peggio di chi ha il piatto fermo al passe da due minuti.
   // Contano solo le righe non ancora pronte: una comanda vecchia ma servita
   // non è un ritardo, è una cena lunga.
   if (sogliaMin > 0) {
-    const inAttesa = t.righe.filter(
+    const inAttesa = tav.righe.filter(
       (r) => !r.trattenuto && r.stato !== "ready" && r.stato !== "served"
     );
     const piuVecchia = inAttesa.reduce<number | null>((acc, r) => {
@@ -101,22 +118,22 @@ function statoTavolo(
   // Un piatto trattenuto è fermo per decisione della sala, non perché
   // nessuno lo porta: farlo lampeggiare rosso in cassa manderebbe qualcuno a
   // correre per un piatto che deve restare dov'è.
-  if (t.righe.some((r) => r.stato === "ready" && !r.trattenuto)) return "pronto";
-  if (t.ordinatoCents > 0 && t.pagatoCents >= t.ordinatoCents) {
+  if (tav.righe.some((r) => r.stato === "ready" && !r.trattenuto)) return "pronto";
+  if (tav.ordinatoCents > 0 && tav.pagatoCents >= tav.ordinatoCents) {
     // Pagato e ancora seduti: per un po' è normale — il caffè, i cappotti,
     // il conto appena arrivato. Passata la soglia è un coperto già incassato
     // che tiene occupato un tavolo mentre fuori c'è gente.
     if (
       sogliaLiberazioneMin > 0 &&
-      t.ultimoPagamento &&
-      adesso - new Date(t.ultimoPagamento).getTime() >= sogliaLiberazioneMin * 60_000
+      tav.ultimoPagamento &&
+      adesso - new Date(tav.ultimoPagamento).getTime() >= sogliaLiberazioneMin * 60_000
     ) {
       return "daliberare";
     }
     return "saldato";
   }
   // Alla romana: qualcuno ha già pagato, manca il resto.
-  if (t.pagatoCents > 0) return "parziale";
+  if (tav.pagatoCents > 0) return "parziale";
   return "incorso";
 }
 
@@ -128,18 +145,11 @@ const INTERVALLO_MS = 15_000;
  * monte resterebbe ferma all'istante del render, e un tavolo aperto da due
  * ore continuerebbe a dire "5 minuti" finché qualcuno non ricarica.
  */
-function durata(daISO: string, adesso: number): string {
+function durata(daISO: string, adesso: number, t: TSala): string {
   const minuti = Math.max(0, Math.floor((adesso - new Date(daISO).getTime()) / 60000));
-  if (minuti < 60) return `${minuti} min`;
+  if (minuti < 60) return t("durata.minuti", { n: minuti });
   const ore = Math.floor(minuti / 60);
-  return `${ore}h ${String(minuti % 60).padStart(2, "0")}`;
-}
-
-function orario(daISO: string): string {
-  return new Intl.DateTimeFormat("it-IT", {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(daISO));
+  return t("durata.ore", { ore, minuti: String(minuti % 60).padStart(2, "0") });
 }
 
 export function Sala({
@@ -170,6 +180,7 @@ export function Sala({
   sogliaMin: number;
   sogliaLiberazioneMin: number;
 }) {
+  const t = tSala(useLingua());
   const router = useRouter();
   const [adesso, setAdesso] = useState(() => Date.now());
   const [apertoId, setApertoId] = useState<string | null>(null);
@@ -188,42 +199,63 @@ export function Sala({
     };
   }, [router]);
 
-  const occupati = tavoli.filter((t) => t.sessionId).length;
-  const copertiOra = tavoli.reduce((s, t) => s + (t.sessionId ? t.coperti : 0), 0);
+  const occupati = tavoli.filter((tav) => tav.sessionId).length;
+  const copertiOra = tavoli.reduce((s, tav) => s + (tav.sessionId ? tav.coperti : 0), 0);
   const incassoAperto = tavoli.reduce(
-    (s, t) => s + (t.sessionId ? t.ordinatoCents - t.pagatoCents : 0),
+    (s, tav) => s + (tav.sessionId ? tav.ordinatoCents - tav.pagatoCents : 0),
     0
   );
+  /*
+   * Quanti tavoli aspettano i coperti.
+   *
+   * Sta in cima e non solo dentro le card: a prezzo fisso quei tavoli non
+   * possono pagare con carta e non vedono un totale, e con quaranta coperti
+   * su due turni nessuno apre le card una per una per accorgersene. Lo si
+   * scoprirebbe dal cliente che chiama, cioè tardi.
+   */
+  const daConfermare = tavoli.filter(
+    (tav) => tav.sessionId && tav.copertiDaConfermare
+  ).length;
 
   return (
     <>
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h1 className="text-lg font-semibold">Sala</h1>
+        <h1 className="text-lg font-semibold">{t("sala.titolo")}</h1>
         <p className="text-sm text-muted">
-          {occupati} di {tavoli.length} occupati · {copertiOra} coperti ·{" "}
-          <span className="tabular-nums">{formatPriceCents(incassoAperto)}</span> da
-          incassare
+          {t("sala.riepilogo.occupati", { occupati, totale: tavoli.length })} ·{" "}
+          {t.n(copertiOra, "sala.riepilogo.coperti")} ·{" "}
+          <span className="tabular-nums">{t.prezzo(incassoAperto)}</span>{" "}
+          {t("sala.riepilogo.incasso")}
         </p>
       </div>
 
+      {daConfermare > 0 && (
+        <p
+          role="status"
+          className="mb-4 rounded-lg border border-amber-400 bg-amber-50 p-3 text-sm text-amber-900"
+        >
+          {t.n(daConfermare, "sala.coperti_mancanti")}
+        </p>
+      )}
+
       <PiantaSala
-        tavoli={tavoli.map((t) => ({
-          id: t.id,
-          codice: t.codice,
-          posti: t.posti,
-          forma: t.forma,
-          zona: t.zona,
-          x: t.x,
-          y: t.y,
-          stato: statoTavolo(t, sogliaMin, adesso, sogliaLiberazioneMin),
-          residuoCents: t.sessionId ? t.ordinatoCents - t.pagatoCents : null,
+        tavoli={tavoli.map((tav) => ({
+          id: tav.id,
+          codice: tav.codice,
+          posti: tav.posti,
+          forma: tav.forma,
+          zona: tav.zona,
+          x: tav.x,
+          y: tav.y,
+          stato: statoTavolo(tav, sogliaMin, adesso, sogliaLiberazioneMin),
+          residuoCents: tav.sessionId ? tav.ordinatoCents - tav.pagatoCents : null,
         }))}
         piantina={piantina}
         piantinaOpacita={piantinaOpacita}
         aiAttiva={aiAttiva}
         onApri={(id) => {
-          const t = tavoli.find((x) => x.id === id);
-          if (t?.sessionId) setApertoId(id);
+          const tav = tavoli.find((x) => x.id === id);
+          if (tav?.sessionId) setApertoId(id);
         }}
       />
 
@@ -234,13 +266,13 @@ export function Sala({
       )}
 
       <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {tavoli.map((t) => {
-          const aperto = Boolean(t.sessionId);
-          const daPagare = t.ordinatoCents - t.pagatoCents;
+        {tavoli.map((tav) => {
+          const aperto = Boolean(tav.sessionId);
+          const daPagare = tav.ordinatoCents - tav.pagatoCents;
 
           return (
             <li
-              key={t.id}
+              key={tav.id}
               className={`rounded-xl border p-4 ${
                 aperto ? "border-accent bg-accent/10" : "border-border bg-surface"
               }`}
@@ -251,39 +283,41 @@ export function Sala({
                     facile e più caro della sala, e il numero deve leggersi
                     da lontano senza confondersi con gli stati. */}
                 <p className="rounded-lg bg-lime-300 px-2.5 py-0.5 text-2xl font-black leading-tight tracking-tight text-zinc-900">
-                  {t.codice}
+                  {tav.codice}
                 </p>
-                <p className="text-xs text-muted">{t.posti} posti</p>
+                <p className="text-xs text-muted">{t.n(tav.posti, "tavolo.posti")}</p>
               </div>
 
-              {!aperto && <p className="mt-2 text-muted">libero</p>}
+              {!aperto && <p className="mt-2 text-muted">{t("tavolo.libero")}</p>}
 
-              {aperto && t.apertoDa && (
+              {aperto && tav.apertoDa && (
                 <>
                   <button
                     type="button"
-                    onClick={() => setApertoId(t.id)}
+                    onClick={() => setApertoId(tav.id)}
                     className="mt-2 flex min-h-11 w-full items-center justify-center rounded-full border border-border text-sm"
                   >
-                    Vedi la situazione
+                    {t("tavolo.vedi")}
                   </button>
 
                   <p className="mt-2 text-xs text-muted">
-                    Aperto alle {orario(t.apertoDa)} · da{" "}
-                    {durata(t.apertoDa, adesso)}
+                    {t("tavolo.aperto", {
+                      ora: t.ora(new Date(tav.apertoDa)),
+                      durata: durata(tav.apertoDa, adesso, t),
+                    })}
                   </p>
 
                   <label className="mt-2 flex items-center gap-2 text-xs text-muted">
-                    Coperti
+                    {t("tavolo.coperti")}
                     <select
-                      defaultValue={t.coperti}
-                      aria-label={`Coperti del tavolo ${t.codice}`}
+                      defaultValue={tav.coperti}
+                      aria-label={t("tavolo.coperti.aria", { codice: tav.codice })}
                       onChange={(e) => {
                         // Attesa, non lanciata e dimenticata: se la scrittura
                         // fallisce il numero a schermo resterebbe quello
                         // scelto e il conto userebbe l'altro.
                         const n = Number(e.target.value);
-                        void impostaCoperti(t.sessionId!, n).then((r) =>
+                        void impostaCoperti(tav.sessionId!, n).then((r) =>
                           setAvvisoRiga(r?.error ?? null)
                         );
                       }}
@@ -297,22 +331,25 @@ export function Sala({
                     </select>
                   </label>
 
-                  {formulaAttiva && t.sessionId && (
+                  {formulaAttiva && tav.sessionId && (
                     <FormulaTavolo
-                      sessionId={t.sessionId}
-                      codice={t.codice}
-                      formula={t.formula}
-                      bambini={t.bambini}
-                      coperti={t.coperti}
-                      supplementoCents={t.supplementoCents}
+                      sessionId={tav.sessionId}
+                      codice={tav.codice}
+                      formula={tav.formula}
+                      bambini={tav.bambini}
+                      coperti={tav.coperti}
+                      copertiDaConfermare={tav.copertiDaConfermare}
+                      copertiDalTavolo={tav.copertiDalTavolo}
+                      fascia={tav.fascia}
+                      supplementoCents={tav.supplementoCents}
                       supplementoPrevisto={supplementoPrevisto}
                       onAvviso={setAvvisoRiga}
                     />
                   )}
 
-                  {t.righe.length > 0 ? (
+                  {tav.righe.length > 0 ? (
                     <ul className="mt-3 space-y-1 border-t border-border/60 pt-2 text-sm">
-                      {t.righe.map((r, i) => (
+                      {tav.righe.map((r, i) => (
                         <li
                           key={i}
                           className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-2"
@@ -329,7 +366,7 @@ export function Sala({
                           <span className="flex shrink-0 items-baseline gap-2 self-end sm:self-auto">
                             {r.trattenuto ? (
                               <span className="text-xs font-medium text-amber-600">
-                                trattenuto
+                                {t("riga.trattenuto")}
                               </span>
                             ) : AVANTI[r.stato] ? (
                               <button
@@ -348,20 +385,22 @@ export function Sala({
                                 }
                                 className={`min-h-9 rounded-full border px-3 text-xs font-medium disabled:opacity-50 ${COLORE_STATO[r.stato] ?? ""} border-current`}
                               >
-                                {AVANTI[r.stato].testo} →
+                                {t(AVANTI[r.stato].testo)} →
                               </button>
                             ) : (
                               <span
                                 className={`text-xs font-medium ${COLORE_STATO[r.stato] ?? "text-muted"}`}
                               >
-                                {STATO_ETICHETTA[r.stato] ?? r.stato}
+                                {STATO_ETICHETTA[r.stato]
+                                  ? t(STATO_ETICHETTA[r.stato])
+                                  : r.stato}
                               </span>
                             )}
                             {/* Senza il prezzo di riga il totale in fondo è un
                                 numero da prendere per buono: con dieci righe
                                 a schermo nessuno lo ricontrolla a mente. */}
                             <span className="w-16 text-right tabular-nums">
-                              {formatPriceCents(r.prezzoCents)}
+                              {t.prezzo(r.prezzoCents)}
                             </span>
                           </span>
                         </li>
@@ -369,7 +408,7 @@ export function Sala({
                     </ul>
                   ) : (
                     <p className="mt-3 border-t border-border/60 pt-2 text-sm text-muted">
-                      Nessuna comanda ancora.
+                      {t("tavolo.nessuna_comanda")}
                     </p>
                   )}
 
@@ -378,18 +417,18 @@ export function Sala({
                       {/* Non "ordinato": il totale comprende formula,
                           coperto e servizio, ed è quello che il cliente
                           vede sul telefono. */}
-                      <span className="text-muted">Totale conto</span>
-                      <span>{formatPriceCents(t.ordinatoCents)}</span>
+                      <span className="text-muted">{t("tavolo.totale")}</span>
+                      <span>{t.prezzo(tav.ordinatoCents)}</span>
                     </p>
-                    {t.pagatoCents > 0 && (
+                    {tav.pagatoCents > 0 && (
                       <p className="flex justify-between text-success">
-                        <span>Già pagato</span>
-                        <span>{formatPriceCents(t.pagatoCents)}</span>
+                        <span>{t("tavolo.gia_pagato")}</span>
+                        <span>{t.prezzo(tav.pagatoCents)}</span>
                       </p>
                     )}
                     <p className="flex justify-between font-medium">
-                      <span>Da incassare</span>
-                      <span>{formatPriceCents(Math.max(0, daPagare))}</span>
+                      <span>{t("tavolo.da_incassare")}</span>
+                      <span>{t.prezzo(Math.max(0, daPagare))}</span>
                     </p>
                   </div>
 
@@ -398,7 +437,7 @@ export function Sala({
                       // L'esito non si butta via: la chiusura può essere
                       // rifiutata perché una carta sta pagando, o riuscire
                       // segnalando che il tavolo ha versato di più.
-                      const r = await chiudiConto(t.sessionId!);
+                      const r = await chiudiConto(tav.sessionId!);
                       setAvvisoRiga(r.error ?? r.ok ?? null);
                     }}
                   >
@@ -406,7 +445,9 @@ export function Sala({
                       type="submit"
                       className="mt-3 flex min-h-11 w-full items-center justify-center rounded-full border border-border text-sm"
                     >
-                      {daPagare > 0 ? "Incassa e chiudi" : "Chiudi conto"}
+                      {daPagare > 0
+                        ? t("tavolo.incassa_chiudi")
+                        : t("tavolo.chiudi_conto")}
                     </button>
                   </form>
                 </>
@@ -417,15 +458,15 @@ export function Sala({
       </ul>
 
       {apertoId && (() => {
-        const t = tavoli.find((x) => x.id === apertoId);
-        if (!t || !t.sessionId) return null;
+        const tav = tavoli.find((x) => x.id === apertoId);
+        if (!tav || !tav.sessionId) return null;
         return (
           <DettaglioTavolo
-            tavolo={t}
+            tavolo={tav}
             adesso={adesso}
             onClose={() => setApertoId(null)}
             onChiudiConto={async () => {
-              const r = await chiudiConto(t.sessionId!);
+              const r = await chiudiConto(tav.sessionId!);
               setAvvisoRiga(r.error ?? r.ok ?? null);
               // Rifiutata: la scheda resta aperta, o l'avviso parlerebbe di
               // un tavolo che non si sta più guardando.

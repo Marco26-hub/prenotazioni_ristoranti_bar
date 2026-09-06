@@ -6,6 +6,8 @@ import { decryptSecret } from "@repo/shared/crypto";
 import { leggiPiantina } from "@repo/shared/piantina";
 import { requireRole } from "@/lib/authz";
 import { COLONNE, RIGHE } from "./sala-griglia";
+import { tSala } from "@/i18n/sala";
+import { linguaUtente } from "@/lib/lingua";
 
 export interface Proposta {
   codice: string;
@@ -32,6 +34,7 @@ export interface EsitoRiconoscimento {
  */
 export async function riconosciTavoli(): Promise<EsitoRiconoscimento> {
   const { venue } = await requireRole(["owner", "manager"]);
+  const t = tSala(await linguaUtente());
   const sql = db();
 
   const [locale] = await sql<
@@ -44,29 +47,23 @@ export async function riconosciTavoli(): Promise<EsitoRiconoscimento> {
       from venues where id = ${venue.venueId}`;
 
   if (!locale?.floor_plan_url) {
-    return { errore: "Carica prima la piantina della sala." };
+    return { errore: t("azioni.riconosci.serve_piantina") };
   }
   if (!locale.openrouter_api_key) {
-    return {
-      errore:
-        "Il riconoscimento usa l'AI: configura la chiave OpenRouter in Impostazioni.",
-    };
+    return { errore: t("azioni.riconosci.serve_chiave") };
   }
 
   // Un SVG non è un'immagine per un modello di visione: va rasterizzato, e
   // qui non abbiamo un motore di rendering.
   if (locale.floor_plan_url.startsWith("data:image/svg")) {
-    return {
-      errore:
-        "Il riconoscimento non legge gli SVG. Ricarica la pianta come PDF, PNG o JPG.",
-    };
+    return { errore: t("azioni.riconosci.no_svg") };
   }
 
   let chiave: string;
   try {
     chiave = decryptSecret(locale.openrouter_api_key);
   } catch {
-    return { errore: "Chiave OpenRouter illeggibile: reinseriscila." };
+    return { errore: t("azioni.riconosci.chiave_illeggibile") };
   }
 
   const esito = await leggiPiantina(
@@ -74,7 +71,13 @@ export async function riconosciTavoli(): Promise<EsitoRiconoscimento> {
     chiave,
     locale.openrouter_model ?? ""
   );
-  if (esito.errore) return { errore: esito.errore };
+  if (esito.errore) {
+    // Il codice lo traduce chi sa in che lingua legge l'utente; il dettaglio
+    // tecnico — uno stato HTTP, il messaggio di una libreria — si aggiunge
+    // così com'è, perché non è una frase da tradurre.
+    const frase = t(`piantina.errore.${esito.errore}`);
+    return { errore: esito.dettaglio ? `${frase} (${esito.dettaglio})` : frase };
+  }
 
   const esistenti = await sql<{ code: string }[]>`
     select code from tables where venue_id = ${venue.venueId}`;
@@ -107,8 +110,7 @@ export async function riconosciTavoli(): Promise<EsitoRiconoscimento> {
 
   if (proposte.length === 0) {
     return {
-      avviso:
-        esito.avviso ?? "Non ho riconosciuto tavoli in questa pianta.",
+      avviso: esito.avviso ?? t("azioni.riconosci.nessuno"),
       proposte: [],
     };
   }
@@ -126,11 +128,12 @@ export async function applicaProposte(
   proposte: Proposta[]
 ): Promise<{ ok?: string; error?: string }> {
   const { venue } = await requireRole(["owner", "manager"]);
+  const t = tSala(await linguaUtente());
 
   if (!Array.isArray(proposte) || proposte.length === 0) {
-    return { error: "Niente da applicare" };
+    return { error: t("azioni.riconosci.niente_applicare") };
   }
-  if (proposte.length > 120) return { error: "Troppi tavoli in una volta" };
+  if (proposte.length > 120) return { error: t("azioni.riconosci.troppi") };
 
   const forme = new Set(["rettangolo", "tondo", "bancone"]);
   const pulite = proposte
@@ -143,7 +146,7 @@ export async function applicaProposte(
     }))
     .filter((p) => p.codice);
 
-  if (pulite.length === 0) return { error: "Nessun tavolo valido" };
+  if (pulite.length === 0) return { error: t("azioni.riconosci.nessun_valido") };
 
   let creati = 0;
   let spostati = 0;
@@ -172,7 +175,7 @@ export async function applicaProposte(
   revalidatePath("/dashboard/tables");
 
   const parti: string[] = [];
-  if (creati) parti.push(`${creati} ${creati === 1 ? "tavolo creato" : "tavoli creati"}`);
-  if (spostati) parti.push(`${spostati} aggiornati`);
-  return { ok: parti.join(", ") + "." };
+  if (creati) parti.push(t.n(creati, "azioni.riconosci.creati"));
+  if (spostati) parti.push(t.n(spostati, "azioni.riconosci.spostati"));
+  return { ok: t.elenco(parti) + "." };
 }

@@ -3,6 +3,8 @@
 import bcrypt from "bcryptjs";
 import { db } from "@repo/shared/db";
 import { requireVenue } from "@/lib/authz";
+import { linguaUtente } from "@/lib/lingua";
+import { tImpostazioni } from "@/i18n/impostazioni";
 
 export interface PasswordResult {
   error?: string;
@@ -16,16 +18,17 @@ export interface PasswordResult {
  */
 export async function changeOwnPassword(formData: FormData): Promise<PasswordResult> {
   const { userId } = await requireVenue();
+  const t = tImpostazioni(await linguaUtente());
 
   const current = String(formData.get("currentPassword") ?? "");
   const next = String(formData.get("newPassword") ?? "");
   const confirm = String(formData.get("confirmPassword") ?? "");
 
   if (next.length < 8) {
-    return { error: "La nuova password deve essere di almeno 8 caratteri" };
+    return { error: t("password.errore.corta") };
   }
   if (next !== confirm) {
-    return { error: "Le due password non coincidono" };
+    return { error: t("password.errore.diverse") };
   }
 
   const sql = db();
@@ -33,7 +36,7 @@ export async function changeOwnPassword(formData: FormData): Promise<PasswordRes
     select password_hash from users where id = ${userId}`;
 
   if (!user || !bcrypt.compareSync(current, user.password_hash)) {
-    return { error: "Password attuale non corretta" };
+    return { error: t("password.errore.attuale") };
   }
 
   await sql`

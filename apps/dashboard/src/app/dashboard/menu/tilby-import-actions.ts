@@ -6,6 +6,8 @@ import { decryptSecret } from "@repo/shared/crypto";
 import { getTilbyCategories, getTilbyItems } from "@repo/shared/tilby";
 import { requireRole } from "@/lib/authz";
 import { messaggioErrore } from "@repo/shared/errori";
+import { linguaUtente } from "@/lib/lingua";
+import { tMenuAdmin } from "@/i18n/menu";
 
 export interface TilbyImportResult {
   error?: string;
@@ -26,13 +28,14 @@ export interface TilbyImportResult {
  */
 export async function importMenuFromTilby(): Promise<TilbyImportResult> {
   const { venue } = await requireRole(["owner", "manager"], "ordini");
+  const t = tMenuAdmin(await linguaUtente());
   const sql = db();
 
   const [row] = await sql<{ tilby_token: string | null }[]>`
     select tilby_token from venues where id = ${venue.venueId}`;
 
   if (!row?.tilby_token) {
-    return { error: "Tilby non è collegato: impostalo prima in Impostazioni" };
+    return { error: t("tilby.errore.non.collegato") };
   }
 
   const token = decryptSecret(row.tilby_token);
@@ -45,7 +48,7 @@ export async function importMenuFromTilby(): Promise<TilbyImportResult> {
     ]);
   } catch (err) {
     console.error(`[tilby-import] lettura fallita: ${messaggioErrore(err)}`);
-    return { error: err instanceof Error ? err.message : "Errore lettura da Tilby" };
+    return { error: err instanceof Error ? err.message : t("tilby.errore.lettura") };
   }
 
   // Le categorie si allineano per nome: è l'unico riferimento stabile fra i
@@ -83,11 +86,11 @@ export async function importMenuFromTilby(): Promise<TilbyImportResult> {
   for (const [index, item] of tilbyItems.entries()) {
     const name = item.name?.trim();
     if (!name) {
-      skipped.push(`articolo Tilby ${item.id}: senza nome`);
+      skipped.push(t("tilby.saltato.senza.nome", { id: item.id }));
       continue;
     }
     if (typeof item.price1 !== "number" || item.price1 < 0) {
-      skipped.push(`${name}: prezzo non valido in cassa`);
+      skipped.push(t("tilby.saltato.prezzo", { nome: name }));
       continue;
     }
 
@@ -138,12 +141,7 @@ export async function importMenuFromTilby(): Promise<TilbyImportResult> {
   revalidatePath("/dashboard/menu");
 
   if (ivaMancante > 0) {
-    skipped.push(
-      `${ivaMancante} ${ivaMancante === 1 ? "voce" : "voci"}: la cassa non ha ` +
-        "dichiarato l'IVA. Su quelle già presenti è rimasta l'aliquota che " +
-        "avevi impostato, sulle nuove vale il 10% — controllale se vendi anche " +
-        "alcolici."
-    );
+    skipped.push(t.n(ivaMancante, "tilby.iva.mancante"));
   }
 
   return { created, updated, skipped };

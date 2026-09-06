@@ -10,6 +10,8 @@
  * risultato identico.
  */
 
+import type { TSala } from "@/i18n/sala";
+
 /** A6 a 300 dpi: la misura che una tipografia accetta senza chiedere altro. */
 export const LARGHEZZA = 1240;
 export const ALTEZZA = 1748;
@@ -26,14 +28,14 @@ export interface DatiLocandina {
   coloreMarchio: string | null;
 }
 
-function caricaImmagine(src: string): Promise<HTMLImageElement> {
+function caricaImmagine(src: string, t: TSala): Promise<HTMLImageElement> {
   return new Promise((risolvi, rifiuta) => {
     const img = new Image();
     // Le immagini sono data URL nostre, ma senza questo un domani un logo
     // servito da URL sporcherebbe la canvas e toDataURL fallirebbe.
     img.crossOrigin = "anonymous";
     img.onload = () => risolvi(img);
-    img.onerror = () => rifiuta(new Error("Immagine non caricata"));
+    img.onerror = () => rifiuta(new Error(t("locandina.errore.immagine")));
     img.src = src;
   });
 }
@@ -58,14 +60,15 @@ function testoCentrato(
 }
 
 export async function disegnaLocandina(
-  dati: DatiLocandina
+  dati: DatiLocandina,
+  t: TSala
 ): Promise<HTMLCanvasElement> {
 
       const canvas = document.createElement("canvas");
       canvas.width = LARGHEZZA;
       canvas.height = ALTEZZA;
       const ctx = canvas.getContext("2d");
-      if (!ctx) throw new Error("Canvas non disponibile");
+      if (!ctx) throw new Error(t("locandina.errore.canvas"));
 
       const accento = dati.coloreMarchio || "#b4451f";
 
@@ -84,7 +87,7 @@ export async function disegnaLocandina(
 
       if (dati.logoUrl) {
         try {
-          const logo = await caricaImmagine(dati.logoUrl);
+          const logo = await caricaImmagine(dati.logoUrl, t);
           const lato = 190;
           const scala = Math.min(lato / logo.width, lato / logo.height);
           const w = logo.width * scala;
@@ -101,15 +104,15 @@ export async function disegnaLocandina(
       y += testoCentrato(ctx, dati.nomeLocale, y, 72, LARGHEZZA - 160) + 30;
 
       ctx.fillStyle = accento;
-      testoCentrato(ctx, "SCAN NOW", y + 60, 96, LARGHEZZA - 160, "700");
+      testoCentrato(ctx, t("locandina.invito"), y + 60, 96, LARGHEZZA - 160, "700");
       y += 130;
 
       ctx.fillStyle = "#57534e";
-      testoCentrato(ctx, "Menu · Ordina · Paga", y + 60, 44, LARGHEZZA - 160, "400");
+      testoCentrato(ctx, t("locandina.passi"), y + 60, 44, LARGHEZZA - 160, "400");
       y += 120;
 
       // --- QR ---------------------------------------------------------
-      const qr = await caricaImmagine(dati.qrDataUrl);
+      const qr = await caricaImmagine(dati.qrDataUrl, t);
       const latoQr = 660;
       const xQr = (LARGHEZZA - latoQr) / 2;
       const yQr = y + 40;
@@ -128,12 +131,19 @@ export async function disegnaLocandina(
       y = yQr + latoQr + 130;
 
       ctx.fillStyle = "#1c1917";
-      testoCentrato(ctx, `Tavolo ${dati.codice}`, y, 64, LARGHEZZA - 160, "600");
+      testoCentrato(
+        ctx,
+        t("locandina.tavolo", { codice: dati.codice }),
+        y,
+        64,
+        LARGHEZZA - 160,
+        "600"
+      );
 
       ctx.fillStyle = "#78716c";
       testoCentrato(
         ctx,
-        "Inquadra con la fotocamera del telefono",
+        t("locandina.istruzione"),
         y + 70,
         34,
         LARGHEZZA - 160,
@@ -155,6 +165,7 @@ export async function disegnaLocandina(
  */
 export async function pdfLocandine(
   elenco: DatiLocandina[],
+  t: TSala,
   suProgresso?: (fatti: number, totale: number) => void
 ): Promise<Blob> {
   const { jsPDF } = await import("jspdf");
@@ -168,7 +179,7 @@ export async function pdfLocandine(
   for (let i = 0; i < elenco.length; i++) {
     if (i > 0) pdf.addPage([pagina.w, pagina.h]);
 
-    const canvas = await disegnaLocandina(elenco[i]);
+    const canvas = await disegnaLocandina(elenco[i], t);
     // L'immagine copre anche l'abbondanza: il fondo si estende oltre il
     // taglio, che è esattamente lo scopo.
     pdf.addImage(

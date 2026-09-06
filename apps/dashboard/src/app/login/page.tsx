@@ -3,6 +3,8 @@
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tGuscio } from "@/i18n/guscio";
 
 export default function LoginPage() {
   return (
@@ -13,6 +15,7 @@ export default function LoginPage() {
 }
 
 function LoginForm() {
+  const t = tGuscio(useLingua());
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
 
@@ -35,20 +38,22 @@ function LoginForm() {
     setSubmitting(false);
 
     if (result?.error) {
-      setError("Email o password non corretti");
+      setError(t("accesso.errore"));
       return;
     }
-    window.location.href = callbackUrl;
+    // `assign` e non `location.href = …`: è la stessa navigazione, ma non
+    // è l'assegnazione a una variabile esterna che il compilatore rifiuta.
+    window.location.assign(callbackUrl);
   };
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-5 py-10">
       <div className="rounded-2xl border border-border bg-surface p-6">
-      <h1 className="mb-1 text-xl font-semibold tracking-tight">Accesso staff</h1>
-      <p className="mb-6 text-sm text-muted">Gestisci tavoli, ordini e menu del tuo locale.</p>
+      <h1 className="mb-1 text-xl font-semibold tracking-tight">{t("accesso.titolo")}</h1>
+      <p className="mb-6 text-sm text-muted">{t("accesso.sottotitolo")}</p>
       <form onSubmit={onSubmit} className="space-y-4">
         <div>
-          <label className="mb-1 block text-sm">Email</label>
+          <label className="mb-1 block text-sm">{t("accesso.email")}</label>
           <input
             type="email"
             required
@@ -58,7 +63,7 @@ function LoginForm() {
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm">Password</label>
+          <label className="mb-1 block text-sm">{t("accesso.password")}</label>
           <input
             type="password"
             required
@@ -73,12 +78,12 @@ function LoginForm() {
           disabled={submitting}
           className="min-h-11 w-full rounded-full bg-accent font-medium text-accent-foreground active:scale-95 disabled:opacity-50"
         >
-          {submitting ? "Accesso..." : "Accedi"}
+          {submitting ? t("accesso.in_corso") : t("accesso.entra")}
         </button>
       </form>
 
       <a href="/registrati" className="mt-5 block text-center text-sm text-muted underline">
-        Registra un nuovo locale
+        {t("accesso.registra")}
       </a>
       </div>
     </main>

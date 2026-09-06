@@ -1,4 +1,6 @@
-import { formatPriceCents } from "@repo/shared";
+import { tComune } from "@repo/shared/i18n/comune";
+import { linguaUtente } from "@/lib/lingua";
+import { tAnalisi } from "@/i18n/analisi";
 
 /**
  * Anteprima di ciò che vede il cliente al tavolo, disegnata in HTML invece
@@ -13,28 +15,6 @@ interface Piatto {
   foto: string;
   inCarrello?: number;
 }
-
-const PIATTI: Piatto[] = [
-  {
-    nome: "Tagliatelle al ragù",
-    prezzo: 1400,
-    tag: "Il più ordinato",
-    foto: "/piatti/tagliatelle.jpg",
-    inCarrello: 2,
-  },
-  {
-    nome: "Tortelli di zucca",
-    prezzo: 1300,
-    tag: "Vegetariano",
-    foto: "/piatti/tortelli.jpg",
-  },
-  {
-    nome: "Tagliata di manzo",
-    prezzo: 2200,
-    tag: null,
-    foto: "/piatti/tagliata.jpg",
-  },
-];
 
 /**
  * Foto del piatto.
@@ -58,7 +38,41 @@ function FotoPiatto({ src }: { src: string }) {
   );
 }
 
-export function MockupTelefono() {
+export async function MockupTelefono() {
+  const lingua = await linguaUtente();
+  const t = tAnalisi(lingua);
+  // "Vegetariano" è una dicitura comune alle due applicazioni: viene da lì,
+  // così il cliente la legge uguale qui e sul menu vero.
+  const tc = tComune(lingua);
+
+  const PIATTI: Piatto[] = [
+    {
+      nome: t("mockup.piatto.tagliatelle"),
+      prezzo: 1400,
+      tag: t("mockup.tag.piu_ordinato"),
+      foto: "/piatti/tagliatelle.jpg",
+      inCarrello: 2,
+    },
+    {
+      nome: t("mockup.piatto.tortelli"),
+      prezzo: 1300,
+      tag: tc("dicitura.vegetariano"),
+      foto: "/piatti/tortelli.jpg",
+    },
+    {
+      nome: t("mockup.piatto.tagliata"),
+      prezzo: 2200,
+      tag: null,
+      foto: "/piatti/tagliata.jpg",
+    },
+  ];
+
+  const CATEGORIE = [
+    t("mockup.categoria.antipasti"),
+    t("mockup.categoria.primi"),
+    t("mockup.categoria.secondi"),
+  ];
+
   const totale = PIATTI.reduce((s, p) => s + p.prezzo * (p.inCarrello ?? 0), 0);
   const pezzi = PIATTI.reduce((s, p) => s + (p.inCarrello ?? 0), 0);
 
@@ -95,15 +109,15 @@ export function MockupTelefono() {
 
         <div className="border-b border-border px-5 pb-3 pt-2">
           <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted">
-            Tavolo 7 · Sala
+            {t("mockup.posto")}
           </p>
           <p className="mt-0.5 text-[17px] font-semibold leading-tight">
-            Trattoria da Luca
+            {t("mockup.locale")}
           </p>
         </div>
 
         <div className="flex gap-1.5 border-b border-border px-5 py-2.5 text-[11px]">
-          {["Antipasti", "Primi", "Secondi"].map((c, i) => (
+          {CATEGORIE.map((c, i) => (
             <span
               key={c}
               className={`rounded-full px-2.5 py-1 ${
@@ -132,7 +146,7 @@ export function MockupTelefono() {
                   </p>
                 )}
                 <p className="mt-0.5 text-[12.5px] tabular-nums text-muted">
-                  {formatPriceCents(p.prezzo, "EUR")}
+                  {t.prezzo(p.prezzo)}
                 </p>
               </div>
 
@@ -167,12 +181,12 @@ export function MockupTelefono() {
               <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-black/20 px-1 text-[11px] tabular-nums">
                 {pezzi}
               </span>
-              Vai al conto
+              {t("mockup.vai_al_conto")}
             </span>
-            <span className="tabular-nums">{formatPriceCents(totale, "EUR")}</span>
+            <span className="tabular-nums">{t.prezzo(totale)}</span>
           </div>
           <p className="mt-2 text-center text-[10px] text-muted">
-            Dividi per piatto · Carta, Apple Pay, Satispay
+            {t("mockup.pagamenti")}
           </p>
           <div
             aria-hidden

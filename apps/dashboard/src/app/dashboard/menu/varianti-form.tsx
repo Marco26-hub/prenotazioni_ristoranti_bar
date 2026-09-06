@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { formatPriceCents } from "@repo/shared";
 import {
   creaGruppo,
   eliminaGruppo,
@@ -9,6 +8,9 @@ import {
   eliminaOpzione,
   commutaOpzione,
 } from "./varianti-actions";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tComune } from "@repo/shared/i18n/comune";
+import { tMenuAdmin } from "@/i18n/menu";
 
 export interface OpzioneAdmin {
   id: string;
@@ -41,6 +43,9 @@ export function VariantiForm({
   itemId: string;
   gruppi: GruppoAdmin[];
 }) {
+  const lingua = useLingua();
+  const t = tMenuAdmin(lingua);
+  const tc = tComune(lingua);
   const [aperto, setAperto] = useState(false);
   const [pending, start] = useTransition();
   const [esito, setEsito] = useState<string | null>(null);
@@ -61,8 +66,8 @@ export function VariantiForm({
         className="mt-3 flex min-h-11 items-center border-t border-border pt-3 text-sm underline"
       >
         {gruppi.length > 0
-          ? `Scelte di questo piatto (${gruppi.length})`
-          : "Aggiungi scelte a questo piatto"}
+          ? t("varianti.apri.con", { n: gruppi.length })
+          : t("varianti.apri.senza")}
       </button>
     );
   }
@@ -70,11 +75,11 @@ export function VariantiForm({
   return (
     <div className="mt-3 space-y-3 border-t border-border pt-3">
       <div>
-        <h3 className="font-medium">Scelte di questo piatto</h3>
+        <h3 className="font-medium">{t("varianti.titolo")}</h3>
         <p className="mt-0.5 text-xs text-muted">
-          Quello che il cliente sceglie quando ordina <em>questo</em> piatto.
-          Per aggiungere un&apos;altra portata usa il bottone in fondo alla
-          categoria.
+          {t("varianti.testo.prima")}
+          <em>{t("varianti.testo.enfasi")}</em>
+          {t("varianti.testo.dopo")}
         </p>
       </div>
       {gruppi.map((g) => (
@@ -83,8 +88,8 @@ export function VariantiForm({
             <p className="font-medium">
               {g.name}{" "}
               <span className="text-xs font-normal text-muted">
-                {g.required ? "obbligatorio" : "facoltativo"}
-                {g.max_choices > 1 ? " · scelte multiple" : ""}
+                {g.required ? t("varianti.obbligatorio") : t("varianti.facoltativo")}
+                {g.max_choices > 1 ? t("varianti.multiple") : ""}
               </span>
             </p>
             <button
@@ -93,7 +98,7 @@ export function VariantiForm({
               onClick={() => esegui(() => eliminaGruppo(g.id))}
               className="flex min-h-11 items-center px-1 text-sm text-danger underline"
             >
-              Elimina gruppo
+              {t("varianti.elimina.gruppo")}
             </button>
           </div>
 
@@ -101,11 +106,13 @@ export function VariantiForm({
             {g.opzioni.map((o) => (
               <li key={o.id} className="flex items-center justify-between gap-3 text-sm">
                 <span className={o.available ? "" : "text-muted line-through"}>
-                  {g.kind === "rimozione" ? `Senza ${o.name.toLowerCase()}` : o.name}
+                  {g.kind === "rimozione"
+                    ? t("varianti.senza", { nome: o.name.toLowerCase() })
+                    : o.name}
                   {o.price_delta_cents !== 0 && (
                     <span className="ml-2 tabular-nums text-muted">
                       {o.price_delta_cents > 0 ? "+" : "−"}
-                      {formatPriceCents(Math.abs(o.price_delta_cents))}
+                      {t.prezzo(Math.abs(o.price_delta_cents))}
                     </span>
                   )}
                 </span>
@@ -116,7 +123,7 @@ export function VariantiForm({
                     onClick={() => esegui(() => commutaOpzione(o.id, !o.available))}
                     className="flex min-h-11 items-center px-1 text-xs underline"
                   >
-                    {o.available ? "Esaurito" : "Ripristina"}
+                    {o.available ? t("varianti.esaurito") : t("varianti.ripristina")}
                   </button>
                   <button
                     type="button"
@@ -124,14 +131,14 @@ export function VariantiForm({
                     onClick={() => esegui(() => eliminaOpzione(o.id))}
                     className="flex min-h-11 items-center px-1 text-xs text-danger underline"
                   >
-                    Elimina
+                    {tc("azione.elimina")}
                   </button>
                 </span>
               </li>
             ))}
             {g.opzioni.length === 0 && (
               <li className="text-sm text-muted">
-                Nessuna scelta: finché è vuoto, il gruppo non compare al cliente.
+                {t("varianti.vuoto")}
               </li>
             )}
           </ul>
@@ -143,7 +150,7 @@ export function VariantiForm({
             <input type="hidden" name="groupId" value={g.id} />
             <input
               name="name"
-              placeholder="12 pezzi, Avocado, Al sangue…"
+              placeholder={t("varianti.opzione.segnaposto")}
               required
               className={`${CAMPO} w-full min-w-0 flex-1 sm:w-auto`}
             />
@@ -152,7 +159,7 @@ export function VariantiForm({
               type="number"
               step="0.01"
               defaultValue={0}
-              aria-label="Supplemento in euro"
+              aria-label={t("varianti.supplemento")}
               className={`${CAMPO} w-24`}
             />
             <button
@@ -160,7 +167,7 @@ export function VariantiForm({
               disabled={pending}
               className="min-h-11 rounded-full border border-border px-4 text-sm"
             >
-              Aggiungi scelta
+              {t("varianti.aggiungi.scelta")}
             </button>
           </form>
         </div>
@@ -175,45 +182,44 @@ export function VariantiForm({
         {/* Senza intestazione questo riquadro sembrava servisse ad aggiungere
             un piatto: chi lo apriva scriveva lì il nome di una portata. */}
         <div>
-          <h4 className="font-medium">Nuovo gruppo di scelte</h4>
+          <h4 className="font-medium">{t("varianti.nuovo.gruppo")}</h4>
           <p className="mt-0.5 text-xs text-muted">
-            Non serve ad aggiungere piatti — quello si fa in fondo alla
-            categoria. Qui aggiungi le scelte che il cliente fa{" "}
-            <em>su questo piatto</em>: la cottura, la porzione, gli ingredienti
-            extra.
+            {t("varianti.nuovo.gruppo.testo.prima")}
+            <em>{t("varianti.nuovo.gruppo.testo.enfasi")}</em>
+            {t("varianti.nuovo.gruppo.testo.dopo")}
           </p>
         </div>
 
         <label className="block text-xs font-medium text-muted">
-          Come si chiama il gruppo
+          {t("varianti.gruppo.nome")}
           <input
             name="name"
-            placeholder="Cottura · Porzione · Aggiungi · Togli"
+            placeholder={t("varianti.gruppo.nome.segnaposto")}
             required
             className={`${CAMPO} mt-1 w-full`}
           />
         </label>
         <label className="block text-xs font-medium text-muted">
-          Che tipo di scelta
+          {t("varianti.gruppo.tipo")}
           <select
             name="kind"
             defaultValue="scelta"
             className={`${CAMPO} mt-1 w-full`}
           >
-            <option value="scelta">Scelta — una fra più opzioni, es. la cottura</option>
-            <option value="aggiunta">Aggiunta — extra a pagamento, es. bacon +1,50</option>
-            <option value="rimozione">Rimozione — cosa togliere, es. senza cipolla</option>
+            <option value="scelta">{t("varianti.gruppo.tipo.scelta")}</option>
+            <option value="aggiunta">{t("varianti.gruppo.tipo.aggiunta")}</option>
+            <option value="rimozione">{t("varianti.gruppo.tipo.rimozione")}</option>
           </select>
         </label>
 
         <div className="flex flex-wrap gap-4">
           <label className="flex min-h-11 items-center gap-2 text-sm">
             <input type="checkbox" name="required" className="h-5 w-5" />
-            Il cliente deve scegliere
+            {t("varianti.gruppo.obbligatorio")}
           </label>
           <label className="flex min-h-11 items-center gap-2 text-sm">
             <input type="checkbox" name="multiple" className="h-5 w-5" />
-            Può sceglierne più di una
+            {t("varianti.gruppo.multiplo")}
           </label>
         </div>
         <button
@@ -221,7 +227,7 @@ export function VariantiForm({
           disabled={pending}
           className="min-h-11 w-full rounded-full bg-accent text-sm font-medium text-accent-foreground disabled:opacity-60"
         >
-          Crea gruppo
+          {t("varianti.gruppo.crea")}
         </button>
       </form>
 
@@ -232,7 +238,7 @@ export function VariantiForm({
         onClick={() => setAperto(false)}
         className="flex min-h-11 items-center px-1 text-sm underline"
       >
-        Chiudi
+        {tc("azione.chiudi")}
       </button>
     </div>
   );

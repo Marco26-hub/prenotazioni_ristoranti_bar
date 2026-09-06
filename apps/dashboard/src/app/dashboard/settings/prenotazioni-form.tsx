@@ -5,6 +5,9 @@ import {
   salvaImpostazioniPrenotazioni,
   type EsitoPrenotazioni,
 } from "./prenotazioni-actions";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tImpostazioni } from "@/i18n/impostazioni";
+import { tComune } from "@repo/shared/i18n/comune";
 
 const CAMPO = "min-h-11 w-full rounded-lg border border-border bg-background px-3 text-sm";
 
@@ -17,6 +20,8 @@ export function PrenotazioniForm({
   capienza: number | null;
   autoConfirm: boolean;
 }) {
+  const t = tImpostazioni(useLingua());
+  const c = tComune(useLingua());
   const [state, formAction, pending] = useActionState<EsitoPrenotazioni | null, FormData>(
     async (_prev, formData) => salvaImpostazioniPrenotazioni(formData),
     null
@@ -26,25 +31,22 @@ export function PrenotazioniForm({
     <form action={formAction} className="space-y-3">
       <div>
         <label className="mb-1 block text-sm" htmlFor="reservationEmail">
-          Dove ricevere le richieste
+          {t("prenotazioni.email")}
         </label>
         <input
           id="reservationEmail"
           name="reservationEmail"
           type="email"
           defaultValue={email ?? ""}
-          placeholder="prenotazioni@iltuolocale.it"
+          placeholder={t("prenotazioni.email.placeholder")}
           className={CAMPO}
         />
-        <p className="mt-1 text-xs text-muted">
-          Spesso non è l&apos;indirizzo pubblico: le prenotazioni le guarda una
-          persona sola. Lasciando vuoto usiamo l&apos;email pubblica del locale.
-        </p>
+        <p className="mt-1 text-xs text-muted">{t("prenotazioni.email.nota")}</p>
       </div>
 
       <div>
         <label className="mb-1 block text-sm" htmlFor="capacity">
-          Quanti coperti puoi servire nella stessa fascia
+          {t("prenotazioni.capienza")}
         </label>
         <input
           id="capacity"
@@ -53,14 +55,10 @@ export function PrenotazioniForm({
           min="1"
           max="2000"
           defaultValue={capienza ?? ""}
-          placeholder="es. 40"
+          placeholder={t("prenotazioni.capienza.placeholder")}
           className={CAMPO}
         />
-        <p className="mt-1 text-xs text-muted">
-          Serve a dire di no da soli quando è pieno, e a proporre al cliente
-          gli orari vicini in cui c&apos;è posto. Senza, ogni richiesta arriva
-          a te senza controllo.
-        </p>
+        <p className="mt-1 text-xs text-muted">{t("prenotazioni.capienza.nota")}</p>
       </div>
 
       <label className="flex min-h-11 items-start gap-2 text-sm">
@@ -71,9 +69,9 @@ export function PrenotazioniForm({
           className="mt-0.5 h-5 w-5"
         />
         <span>
-          Conferma da sola le richieste che ci stanno nella capienza
+          {t("prenotazioni.auto")}
           <span className="block text-xs text-muted">
-            Il cliente riceve subito la conferma. Tu puoi comunque annullare.
+            {t("prenotazioni.auto.nota")}
           </span>
         </span>
       </label>
@@ -86,7 +84,7 @@ export function PrenotazioniForm({
         disabled={pending}
         className="min-h-11 w-full rounded-full bg-accent font-medium text-accent-foreground disabled:opacity-50"
       >
-        {pending ? "Salvataggio…" : "Salva"}
+        {pending ? t("stato.salvataggio") : c("azione.salva")}
       </button>
     </form>
   );

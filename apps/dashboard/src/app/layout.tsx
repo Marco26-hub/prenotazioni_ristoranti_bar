@@ -1,5 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Instrument_Serif } from "next/font/google";
+import { LinguaProvider } from "@repo/shared/i18n/contesto";
+import { linguaUtente } from "@/lib/lingua";
+import { tGuscio } from "@/i18n/guscio";
 import "./globals.css";
 
 /* Scaricati in fase di build e serviti dal nostro dominio: nessuna chiamata
@@ -19,10 +22,13 @@ const serif = Instrument_Serif({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: "Gestionale locale",
-  description: "Tavoli, ordini, menu e prenotazioni del tuo locale.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = tGuscio(await linguaUtente());
+  return {
+    title: t("app.titolo"),
+    description: t("app.descrizione"),
+  };
+}
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -33,10 +39,22 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  /*
+   * La lingua si decide qui, una volta sola, per tutto quello che sta sotto.
+   *
+   * `lang` non è decorazione: è quello che dice al lettore di schermo come
+   * pronunciare la pagina e al motore di ricerca in che lingua è scritta. Il
+   * provider serve ai componenti client, che altrimenti dovrebbero ricevere
+   * la lingua come prop lungo tutto l'albero.
+   */
+  const lingua = await linguaUtente();
+
   return (
-    <html lang="it" className={`h-full antialiased ${sans.variable} ${serif.variable}`}>
-      <body className="flex min-h-full flex-col">{children}</body>
+    <html lang={lingua} className={`h-full antialiased ${sans.variable} ${serif.variable}`}>
+      <body className="flex min-h-full flex-col">
+        <LinguaProvider lingua={lingua}>{children}</LinguaProvider>
+      </body>
     </html>
   );
 }

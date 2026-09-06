@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react";
 import { removeStaff, changeStaffRole } from "./actions";
 import { RangoForm, type TavoloRango } from "./rango-form";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tPersone } from "@/i18n/persone";
 import type { StaffRole } from "@repo/shared";
 
 interface Member {
@@ -28,6 +30,7 @@ export function StaffList({
   nomiPerUtente: Record<string, string>;
   repartiDisponibili: { chiave: string; etichetta: string }[];
 }) {
+  const t = tPersone(useLingua());
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -47,7 +50,7 @@ export function StaffList({
             <div className="min-w-0">
               <p className="truncate">
                 {m.name ?? m.email}
-                {m.isMe && <span className="ml-2 text-xs text-muted">(tu)</span>}
+                {m.isMe && <span className="ml-2 text-xs text-muted">{t("elenco.tu")}</span>}
               </p>
               {m.name && <p className="truncate text-sm text-muted">{m.email}</p>}
             </div>
@@ -65,10 +68,10 @@ export function StaffList({
                     }
                     className="min-h-10 rounded-lg border border-border bg-background px-2 text-sm"
                   >
-                    <option value="waiter">Sala</option>
-                    <option value="kitchen">Cucina</option>
-                    <option value="manager">Responsabile</option>
-                    <option value="owner">Titolare</option>
+                    <option value="waiter">{t("ruolo.waiter")}</option>
+                    <option value="kitchen">{t("ruolo.kitchen")}</option>
+                    <option value="manager">{t("ruolo.manager")}</option>
+                    <option value="owner">{t("ruolo.owner")}</option>
                   </select>
                   <button
                     type="button"
@@ -76,7 +79,7 @@ export function StaffList({
                     onClick={() => act(() => removeStaff(m.id))}
                     className="text-sm text-danger underline disabled:opacity-50"
                   >
-                    Rimuovi
+                    {t("elenco.rimuovi")}
                   </button>
                 </>
               )}

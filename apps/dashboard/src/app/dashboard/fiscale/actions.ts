@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { requireRole } from "@/lib/authz";
 import { improntaAgente } from "@/lib/rt-auth";
+import { linguaUtente } from "@/lib/lingua";
+import { tSoldi } from "@/i18n/soldi";
 
 export interface EsitoFiscale {
   error?: string;
@@ -24,6 +26,7 @@ export interface EsitoFiscale {
  */
 export async function salvaRt(formData: FormData): Promise<EsitoFiscale> {
   const { venue } = await requireRole(["owner", "manager"]);
+  const t = tSoldi(await linguaUtente());
 
   const attivo = formData.get("attivo") === "on";
 
@@ -44,22 +47,19 @@ export async function salvaRt(formData: FormData): Promise<EsitoFiscale> {
   if (!attivo) {
     await sql`update venues set rt_attivo = false where id = ${venue.venueId}`;
     revalidatePath("/dashboard/fiscale");
-    return { ok: "Spento: i conti chiusi non vengono messi in coda." };
+    return { ok: t("fiscale.ok.spento") };
   }
 
   const modalita = formData.get("modalita") === "agente" ? "agente" : "manuale";
   const matricola = String(formData.get("matricola") ?? "").trim().slice(0, 60);
 
   if (!matricola) {
-    return {
-      error:
-        "Serve la matricola del registratore: è quella che hai comunicato all'Agenzia.",
-    };
+    return { error: t("fiscale.errore.matricola") };
   }
 
   const stacco = Number.parseInt(String(formData.get("stacco") ?? "5"), 10);
   if (!Number.isFinite(stacco) || stacco < 0 || stacco > 12) {
-    return { error: "Ora di chiusura giornata non valida (0-12)" };
+    return { error: t("fiscale.errore.stacco") };
   }
 
   /*
@@ -74,18 +74,16 @@ export async function salvaRt(formData: FormData): Promise<EsitoFiscale> {
                         giornata_stacco_ora = ${stacco}
        where id = ${venue.venueId}`;
     revalidatePath("/dashboard/fiscale");
-    return {
-      ok: "Salvato. I documenti restano da battere a mano e trovi il riepilogo qui.",
-    };
+    return { ok: t("fiscale.ok.manuale") };
   }
 
   const marche = ["epson", "custom", "rch"];
   const marca = String(formData.get("marca") ?? "epson");
-  if (!marche.includes(marca)) return { error: "Marca non riconosciuta" };
+  if (!marche.includes(marca)) return { error: t("fiscale.errore.marca") };
 
   const operatore = Number.parseInt(String(formData.get("operatore") ?? "1"), 10);
   if (!Number.isFinite(operatore) || operatore < 1 || operatore > 99) {
-    return { error: "Numero operatore non valido (1-99)" };
+    return { error: t("fiscale.errore.operatore") };
   }
 
   /*
@@ -106,11 +104,7 @@ export async function salvaRt(formData: FormData): Promise<EsitoFiscale> {
   }
 
   if (Object.keys(reparti).length === 0) {
-    return {
-      error:
-        "Indica almeno un reparto: senza, ogni riga finirebbe sul reparto 1 e " +
-        "verrebbe dichiarata con l'aliquota di quel reparto.",
-    };
+    return { error: t("fiscale.errore.reparti") };
   }
 
   await sql`
@@ -126,7 +120,7 @@ export async function salvaRt(formData: FormData): Promise<EsitoFiscale> {
     where id = ${venue.venueId}`;
 
   revalidatePath("/dashboard/fiscale");
-  return { ok: "Salvato. Genera il codice per il programma sulla cassa, qui sotto." };
+  return { ok: t("fiscale.ok.agente") };
 }
 
 /**
@@ -138,6 +132,7 @@ export async function salvaRt(formData: FormData): Promise<EsitoFiscale> {
  */
 export async function generaCodiceAgente(): Promise<EsitoFiscale> {
   const { venue } = await requireRole(["owner", "manager"]);
+  const t = tSoldi(await linguaUtente());
 
   const segreto = randomBytes(32).toString("base64url");
   const sql = db();
@@ -147,10 +142,7 @@ export async function generaCodiceAgente(): Promise<EsitoFiscale> {
      where id = ${venue.venueId}`;
 
   revalidatePath("/dashboard/fiscale");
-  return {
-    segreto,
-    ok: "Copialo adesso: non si può rivedere. Il precedente non vale più.",
-  };
+  return { segreto, ok: t("fiscale.ok.codice") };
 }
 
 /**
@@ -165,6 +157,7 @@ export async function segnaBattuto(
   numero: string
 ): Promise<EsitoFiscale> {
   const { venue } = await requireRole(["owner", "manager"]);
+  const t = tSoldi(await linguaUtente());
   const sql = db();
 
   const righe = await sql`
@@ -177,9 +170,9 @@ export async function segnaBattuto(
     returning id`;
 
   if (righe.length === 0) {
-    return { error: "Documento non trovato, o già emesso dal registratore" };
+    return { error: t("fiscale.errore.documento") };
   }
 
   revalidatePath("/dashboard/fiscale");
-  return { ok: "Segnato come battuto in cassa." };
+  return { ok: t("fiscale.ok.battuto") };
 }

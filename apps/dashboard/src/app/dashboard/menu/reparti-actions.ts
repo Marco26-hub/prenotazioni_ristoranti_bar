@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { requireRole } from "@/lib/authz";
 import { REPARTI } from "@repo/shared/reparti";
+import { linguaUtente } from "@/lib/lingua";
+import { tMenuAdmin } from "@/i18n/menu";
 
 export interface EsitoReparti {
   error?: string;
@@ -31,12 +33,13 @@ function chiaveDa(etichetta: string): string {
  */
 export async function aggiungiReparto(etichetta: string): Promise<EsitoReparti> {
   const { venue } = await requireRole(["owner", "manager"]);
+  const t = tMenuAdmin(await linguaUtente());
 
   const nome = etichetta.trim().slice(0, 40);
-  if (nome.length < 2) return { error: "Serve un nome di almeno due lettere" };
+  if (nome.length < 2) return { error: t("postazione.errore.nome.corto") };
 
   const chiave = chiaveDa(nome);
-  if (!chiave) return { error: "Nome non utilizzabile: usa lettere e numeri" };
+  if (!chiave) return { error: t("postazione.errore.nome.inutilizzabile") };
 
   const sql = db();
 
@@ -64,8 +67,8 @@ export async function aggiungiReparto(etichetta: string): Promise<EsitoReparti> 
   revalidatePath("/dashboard/staff");
 
   return righe.length > 0
-    ? { ok: `"${nome}" aggiunta.` }
-    : { error: "Esiste già una postazione con questo nome" };
+    ? { ok: t("postazione.aggiunta", { nome }) }
+    : { error: t("postazione.errore.esiste") };
 }
 
 /** Rinomina: la chiave resta, o si toglierebbe il permesso a chi ce l'ha. */
@@ -74,9 +77,10 @@ export async function rinominaReparto(
   etichetta: string
 ): Promise<EsitoReparti> {
   const { venue } = await requireRole(["owner", "manager"]);
+  const t = tMenuAdmin(await linguaUtente());
 
   const nome = etichetta.trim().slice(0, 40);
-  if (nome.length < 2) return { error: "Serve un nome di almeno due lettere" };
+  if (nome.length < 2) return { error: t("postazione.errore.nome.corto") };
 
   const sql = db();
   const righe = await sql`
@@ -84,11 +88,11 @@ export async function rinominaReparto(
      where venue_id = ${venue.venueId} and chiave = ${chiave}
     returning chiave`;
 
-  if (righe.length === 0) return { error: "Postazione non trovata" };
+  if (righe.length === 0) return { error: t("postazione.errore.non.trovata") };
 
   revalidatePath("/dashboard/menu");
   revalidatePath("/dashboard/staff");
-  return { ok: "Rinominata." };
+  return { ok: t("postazione.rinominata") };
 }
 
 /**
@@ -99,6 +103,7 @@ export async function rinominaReparto(
  */
 export async function togliReparto(chiave: string): Promise<EsitoReparti> {
   const { venue } = await requireRole(["owner", "manager"]);
+  const t = tMenuAdmin(await linguaUtente());
   const sql = db();
 
   const [usata] = await sql<{ n: string }[]>`
@@ -107,7 +112,7 @@ export async function togliReparto(chiave: string): Promise<EsitoReparti> {
 
   if (Number(usata.n) > 0) {
     return {
-      error: `Ci sono ancora ${usata.n} categorie su questa postazione: spostale prima, o le loro comande non le vedrebbe più nessuno.`,
+      error: t("postazione.errore.in.uso", { n: usata.n }),
     };
   }
 
@@ -117,7 +122,7 @@ export async function togliReparto(chiave: string): Promise<EsitoReparti> {
 
   revalidatePath("/dashboard/menu");
   revalidatePath("/dashboard/staff");
-  return { ok: "Tolta." };
+  return { ok: t("postazione.tolta") };
 }
 
 /** Dove si prepara una categoria. */
@@ -126,6 +131,7 @@ export async function impostaRepartoCategoria(
   chiave: string
 ): Promise<EsitoReparti> {
   const { venue } = await requireRole(["owner", "manager"]);
+  const t = tMenuAdmin(await linguaUtente());
   const sql = db();
 
   const righe = await sql`
@@ -133,9 +139,9 @@ export async function impostaRepartoCategoria(
      where id = ${categoryId} and venue_id = ${venue.venueId}
     returning id`;
 
-  if (righe.length === 0) return { error: "Categoria non trovata" };
+  if (righe.length === 0) return { error: t("postazione.categoria.non.trovata") };
 
   revalidatePath("/dashboard/menu");
   revalidatePath("/dashboard/orders");
-  return { ok: "Spostata." };
+  return { ok: t("postazione.categoria.spostata") };
 }

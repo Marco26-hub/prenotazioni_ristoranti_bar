@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { requireRole } from "@/lib/authz";
 import { messaggioErrore } from "@repo/shared/errori";
+import { linguaUtente } from "@/lib/lingua";
+import { tMenuAdmin } from "@/i18n/menu";
 
 export interface ImportResult {
   error?: string;
@@ -110,13 +112,14 @@ async function readXlsx(file: File): Promise<string[][]> {
 
 export async function importMenuCsv(formData: FormData): Promise<ImportResult> {
   const { venue } = await requireRole(["owner", "manager"], "ordini");
+  const t = tMenuAdmin(await linguaUtente());
   const file = formData.get("file");
 
   if (!(file instanceof File) || file.size === 0) {
-    return { error: "Nessun file selezionato" };
+    return { error: t("importa.errore.nessun.file") };
   }
   if (file.size > MAX_FILE_BYTES) {
-    return { error: "File troppo grande (massimo 1 MB)" };
+    return { error: t("importa.errore.troppo.grande") };
   }
 
   const isExcel =
@@ -128,9 +131,9 @@ export async function importMenuCsv(formData: FormData): Promise<ImportResult> {
     rows = isExcel ? await readXlsx(file) : parseCsv(await file.text());
   } catch (err) {
     console.error(`[import-menu] lettura file fallita: ${messaggioErrore(err)}`);
-    return { error: "File non leggibile: controlla che sia un CSV, TSV o Excel valido" };
+    return { error: t("importa.errore.illeggibile") };
   }
-  if (rows.length === 0) return { error: "Il file è vuoto" };
+  if (rows.length === 0) return { error: t("importa.errore.vuoto") };
 
   // La prima riga è intestazione solo se non contiene un prezzo valido:
   // così funziona sia con file esportati con intestazione sia senza.
@@ -141,7 +144,7 @@ export async function importMenuCsv(formData: FormData): Promise<ImportResult> {
   const dataRows = hasHeader ? rows.slice(1) : rows;
 
   if (dataRows.length > MAX_ROWS) {
-    return { error: `Troppe righe (massimo ${MAX_ROWS})` };
+    return { error: t("importa.errore.troppe.righe", { max: MAX_ROWS }) };
   }
 
   const sql = db();
@@ -191,15 +194,15 @@ export async function importMenuCsv(formData: FormData): Promise<ImportResult> {
     };
 
     if (!name) {
-      skipped.push(`riga ${lineNo}: manca il nome del piatto`);
+      skipped.push(t("importa.saltata.nome", { riga: lineNo }));
       continue;
     }
     if (priceCents === null) {
-      skipped.push(`riga ${lineNo} (${name}): prezzo non valido`);
+      skipped.push(t("importa.saltata.prezzo", { riga: lineNo, nome: name }));
       continue;
     }
     if (!Number.isFinite(vatRate) || vatRate < 0 || vatRate > 100) {
-      skipped.push(`riga ${lineNo} (${name}): IVA non valida`);
+      skipped.push(t("importa.saltata.iva", { riga: lineNo, nome: name }));
       continue;
     }
 
@@ -238,11 +241,7 @@ export async function importMenuCsv(formData: FormData): Promise<ImportResult> {
 
   revalidatePath("/dashboard/menu");
   if (ivaAssunta > 0) {
-    skipped.push(
-      `${ivaAssunta} ${ivaAssunta === 1 ? "riga" : "righe"} senza IVA nel file: ` +
-        "importate al 10%, l'aliquota della somministrazione. Se ci sono vini o " +
-        "alcolici correggili a 22% prima di emettere fatture."
-    );
+    skipped.push(t.n(ivaAssunta, "importa.iva.assunta"));
   }
 
   return { imported, skipped };

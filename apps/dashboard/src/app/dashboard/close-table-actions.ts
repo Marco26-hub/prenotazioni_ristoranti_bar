@@ -6,6 +6,8 @@ import { requireVenue } from "@/lib/authz";
 import { contoSessione } from "@repo/shared/conto";
 import { accodaDocumento } from "@repo/shared/fiscale";
 import { messaggioErrore } from "@repo/shared/errori";
+import { tSala } from "@/i18n/sala";
+import { linguaUtente } from "@/lib/lingua";
 
 /**
  * Chiusura del conto da parte dello staff, per il pagamento al banco o in
@@ -21,6 +23,7 @@ export async function closeTableInPerson(
   sessionId: string
 ): Promise<{ ok?: string; error?: string }> {
   const { venue, userId } = await requireVenue();
+  const t = tSala(await linguaUtente());
   const sql = db();
 
   let esito: { ok?: string; error?: string } = {};
@@ -32,11 +35,11 @@ export async function closeTableInPerson(
       for update`;
 
     if (!session) {
-      esito = { error: "Tavolo non trovato" };
+      esito = { error: t("chiusura.non_trovato") };
       return;
     }
     if (session.status === "closed") {
-      esito = { ok: "Il conto era già chiuso." };
+      esito = { ok: t("chiusura.gia_chiuso") };
       return;
     }
 
@@ -55,10 +58,7 @@ export async function closeTableInPerson(
        where table_session_id = ${session.id} and status = 'pending'`;
 
     if (Number(inCorso?.n ?? 0) > 0) {
-      esito = {
-        error:
-          "C'è un pagamento con carta in corso su questo tavolo. Aspetta l'esito prima di incassare al banco: rischi di far pagare due volte.",
-      };
+      esito = { error: t("chiusura.pagamento_in_corso") };
       return;
     }
 
@@ -73,6 +73,22 @@ export async function closeTableInPerson(
      * stessi dati che sta per scrivere.
      */
     const conto = await contoSessione(tx, session.id);
+
+    /*
+     * A prezzo fisso non si chiude finché non si sa in quanti erano.
+     *
+     * Il residuo lo calcolerebbe lo stesso — su un coperto, perché è così
+     * che nasce la sessione quando la apre il cliente col QR — e la riga di
+     * incasso finirebbe a venticinque euro per un tavolo da sei. Chiuso il
+     * conto quel numero diventa lo storico, entra nel documento
+     * commerciale e non torna più indietro: qui l'unico momento utile per
+     * fermarsi è prima.
+     */
+    if (conto.copertiDaConfermare) {
+      esito = { error: t("chiusura.coperti_da_confermare") };
+      return;
+    }
+
     const remaining = conto.residuoCents > 0 ? conto.residuoCents : -conto.eccedenzaCents;
 
     if (remaining < 0) {
@@ -81,7 +97,7 @@ export async function closeTableInPerson(
       // nessuno. Il conto si chiude — non si può tenere occupato un tavolo
       // per questo — ma chi ha premuto deve saperlo subito.
       esito = {
-        ok: `Conto chiuso, ma il tavolo ha pagato ${(Math.abs(remaining) / 100).toFixed(2)} € in più: verifica se serve un rimborso.`,
+        ok: t("chiusura.eccedenza", { importo: t.prezzo(Math.abs(remaining)) }),
       };
     }
 
@@ -140,5 +156,5 @@ export async function closeTableInPerson(
   }
 
   if (!esito.error) revalidatePath("/dashboard");
-  return esito.error || esito.ok ? esito : { ok: "Conto chiuso." };
+  return esito.error || esito.ok ? esito : { ok: t("chiusura.fatto") };
 }

@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { formatPriceCents } from "@repo/shared";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tComune } from "@repo/shared/i18n/comune";
+import { tTavolo } from "@/i18n/tavolo";
 import { DishSheet, type DishDetail } from "./dish-sheet";
 
 interface MenuCategory {
@@ -55,6 +57,9 @@ export function OrderMenu({
   /** Il tavolo paga a prezzo fisso: le voci fuori formula si pagano a parte. */
   aFormula: boolean;
 }) {
+  const lingua = useLingua();
+  const t = tTavolo(lingua);
+  const tc = tComune(lingua);
   const [cart, setCart] = useState<Record<string, CartLine>>({});
   const [noteFor, setNoteFor] = useState<string | null>(null);
   const [openDish, setOpenDish] = useState<MenuItem | null>(null);
@@ -170,8 +175,8 @@ export function OrderMenu({
 
   const attesaTesto =
     mancanoSecondi >= 60
-      ? `${Math.ceil(mancanoSecondi / 60)} min`
-      : `${mancanoSecondi} s`;
+      ? t("attesa.minuti", { n: Math.ceil(mancanoSecondi / 60) })
+      : t("attesa.secondi", { n: mancanoSecondi });
 
   const submitOrder = async () => {
     if (lines.length === 0) return;
@@ -199,7 +204,7 @@ export function OrderMenu({
         if (res.status === 429 && typeof body.attesaSecondi === "number") {
           setMancanoSecondi(body.attesaSecondi);
         }
-        throw new Error(body.error ?? "Errore invio ordine");
+        throw new Error(body.error ?? t("errore.invio"));
       }
       setMancanoSecondi(0);
       setCart({});
@@ -209,7 +214,7 @@ export function OrderMenu({
       if (intervalloMin > 0) setMancanoSecondi(intervalloMin * 60);
       setSubmitted(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Errore invio ordine");
+      setError(e instanceof Error ? e.message : t("errore.invio"));
     } finally {
       setSubmitting(false);
     }
@@ -245,7 +250,7 @@ export function OrderMenu({
           type="button"
           onClick={() => setOpenDish(item)}
           className="min-w-0 flex-1 text-left"
-          aria-label={`Dettagli di ${item.name}`}
+          aria-label={t("piatto.dettagli.aria", { nome: item.name })}
         >
           <p className="font-medium leading-snug">
             {item.name}
@@ -274,14 +279,14 @@ export function OrderMenu({
           */}
           {aFormula && !item.fuori_formula ? (
             <p className="mt-1.5 text-sm font-medium text-success">
-              Compreso nella formula
+              {t("formula.compreso")}
             </p>
           ) : (
             <p className="mt-1.5 font-semibold tabular-nums">
-              {formatPriceCents(item.price_cents, currency)}
+              {t.prezzo(item.price_cents, currency)}
               {aFormula && (
                 <span className="ml-1.5 rounded-full bg-amber-100 px-2 py-0.5 align-middle text-xs font-medium text-amber-900">
-                  fuori formula
+                  {t("formula.fuori")}
                 </span>
               )}
             </p>
@@ -289,13 +294,13 @@ export function OrderMenu({
           {haVarianti && (
             <p className="mt-1 text-xs text-accent underline underline-offset-2">
               {item.gruppi!.some((g) => g.required)
-                ? "Da scegliere"
-                : "Varianti e aggiunte"}
+                ? t("varianti.dascegliere")
+                : t("varianti.titolo")}
             </p>
           )}
           {(item.dietary_tags?.length || item.allergens?.length) && (
             <p className="mt-1 text-xs text-muted underline underline-offset-2">
-              Allergeni e dettagli
+              {t("allergeni.dettagli")}
             </p>
           )}
         </button>
@@ -306,7 +311,7 @@ export function OrderMenu({
               <button
                 type="button"
                 onClick={() => removeItem(chiaveSemplice)}
-                aria-label={`Togli ${item.name}`}
+                aria-label={t("piatto.togli.aria", { nome: item.name })}
                 className="h-11 w-11 rounded-full border border-border text-xl leading-none active:scale-95"
               >
                 −
@@ -321,7 +326,7 @@ export function OrderMenu({
             // Con varianti da scegliere il "+" non può decidere al posto del
             // cliente quale: apre la scheda, dove sceglie lui.
             onClick={() => (haVarianti ? setOpenDish(item) : addItem(item))}
-            aria-label={`Aggiungi ${item.name}`}
+            aria-label={t("piatto.aggiungi.aria", { nome: item.name })}
             className="h-11 w-11 rounded-full bg-accent text-xl leading-none text-accent-foreground active:scale-95"
           >
             +
@@ -335,7 +340,7 @@ export function OrderMenu({
             <input
               value={inCart.notes ?? ""}
               onChange={(e) => setNote(chiaveSemplice, e.target.value)}
-              placeholder="Es. senza cipolla, senza glutine"
+              placeholder={t("nota.esempio")}
               maxLength={140}
               autoFocus={noteFor === item.id && !inCart.notes}
               className="min-h-11 w-full rounded-lg border border-border bg-background px-3 text-sm"
@@ -346,7 +351,7 @@ export function OrderMenu({
               onClick={() => setNoteFor(item.id)}
               className="text-sm text-muted underline underline-offset-2"
             >
-              Aggiungi una nota
+              {t("nota.aggiungi")}
             </button>
           )}
         </div>
@@ -404,23 +409,23 @@ export function OrderMenu({
             type="search"
             value={cerca}
             onChange={(e) => setCerca(e.target.value)}
-            placeholder="Cerca un piatto o un ingrediente"
-            aria-label="Cerca nel menu"
+            placeholder={t("ricerca.placeholder")}
+            aria-label={t("ricerca.aria")}
             className="min-h-11 w-full rounded-full border border-border bg-surface px-4 text-base"
           />
         </div>
       )}
 
       {trovati !== null ? (
-        <section aria-label={`Risultati per ${cerca}`}>
+        <section aria-label={t("ricerca.risultati.aria", { cerca })}>
           <h2 className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-muted">
             {trovati.length === 0
-              ? `Nessun piatto per "${cerca}"`
-              : `${trovati.length} ${trovati.length === 1 ? "piatto" : "piatti"} per "${cerca}"`}
+              ? t("ricerca.nessuno", { cerca })
+              : t.n(trovati.length, "ricerca.conteggio", { cerca })}
           </h2>
           {trovati.length === 0 ? (
             <p className="text-sm text-muted">
-              Prova con una parola sola, o chiedi al personale.
+              {t("ricerca.suggerimento")}
             </p>
           ) : (
             <ul className="space-y-2.5">{trovati.map(renderItem)}</ul>
@@ -430,7 +435,7 @@ export function OrderMenu({
         <>
       {categoriePiene.length > 1 && (
         <nav
-          aria-label="Filtra per portata"
+          aria-label={t("filtro.aria")}
           className={`sticky z-10 -mx-4 overflow-x-auto border-b border-border bg-background/95 px-4 py-2 backdrop-blur ${
             items.length >= 40 ? "top-[3.75rem]" : "top-0"
           }`}
@@ -447,7 +452,7 @@ export function OrderMenu({
                     : "border border-border"
                 }`}
               >
-                Tutto
+                {t("filtro.tutto")}
               </button>
             </li>
             {categoriePiene.map((c) => (
@@ -497,15 +502,14 @@ export function OrderMenu({
           chi non tocca il + non scopre mai che si ordina da qui. */}
       {lines.length === 0 && items.length > 0 && (
         <p className="sticky bottom-3 z-20 mx-auto max-w-2xl rounded-full border border-accent bg-surface/95 px-4 py-3 text-center text-sm shadow-lg backdrop-blur">
-          Tocca <strong className="text-accent">+</strong> per ordinare dal
-          tavolo. Poi potrai cambiare le quantità e aggiungere una nota per la
-          cucina.
+          {t("invito.tocca")} <strong className="text-accent">+</strong>{" "}
+          {t("invito.resto")}
         </p>
       )}
 
       {items.length === 0 && (
         <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted">
-          Il menu non è ancora disponibile. Chiedi al personale.
+          {t("menu.vuoto")}
         </p>
       )}
 
@@ -542,11 +546,11 @@ export function OrderMenu({
               ? "inset-x-0 bottom-0 max-h-[80dvh] rounded-t-2xl border-t shadow-2xl"
               : "hidden lg:flex"
           }`}
-          aria-label="Il tuo ordine"
+          aria-label={t("ordine.titolo")}
         >
           <div className="flex shrink-0 items-baseline justify-between gap-3 border-b border-border px-4 py-3">
             <p className="font-semibold">
-              Il tuo ordine{" "}
+              {t("ordine.titolo")}{" "}
               <span className="text-muted tabular-nums">
                 ({lines.reduce((n, l) => n + l.quantity, 0)})
               </span>
@@ -556,7 +560,7 @@ export function OrderMenu({
               onClick={() => setRiepilogoAperto(false)}
               className="min-h-11 px-2 text-sm underline underline-offset-4 lg:hidden"
             >
-              Chiudi
+              {tc("azione.chiudi")}
             </button>
           </div>
 
@@ -571,7 +575,9 @@ export function OrderMenu({
                     <button
                       type="button"
                       onClick={() => removeItem(l.chiave)}
-                      aria-label={`Togli ${l.name}${l.optionsLabel ? " " + l.optionsLabel : ""}`}
+                      aria-label={t("piatto.togli.aria", {
+                        nome: `${l.name}${l.optionsLabel ? " " + l.optionsLabel : ""}`,
+                      })}
                       className="h-9 w-9 shrink-0 rounded-full border border-border text-lg leading-none active:scale-95"
                     >
                       −
@@ -589,7 +595,9 @@ export function OrderMenu({
                           l.optionsLabel
                         )
                       }
-                      aria-label={`Aggiungi ${l.name}${l.optionsLabel ? " " + l.optionsLabel : ""}`}
+                      aria-label={t("piatto.aggiungi.aria", {
+                        nome: `${l.name}${l.optionsLabel ? " " + l.optionsLabel : ""}`,
+                      })}
                       className="h-9 w-9 shrink-0 rounded-full bg-accent text-lg leading-none text-accent-foreground active:scale-95"
                     >
                       +
@@ -605,7 +613,7 @@ export function OrderMenu({
                     </span>
 
                     <span className="shrink-0 text-sm font-semibold tabular-nums">
-                      {formatPriceCents(l.unitPriceCents * l.quantity, currency)}
+                      {t.prezzo(l.unitPriceCents * l.quantity, currency)}
                     </span>
                   </div>
 
@@ -613,10 +621,10 @@ export function OrderMenu({
                     <input
                       value={l.notes ?? ""}
                       onChange={(e) => setNote(l.chiave, e.target.value)}
-                      placeholder="Nota per la cucina"
+                      placeholder={t("nota.cucina")}
                       maxLength={140}
                       autoFocus={notePerRiga === l.chiave && !l.notes}
-                      aria-label={`Nota per ${l.name}`}
+                      aria-label={t("nota.per.aria", { nome: l.name })}
                       className="mt-1.5 min-h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
                     />
                   ) : (
@@ -625,7 +633,7 @@ export function OrderMenu({
                       onClick={() => setNotePerRiga(l.chiave)}
                       className="mt-0.5 pl-[5.75rem] text-xs text-muted underline underline-offset-2"
                     >
-                      nota
+                      {t("nota.breve")}
                     </button>
                   )}
                 </li>
@@ -635,8 +643,8 @@ export function OrderMenu({
 
           <div className="shrink-0 border-t border-border px-4 py-3">
             <p className="flex items-baseline justify-between gap-3 font-semibold">
-              <span>Totale</span>
-              <span className="tabular-nums">{formatPriceCents(totalCents, currency)}</span>
+              <span>{t("ordine.totale")}</span>
+              <span className="tabular-nums">{t.prezzo(totalCents, currency)}</span>
             </p>
             {/* Su telefono il riepilogo copre la barra in fondo: senza questo
                 si dovrebbe chiudere il pannello per trovare "Ordina". */}
@@ -646,7 +654,11 @@ export function OrderMenu({
               disabled={submitting || inAttesa}
               className="mt-2 min-h-12 w-full rounded-full bg-accent font-medium text-accent-foreground active:scale-95 disabled:opacity-50 lg:hidden"
             >
-              {submitting ? "Invio…" : inAttesa ? `Ancora ${attesaTesto}` : "Ordina"}
+              {submitting
+                ? t("ordine.invio")
+                : inAttesa
+                  ? t("attesa.ancora", { tempo: attesaTesto })
+                  : t("ordine.invia")}
             </button>
           </div>
         </aside>
@@ -664,12 +676,12 @@ export function OrderMenu({
                 <strong className="tabular-nums">
                   {lines.reduce((n, l) => n + l.quantity, 0)}
                 </strong>{" "}
-                articoli{" "}
+                {t.n(lines.reduce((n, l) => n + l.quantity, 0), "barra.articoli")}{" "}
                 <span className="underline underline-offset-4 lg:hidden">
-                  vedi
+                  {t("barra.vedi")}
                 </span>
                 <span className="block font-semibold tabular-nums">
-                  {formatPriceCents(totalCents, currency)}
+                  {t.prezzo(totalCents, currency)}
                 </span>
               </span>
             </button>
@@ -679,7 +691,11 @@ export function OrderMenu({
               disabled={submitting || inAttesa}
               className="min-h-12 rounded-full bg-accent px-7 font-medium text-accent-foreground active:scale-95 disabled:opacity-50"
             >
-              {submitting ? "Invio..." : inAttesa ? `Ancora ${attesaTesto}` : "Ordina"}
+              {submitting
+                ? t("ordine.invio")
+                : inAttesa
+                  ? t("attesa.ancora", { tempo: attesaTesto })
+                  : t("ordine.invia")}
             </button>
           </div>
           {error && <p className="mx-auto mt-2 max-w-2xl text-sm text-danger">{error}</p>}
@@ -719,7 +735,7 @@ export function OrderMenu({
           role="status"
           className="fixed inset-x-0 bottom-0 z-30 bg-success px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 text-center text-sm font-medium text-white"
         >
-          Ordine inviato in cucina.
+          {t("ordine.inviato")}
         </p>
       )}
     </div>

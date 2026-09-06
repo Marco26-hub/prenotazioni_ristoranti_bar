@@ -2,6 +2,9 @@
 
 import { useActionState, useState } from "react";
 import { salvaMittenteEmail, type EsitoEmailLocale } from "./email-actions";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tImpostazioni } from "@/i18n/impostazioni";
+import { tComune } from "@repo/shared/i18n/comune";
 
 const CAMPO = "min-h-11 w-full rounded-lg border border-border bg-background px-3 text-sm";
 
@@ -14,6 +17,8 @@ export function EmailForm({
   from: string | null;
   piattaformaAttiva: boolean;
 }) {
+  const t = tImpostazioni(useLingua());
+  const c = tComune(useLingua());
   const [aperto, setAperto] = useState(false);
   const [state, formAction, pending] = useActionState<EsitoEmailLocale | null, FormData>(
     async (_prev, formData) => salvaMittenteEmail(formData),
@@ -25,12 +30,12 @@ export function EmailForm({
       <p className="text-sm text-muted">
         {collegato ? (
           <>
-            Le email ai tuoi clienti partono da <strong>{from}</strong>.
+            {t("email.collegato.prima")} <strong>{from}</strong>.
           </>
         ) : piattaformaAttiva ? (
-          "Le email partono dal nostro mittente, con risposta al tuo indirizzo. Non devi fare nulla."
+          t("email.piattaforma")
         ) : (
-          "L'invio email non è ancora attivo: le prenotazioni arrivano solo nel gestionale e il cliente non riceve conferme."
+          t("email.non_attivo")
         )}
       </p>
 
@@ -40,36 +45,34 @@ export function EmailForm({
           onClick={() => setAperto(true)}
           className="flex min-h-11 items-center px-1 text-sm underline"
         >
-          {collegato ? "Cambia o rimuovi il tuo mittente" : "Usa il tuo dominio"}
+          {collegato ? t("email.cambia") : t("email.usa_dominio")}
         </button>
       )}
 
       {aperto && (
         <form action={formAction} className="space-y-3 rounded-lg border border-border p-3">
           <p className="text-sm text-muted">
-            Serve un account su <strong>resend.com</strong> e il tuo dominio
-            verificato lì dentro, il che richiede di aggiungere due record DNS.
-            È l&apos;unico passaggio tecnico del prodotto: se non te ne occupi
-            tu, lascia perdere e resta il nostro mittente — funziona uguale.
+            {t("email.serve.prima")} <strong>resend.com</strong>{" "}
+            {t("email.serve.dopo")}
           </p>
 
           <div>
             <label className="mb-1 block text-sm" htmlFor="resend-from">
-              Mittente
+              {t("email.mittente")}
             </label>
             <input
               id="resend-from"
               name="from"
               type="email"
               defaultValue={from ?? ""}
-              placeholder="prenotazioni@iltuolocale.it"
+              placeholder={t("email.mittente.placeholder")}
               className={CAMPO}
             />
           </div>
 
           <div>
             <label className="mb-1 block text-sm" htmlFor="resend-key">
-              Chiave API Resend
+              {t("email.chiave")}
             </label>
             <input
               id="resend-key"
@@ -79,16 +82,13 @@ export function EmailForm({
               placeholder="re_..."
               className={CAMPO}
             />
-            <p className="mt-1 text-xs text-muted">
-              Salvata cifrata. Salvando mandiamo una prova al mittente indicato:
-              se non arriva, il dominio non è verificato.
-            </p>
+            <p className="mt-1 text-xs text-muted">{t("email.chiave.nota")}</p>
           </div>
 
           {collegato && (
             <label className="flex min-h-11 items-center gap-2 text-sm">
               <input type="checkbox" name="rimuovi" className="h-5 w-5" />
-              Rimuovi e torna al mittente della piattaforma
+              {t("email.rimuovi")}
             </label>
           )}
 
@@ -101,14 +101,14 @@ export function EmailForm({
               disabled={pending}
               className="min-h-11 flex-1 rounded-full bg-accent px-4 text-sm font-medium text-accent-foreground disabled:opacity-50"
             >
-              {pending ? "Verifico…" : "Salva e prova"}
+              {pending ? t("stato.verifico") : t("email.salva_prova")}
             </button>
             <button
               type="button"
               onClick={() => setAperto(false)}
               className="flex min-h-11 items-center px-3 text-sm underline"
             >
-              Chiudi
+              {c("azione.chiudi")}
             </button>
           </div>
         </form>

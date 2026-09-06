@@ -5,6 +5,25 @@ import { hasModulo, type StaffRole, type Modulo } from "@repo/shared";
 import type { VenueMembership } from "./staff";
 
 /**
+ * Rifiuto d'accesso, riconoscibile senza leggere il messaggio.
+ *
+ * Chi lo intercetta deve distinguere "non sei autorizzato" da "qualcosa si è
+ * rotto": col database irraggiungibile il super amministratore veniva
+ * rispedito al login in tondo, senza che niente dicesse che la password non
+ * c'entrava. La distinzione si faceva confrontando il testo — `err.message
+ * === "Non autorizzato"` — e sarebbe bastato tradurre questo file per
+ * romperla in silenzio, senza un solo errore di compilazione a dirlo.
+ *
+ * Il messaggio resta italiano: non è testo a schermo, lo leggono i log.
+ */
+export class NonAutorizzato extends Error {
+  constructor(messaggio = "Non autorizzato") {
+    super(messaggio);
+    this.name = "NonAutorizzato";
+  }
+}
+
+/**
  * Ogni Server Action è un endpoint POST raggiungibile da chiunque conosca
  * l'action id, non solo da chi vede il bottone in UI — va sempre riverificata
  * l'appartenenza al venue qui dentro, non solo a livello di pagina.
@@ -13,7 +32,7 @@ export async function requireVenue(): Promise<{ userId: string; venue: VenueMemb
   const session = await auth();
   const venue = session?.venues[0];
   if (!session?.user.id || !venue) {
-    throw new Error("Non autorizzato");
+    throw new NonAutorizzato();
   }
   return { userId: session.user.id, venue };
 }
@@ -136,7 +155,7 @@ export async function requireSuperAdmin(): Promise<{
   deveCambiarePassword: boolean;
 }> {
   const session = await auth();
-  if (!session?.user.id) throw new Error("Non autorizzato");
+  if (!session?.user.id) throw new NonAutorizzato();
 
   const sql = db();
   const [u] = await sql<
@@ -144,7 +163,7 @@ export async function requireSuperAdmin(): Promise<{
   >`select email, is_super_admin, must_change_password
       from users where id = ${session.user.id}`;
 
-  if (!u?.is_super_admin) throw new Error("Non autorizzato");
+  if (!u?.is_super_admin) throw new NonAutorizzato();
 
   return {
     userId: session.user.id,

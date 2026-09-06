@@ -11,6 +11,16 @@ export interface UnpaidItem {
 }
 
 export interface Formula {
+  /**
+   * Nessuno ha ancora detto in quanti sono a tavolo.
+   *
+   * A prezzo fisso i coperti sono il conto: finché la sala non li conferma,
+   * il totale che sapremmo calcolare è quello di una persona sola. Meglio
+   * dirlo che mostrarne uno sbagliato e farci pagare sopra.
+   */
+  copertiDaConfermare: boolean;
+  /** Il numero l'ha detto il tavolo e il personale non l'ha ancora accettato. */
+  copertiDalTavolo: boolean;
   /** Il tavolo è a formula: i piatti inclusi non si pagano a piatto. */
   attiva: boolean;
   /** Prezzo a persona della fascia in corso. */
@@ -58,6 +68,8 @@ export async function formulaCents(sessionId: string): Promise<Formula> {
     supplementoCents: c.supplementoCents,
     totaleCents: c.formulaTotaleCents,
     fascia: c.fascia,
+    copertiDaConfermare: c.copertiDaConfermare,
+    copertiDalTavolo: c.copertiDalTavolo,
   };
 }
 

@@ -33,6 +33,25 @@ export interface RigaConto {
 export interface Conto {
   /** Il tavolo paga a persona invece che a piatto. */
   aFormula: boolean;
+  /**
+   * A formula, nessuno ha ancora detto in quanti sono.
+   *
+   * Non è un dettaglio: a prezzo fisso i coperti SONO il conto. La sessione
+   * la apre il cliente inquadrando il QR e nasce a un coperto, quindi finché
+   * la sala non conferma, il totale mostrato sarebbe quello di una persona
+   * sola per un tavolo da sei. Chi legge questo conto deve saperlo e dirlo,
+   * invece di far vedere venticinque euro dove ce ne sono centocinquanta.
+   */
+  copertiDaConfermare: boolean;
+  /**
+   * Il numero l'ha scritto il tavolo, e nessuno l'ha ancora accettato.
+   *
+   * Serve a distinguere due schermate diverse: «non sappiamo in quanti
+   * siete» e «avete detto sei, lo stiamo confermando». La seconda può
+   * mostrare un totale provvisorio; la prima no, perché il numero sarebbe
+   * quello di una persona sola.
+   */
+  copertiDalTavolo: boolean;
   fascia: "pranzo" | "cena";
   formulaUnitarioCents: number;
   adulti: number;
@@ -90,13 +109,30 @@ export async function contiSessioni(
            ts.guest_count, ts.bambini, ts.supplemento_cents, ts.formula,
            v.cover_charge_cents, v.cover_charge_label, v.service_percent,
            v.formula_attiva, v.formula_bambino_cents,
+           ts.coperti_confermati, ts.coperti_dal_tavolo, ts.fascia,
+           -- La fascia scelta a mano vince sull'orario. L'orario resta il
+           -- predefinito ed è giusto quasi sempre, ma il tavolo seduto alle
+           -- 18:30 dove la cena parte alle 19 pagava il pranzo per tutta la
+           -- sera, e non c'era modo di correggerlo.
            case
-             when (ts.opened_at at time zone coalesce(v.timezone, 'Europe/Rome'))::time
-                  >= v.formula_ora_cena
+             when coalesce(
+                    ts.fascia,
+                    case
+                      when (ts.opened_at at time zone coalesce(v.timezone, 'Europe/Rome'))::time
+                           >= v.formula_ora_cena
+                      then 'cena' else 'pranzo'
+                    end
+                  ) = 'cena'
              then v.formula_cena_cents else v.formula_pranzo_cents
            end as formula_unitario,
-           (ts.opened_at at time zone coalesce(v.timezone, 'Europe/Rome'))::time
-             >= v.formula_ora_cena as e_cena
+           coalesce(
+             ts.fascia,
+             case
+               when (ts.opened_at at time zone coalesce(v.timezone, 'Europe/Rome'))::time
+                    >= v.formula_ora_cena
+               then 'cena' else 'pranzo'
+             end
+           ) = 'cena' as e_cena
       from table_sessions ts
       join venues v on v.id = ts.venue_id
      where ts.id = any(${sessionIds})`;
@@ -147,6 +183,8 @@ function contoVuoto(): Conto {
   return {
     aFormula: false,
     fascia: "cena",
+    copertiDaConfermare: false,
+    copertiDalTavolo: false,
     formulaUnitarioCents: 0,
     adulti: 0,
     bambini: 0,
@@ -245,6 +283,15 @@ function componiConto(t: any, righeGrezze: any[], pagato: number): Conto {
 
   return {
     aFormula,
+    /*
+     * Vale solo a formula e solo se c'è stato un ordine.
+     *
+     * Alla carta i coperti muovono il solo coperto e un errore da un euro
+     * non merita un allarme. E un QR inquadrato per curiosità, senza niente
+     * ordinato, non è un tavolo di cui chiedere i coperti a nessuno.
+     */
+    copertiDaConfermare: aFormula && haOrdinato && !t.coperti_confermati,
+    copertiDalTavolo: Boolean(t.coperti_dal_tavolo) && !t.coperti_confermati,
     fascia: t.e_cena ? "cena" : "pranzo",
     formulaUnitarioCents: aFormula ? unitario : 0,
     adulti: aFormula ? adulti : 0,

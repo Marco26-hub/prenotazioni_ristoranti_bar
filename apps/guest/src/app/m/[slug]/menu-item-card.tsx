@@ -1,19 +1,51 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatPriceCents } from "@repo/shared";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tComune, type VociComuni } from "@repo/shared/i18n/comune";
+import { normalizzaAllergene } from "@repo/shared/allergeni";
+import { tMenu } from "@/i18n/menu";
 import {
   descriviBevanda,
-  CONSERVAZIONE_ETICHETTA,
   type Conservazione,
 } from "@repo/shared/bevande";
 
-const DIETA: Record<string, string> = {
-  vegetariano: "Vegetariano",
-  vegano: "Vegano",
-  senza_glutine: "Senza glutine",
-  senza_lattosio: "Senza lattosio",
-  piccante: "Piccante",
+/** Le diciture stanno in `comune.ts`: sono le stesse parole ovunque. */
+const DIETA: Record<string, keyof VociComuni> = {
+  vegetariano: "dicitura.vegetariano",
+  vegano: "dicitura.vegano",
+  senza_glutine: "dicitura.senza_glutine",
+  senza_lattosio: "dicitura.senza_lattosio",
+  piccante: "dicitura.piccante",
+};
+
+/**
+ * I quattordici dell'Allegato II, con la dicitura ufficiale nelle due
+ * lingue. Le chiavi sono quelle salvate a database e non si toccano; una
+ * voce fuori elenco resta scritta com'è, perché cancellarla sarebbe peggio.
+ */
+const ALLERGENE: Record<string, keyof VociComuni> = {
+  glutine: "allergene.glutine",
+  crostacei: "allergene.crostacei",
+  uova: "allergene.uova",
+  pesce: "allergene.pesce",
+  arachidi: "allergene.arachidi",
+  soia: "allergene.soia",
+  latte: "allergene.latte",
+  "frutta a guscio": "allergene.frutta a guscio",
+  sedano: "allergene.sedano",
+  senape: "allergene.senape",
+  sesamo: "allergene.sesamo",
+  solfiti: "allergene.solfiti",
+  lupini: "allergene.lupini",
+  molluschi: "allergene.molluschi",
+};
+
+const CONSERVAZIONE: Record<Conservazione, keyof VociComuni> = {
+  fresco: "conservazione.fresco",
+  congelato: "conservazione.congelato",
+  surgelato: "conservazione.surgelato",
+  abbattuto: "conservazione.abbattuto",
 };
 
 export interface DettaglioVoce {
@@ -64,6 +96,9 @@ export function MenuItemCard({
   abv,
   servingNote,
 }: DettaglioVoce) {
+  const lingua = useLingua();
+  const t = tMenu(lingua);
+  const tc = tComune(lingua);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -84,7 +119,7 @@ export function MenuItemCard({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        aria-label={`Apri dettagli di ${name}`}
+        aria-label={t("voce.apri", { nome: name })}
         className={`menu-card group grid min-h-36 w-full gap-4 rounded-lg border p-3 text-left transition-[border-color,box-shadow,transform] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${imageUrl ? "grid-cols-[7rem_minmax(0,1fr)] sm:grid-cols-[8.5rem_minmax(0,1fr)]" : "grid-cols-1"}`}
       >
         {imageUrl && (
@@ -112,7 +147,7 @@ export function MenuItemCard({
               )}
             </span>
             <span className="shrink-0 font-semibold tabular-nums">
-              {formatPriceCents(priceCents, currency)}
+              {t.prezzo(priceCents, currency)}
             </span>
           </span>
           {description && (
@@ -153,7 +188,7 @@ export function MenuItemCard({
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  aria-label="Chiudi dettagli"
+                  aria-label={t("voce.chiudi")}
                   className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border text-xl leading-none hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 >
                   ×
@@ -181,17 +216,17 @@ export function MenuItemCard({
                 )}
 
               <p className="text-lg font-semibold tabular-nums">
-                {formatPriceCents(priceCents, currency)}
+                {t.prezzo(priceCents, currency)}
               </p>
 
               {dietaryTags && dietaryTags.length > 0 && (
                 <ul className="flex flex-wrap gap-2">
-                  {dietaryTags.map((t) => (
+                  {dietaryTags.map((d) => (
                     <li
-                      key={t}
+                      key={d}
                       className="rounded-full border border-accent px-3 py-1 text-xs font-medium"
                     >
-                      {DIETA[t] ?? t}
+                      {DIETA[d] ? tc(DIETA[d]) : d}
                     </li>
                   ))}
                 </ul>
@@ -202,7 +237,7 @@ export function MenuItemCard({
               {ingredients && (
                 <div>
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-muted">
-                    Ingredienti
+                    {t("voce.ingredienti")}
                   </h3>
                   <p className="mt-1 leading-relaxed">{ingredients}</p>
                 </div>
@@ -212,14 +247,20 @@ export function MenuItemCard({
                   un'allergia deve trovarla dove si aspetta di trovarla. */}
               <div>
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-muted">
-                  Allergeni
+                  {tc("allergeni.titolo")}
                 </h3>
                 {allergens && allergens.length > 0 ? (
-                  <p className="mt-1">{allergens.join(", ")}</p>
+                  <p className="mt-1">
+                    {allergens
+                      .map((a) => {
+                        const voce = ALLERGENE[normalizzaAllergene(a)];
+                        return voce ? tc(voce) : a;
+                      })
+                      .join(", ")}
+                  </p>
                 ) : (
                   <p className="mt-1 text-muted">
-                    Nessuno segnalato. Per allergie e intolleranze chiedi sempre
-                    al personale prima di ordinare.
+                    {t("voce.allergeni.nessuno")}
                   </p>
                 )}
               </div>
@@ -227,20 +268,24 @@ export function MenuItemCard({
               {conservation !== "fresco" && (
                 <p className="rounded-lg border border-border bg-background p-3 text-sm">
                   <strong className="font-medium">
-                    * {CONSERVAZIONE_ETICHETTA[conservation]}.
+                    * {tc(CONSERVAZIONE[conservation])}.
                   </strong>{" "}
                   {conservation === "abbattuto"
-                    ? "Sottoposto ad abbattimento rapido di temperatura come previsto dal Reg. CE 853/2004."
-                    : "Prodotto non fresco, utilizzato in assenza di reperibilità del prodotto fresco."}
+                    ? t("voce.conservazione.abbattuto")
+                    : t("voce.conservazione.altro")}
                 </p>
               )}
 
               {originNote && (
-                <p className="text-sm text-muted">Origine: {originNote}</p>
+                <p className="text-sm text-muted">
+                  {t("voce.origine", { nota: originNote })}
+                </p>
               )}
 
               {servingNote && kind !== "food" && (
-                <p className="text-sm text-muted">Servizio: {servingNote}</p>
+                <p className="text-sm text-muted">
+                  {t("voce.servizio", { nota: servingNote })}
+                </p>
               )}
             </div>
           </div>

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tTavoloExtra } from "@/i18n/tavolo-extra";
 
 /**
  * Recensione lasciata dal tavolo.
@@ -15,6 +17,7 @@ import { useState } from "react";
  * una conversazione fra il cliente e il locale.
  */
 export function Recensione({ token }: { token: string }) {
+  const t = tTavoloExtra(useLingua());
   const [voto, setVoto] = useState(0);
   const [passato, setPassato] = useState(0);
   const [commento, setCommento] = useState("");
@@ -28,11 +31,11 @@ export function Recensione({ token }: { token: string }) {
 
   const ETICHETTE = [
     "",
-    "Male",
-    "Poco",
-    "Nella media",
-    "Bene",
-    "Benissimo",
+    t("recensione.voto.1"),
+    t("recensione.voto.2"),
+    t("recensione.voto.3"),
+    t("recensione.voto.4"),
+    t("recensione.voto.5"),
   ];
 
   async function invia() {
@@ -47,13 +50,13 @@ export function Recensione({ token }: { token: string }) {
       });
       const dati = await res.json();
       if (!res.ok) {
-        setErrore(dati.error ?? "Non è riuscito. Riprova fra poco.");
+        setErrore(dati.error ?? t("recensione.errore.invio"));
         return;
       }
       setLinkPubblico(dati.linkPubblico ?? null);
       setFatto(true);
     } catch {
-      setErrore("Non è riuscito: controlla la connessione.");
+      setErrore(t("recensione.errore.rete"));
     } finally {
       setInvio(false);
     }
@@ -64,13 +67,13 @@ export function Recensione({ token }: { token: string }) {
       <section className="mt-5 rounded-xl border border-success bg-success/10 p-4">
         <p role="status" className="text-sm font-medium">
           {voto === 5
-            ? "Grazie. Fa piacere davvero."
-            : "Grazie: il titolare legge di persona, e sapere cosa non ha funzionato è l'unico modo per rimediare."}
+            ? t("recensione.grazie.alto")
+            : t("recensione.grazie.basso")}
         </p>
         {linkPubblico && (
           <>
             <p className="mt-2 text-sm text-muted">
-              Se ti va di scriverlo anche pubblicamente, per noi conta molto:
+              {t("recensione.pubblica.invito")}
             </p>
             <a
               href={linkPubblico}
@@ -78,7 +81,7 @@ export function Recensione({ token }: { token: string }) {
               rel="noopener noreferrer"
               className="mt-2 inline-flex min-h-11 items-center rounded-full bg-accent px-5 text-sm font-medium text-accent-foreground"
             >
-              Scrivi una recensione pubblica
+              {t("recensione.pubblica.azione")}
             </a>
           </>
         )}
@@ -88,18 +91,18 @@ export function Recensione({ token }: { token: string }) {
 
   return (
     <section
-      aria-label="Lascia la tua opinione"
+      aria-label={t("recensione.sezione")}
       className="mt-5 rounded-xl border border-border bg-surface p-4"
     >
-      <h2 className="text-base font-semibold">Com&apos;è andata?</h2>
+      <h2 className="text-base font-semibold">{t("recensione.titolo")}</h2>
       <p className="mt-0.5 text-sm text-muted">
-        Lo legge il locale, non viene pubblicato da nessuna parte.
+        {t("recensione.sottotitolo")}
       </p>
 
       {/* Stelle grandi: si tocca con il pollice, seduti, spesso al buio. */}
       <div
         role="radiogroup"
-        aria-label="Voto da 1 a 5"
+        aria-label={t("recensione.voto.gruppo")}
         className="mt-3 flex items-center gap-1"
         onMouseLeave={() => setPassato(0)}
       >
@@ -109,7 +112,7 @@ export function Recensione({ token }: { token: string }) {
             type="button"
             role="radio"
             aria-checked={voto === n}
-            aria-label={`${n} ${n === 1 ? "stella" : "stelle"}`}
+            aria-label={t.n(n, "recensione.stelle")}
             onClick={() => setVoto(n)}
             onMouseEnter={() => setPassato(n)}
             className={`flex h-12 w-12 items-center justify-center rounded-full text-3xl leading-none transition-colors ${
@@ -130,13 +133,12 @@ export function Recensione({ token }: { token: string }) {
         <div className="mt-3 space-y-3">
           <label className="block text-sm">
             {voto === 5 ? (
-              "Vuoi aggiungere qualcosa?"
+              t("recensione.aggiungi")
             ) : (
               <>
-                <span className="font-medium">Cosa non è andato?</span>{" "}
+                <span className="font-medium">{t("recensione.cosa_non_va")}</span>{" "}
                 <span className="text-muted">
-                  Scrivilo qui: lo legge il titolare, e su una cosa scritta
-                  stasera si può ancora rimediare.
+                  {t("recensione.cosa_non_va.aiuto")}
                 </span>
               </>
             )}
@@ -147,20 +149,20 @@ export function Recensione({ token }: { token: string }) {
               maxLength={2000}
               placeholder={
                 voto === 5
-                  ? "Cosa ti è piaciuto di più?"
-                  : "L'attesa, un piatto, il locale, il servizio…"
+                  ? t("recensione.commento.alto")
+                  : t("recensione.commento.basso")
               }
               className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-base"
             />
           </label>
 
           <label className="block text-sm">
-            Come ti chiami (se vuoi)
+            {t("recensione.nome")}
             <input
               value={nome}
               onChange={(e) => setNome(e.target.value)}
               maxLength={80}
-              placeholder="Anche solo il nome"
+              placeholder={t("recensione.nome.segnaposto")}
               className="mt-1 min-h-11 w-full rounded-lg border border-border bg-background px-3 text-base"
             />
           </label>
@@ -172,10 +174,10 @@ export function Recensione({ token }: { token: string }) {
             className="min-h-11 w-full rounded-full bg-accent px-5 text-sm font-medium text-accent-foreground disabled:opacity-60"
           >
             {invio
-              ? "Invio…"
+              ? t("recensione.invio")
               : voto === 5
-                ? "Manda al locale"
-                : "Manda al titolare"}
+                ? t("recensione.invia.alto")
+                : t("recensione.invia.basso")}
           </button>
         </div>
       )}

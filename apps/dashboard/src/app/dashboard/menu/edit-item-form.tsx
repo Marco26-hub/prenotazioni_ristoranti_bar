@@ -11,6 +11,9 @@ import {
   type TipoVoce,
   type Conservazione,
 } from "@repo/shared/bevande";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tComune } from "@repo/shared/i18n/comune";
+import { tMenuAdmin, nomeConservazione } from "@/i18n/menu";
 
 export interface EditableItem {
   id: string;
@@ -71,6 +74,9 @@ export function EditItemForm({
    */
   mostraFormula?: boolean;
 }) {
+  const lingua = useLingua();
+  const t = tMenuAdmin(lingua);
+  const tc = tComune(lingua);
   const formRef = useRef<HTMLFormElement>(null);
   const [open, setOpen] = useState(apriSubito);
   const [tipo, setTipo] = useState<TipoVoce>(item.kind);
@@ -94,7 +100,7 @@ export function EditItemForm({
         onClick={() => setOpen(true)}
         className="mt-2 flex min-h-11 items-center px-1 text-sm underline"
       >
-        Modifica
+        {tc("azione.modifica")}
       </button>
     );
   }
@@ -109,7 +115,7 @@ export function EditItemForm({
           const res = await updateMenuItem(formData);
           if (res.error) setError(res.error);
           else {
-            setMessage("Salvato");
+            setMessage(t("modifica.salvato"));
             setOpen(false);
           }
         });
@@ -120,7 +126,7 @@ export function EditItemForm({
 
       <div>
         <label className={LABEL} htmlFor={`name-${item.id}`}>
-          Nome
+          {t("modifica.nome")}
         </label>
         <input
           ref={nomeRef}
@@ -134,16 +140,14 @@ export function EditItemForm({
 
       {apriSubito && (
         <p className="rounded-lg border border-accent bg-accent/10 p-3 text-sm">
-          Questa è una copia indipendente: nome, descrizione, ingredienti,
-          prezzo, foto, allergeni, varianti e categoria si cambiano tutti da
-          qui. Modificarla non tocca il piatto di partenza.
+          {t("modifica.copia.avviso")}
         </p>
       )}
 
       <div className="grid grid-cols-2 gap-2">
         <div>
           <label className={LABEL} htmlFor={`price-${item.id}`}>
-            Prezzo (€)
+            {t("modifica.prezzo")}
           </label>
           <input
             id={`price-${item.id}`}
@@ -158,7 +162,7 @@ export function EditItemForm({
         </div>
         <div>
           <label className={LABEL} htmlFor={`vat-${item.id}`}>
-            IVA (%)
+            {t("modifica.iva")}
           </label>
           <input
             id={`vat-${item.id}`}
@@ -182,10 +186,9 @@ export function EditItemForm({
             className="h-4 w-4"
           />
           <span>
-            Fuori formula
+            {t("modifica.fuori.formula")}
             <span className="ml-1 text-xs text-muted">
-              — si paga a parte anche al tavolo a prezzo fisso (dolci, caffè,
-              amari, bevande, piatti premium)
+              {t("modifica.fuori.formula.nota")}
             </span>
           </span>
         </label>
@@ -193,7 +196,7 @@ export function EditItemForm({
 
       <div>
         <label className={LABEL} htmlFor={`kind-${item.id}`}>
-          Tipo di voce
+          {t("modifica.tipo")}
         </label>
         <select
           id={`kind-${item.id}`}
@@ -204,13 +207,12 @@ export function EditItemForm({
         >
           {(Object.keys(TIPO_ETICHETTA) as TipoVoce[]).map((k) => (
             <option key={k} value={k}>
-              {TIPO_ETICHETTA[k]}
+              {t(`tipo.${k}`)}
             </option>
           ))}
         </select>
         <p className="mt-1 text-xs text-muted">
-          Calice, bottiglia e magnum non si impostano qui: sono varianti, così
-          ognuna ha il suo prezzo e può esaurirsi da sola.
+          {t("modifica.tipo.nota")}
         </p>
       </div>
 
@@ -256,7 +258,7 @@ export function EditItemForm({
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className={LABEL} htmlFor={`prod-${item.id}`}>
-                {tipo === "beer" ? "Birrificio" : "Produttore"}
+                {tipo === "beer" ? t("modifica.birrificio") : t("modifica.produttore")}
               </label>
               <input
                 id={`prod-${item.id}`}
@@ -267,7 +269,7 @@ export function EditItemForm({
             </div>
             <div>
               <label className={LABEL} htmlFor={`orig-${item.id}`}>
-                Zona o paese
+                {t("modifica.zona")}
               </label>
               <input
                 id={`orig-${item.id}`}
@@ -281,19 +283,19 @@ export function EditItemForm({
           <div className="grid grid-cols-3 gap-2">
             <div>
               <label className={LABEL} htmlFor={`den-${item.id}`}>
-                Denominazione
+                {t("modifica.denominazione")}
               </label>
               <input
                 id={`den-${item.id}`}
                 name="denomination"
-                placeholder="DOCG"
+                placeholder={t("modifica.denominazione.segnaposto")}
                 defaultValue={item.denomination ?? ""}
                 className={FIELD}
               />
             </div>
             <div>
               <label className={LABEL} htmlFor={`vint-${item.id}`}>
-                Annata
+                {t("modifica.annata")}
               </label>
               <input
                 id={`vint-${item.id}`}
@@ -307,7 +309,7 @@ export function EditItemForm({
             </div>
             <div>
               <label className={LABEL} htmlFor={`abv-${item.id}`}>
-                Gradazione
+                {t("modifica.gradazione")}
               </label>
               <input
                 id={`abv-${item.id}`}
@@ -324,12 +326,18 @@ export function EditItemForm({
 
           <div>
             <label className={LABEL} htmlFor={`subcat-${item.id}`}>
-              Sottocategoria
+              {t("modifica.sottocategoria")}
             </label>
             <input
               id={`subcat-${item.id}`}
               name="subcategory"
-              placeholder={tipo === "wine" ? "Bianco, rosso, bollicine" : tipo === "beer" ? "Bionda, rossa, scura, artigianale" : "Naturale, frizzante, cola"}
+              placeholder={
+                tipo === "wine"
+                  ? t("modifica.sottocategoria.vino")
+                  : tipo === "beer"
+                    ? t("modifica.sottocategoria.birra")
+                    : t("modifica.sottocategoria.bevanda")
+              }
               defaultValue={item.subcategory ?? ""}
               className={FIELD}
             />
@@ -338,24 +346,24 @@ export function EditItemForm({
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className={LABEL} htmlFor={`format-${item.id}`}>
-                Formato
+                {t("modifica.formato")}
               </label>
               <input
                 id={`format-${item.id}`}
                 name="format"
-                placeholder="0,33 L · 0,75 L · calice"
+                placeholder={t("modifica.formato.segnaposto")}
                 defaultValue={item.format ?? ""}
                 className={FIELD}
               />
             </div>
             <div>
               <label className={LABEL} htmlFor={`service-${item.id}`}>
-                Servizio
+                {t("modifica.servizio")}
               </label>
               <input
                 id={`service-${item.id}`}
                 name="serviceType"
-                placeholder="Bottiglia · spina · calice"
+                placeholder={t("modifica.servizio.segnaposto")}
                 defaultValue={item.service_type ?? ""}
                 className={FIELD}
               />
@@ -365,12 +373,12 @@ export function EditItemForm({
           {tipo === "beer" && (
             <div>
               <label className={LABEL} htmlFor={`style-${item.id}`}>
-                Stile birra
+                {t("modifica.stile.birra")}
               </label>
               <input
                 id={`style-${item.id}`}
                 name="productStyle"
-                placeholder="Lager · IPA · Porter · Weiss"
+                placeholder={t("modifica.stile.birra.segnaposto")}
                 defaultValue={item.product_style ?? ""}
                 className={FIELD}
               />
@@ -380,12 +388,12 @@ export function EditItemForm({
           {tipo === "wine" && (
             <div>
               <label className={LABEL} htmlFor={`grape-${item.id}`}>
-                Vitigno o uvaggio
+                {t("modifica.vitigno")}
               </label>
               <input
                 id={`grape-${item.id}`}
                 name="grapeVariety"
-                placeholder="Vermentino · Sangiovese · blend"
+                placeholder={t("modifica.vitigno.segnaposto")}
                 defaultValue={item.grape_variety ?? ""}
                 className={FIELD}
               />
@@ -394,12 +402,12 @@ export function EditItemForm({
 
           <div>
             <label className={LABEL} htmlFor={`serv-${item.id}`}>
-              Nota di servizio
+              {t("modifica.nota.servizio")}
             </label>
             <input
               id={`serv-${item.id}`}
               name="servingNote"
-              placeholder="Servire a 10-12 °C · Decantare 30 minuti"
+              placeholder={t("modifica.nota.servizio.segnaposto")}
               defaultValue={item.serving_note ?? ""}
               className={FIELD}
             />
@@ -407,8 +415,9 @@ export function EditItemForm({
 
           {tipo === "wine" && (
             <p className="text-xs text-muted">
-              Quasi ogni vino supera i 10 mg/l di solfiti e va dichiarato:
-              scrivi <strong>solfiti</strong> fra gli allergeni qui sotto.
+              {t("modifica.solfiti.prima")}
+              <strong>{t("modifica.solfiti.parola")}</strong>
+              {t("modifica.solfiti.dopo")}
             </p>
           )}
         </div>
@@ -416,7 +425,7 @@ export function EditItemForm({
 
       <div>
         <label className={LABEL} htmlFor={`cat-${item.id}`}>
-          Categoria
+          {t("modifica.categoria")}
         </label>
         <select
           id={`cat-${item.id}`}
@@ -424,7 +433,7 @@ export function EditItemForm({
           defaultValue={item.category_id ?? ""}
           className={FIELD}
         >
-          <option value="">Nessuna categoria</option>
+          <option value="">{t("modifica.categoria.nessuna")}</option>
           {categories.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
@@ -435,7 +444,7 @@ export function EditItemForm({
 
       <div>
         <label className={LABEL} htmlFor={`desc-${item.id}`}>
-          Descrizione
+          {t("modifica.descrizione")}
         </label>
         <textarea
           id={`desc-${item.id}`}
@@ -448,7 +457,7 @@ export function EditItemForm({
 
       <div>
         <label className={LABEL} htmlFor={`ingr-${item.id}`}>
-          Ingredienti
+          {t("modifica.ingredienti")}
         </label>
         <textarea
           id={`ingr-${item.id}`}
@@ -463,20 +472,20 @@ export function EditItemForm({
 
       <div>
         <label className={LABEL} htmlFor={`diet-${item.id}`}>
-          Diciture — vegetariano, vegano, senza_glutine, senza_lattosio, piccante
+          {t("modifica.diciture")}
         </label>
         <input
           id={`diet-${item.id}`}
           name="dietaryTags"
           defaultValue={(item.dietary_tags ?? []).join(", ")}
-          placeholder="vegetariano, piccante"
+          placeholder={t("modifica.diciture.segnaposto")}
           className={FIELD}
         />
       </div>
 
       <div>
         <label className={LABEL} htmlFor={`pair-${item.id}`}>
-          Si abbina bene con
+          {t("modifica.abbinamento")}
         </label>
         <select
           id={`pair-${item.id}`}
@@ -484,7 +493,7 @@ export function EditItemForm({
           defaultValue={item.pairing_item_id ?? ""}
           className={FIELD}
         >
-          <option value="">Nessun abbinamento</option>
+          <option value="">{t("modifica.abbinamento.nessuno")}</option>
           {otherItems.map((o) => (
             <option key={o.id} value={o.id}>
               {o.name}
@@ -496,7 +505,7 @@ export function EditItemForm({
       <div className="grid gap-2 sm:grid-cols-2">
         <div>
           <label className={LABEL} htmlFor={`cons-${item.id}`}>
-            Conservazione
+            {t("modifica.conservazione")}
           </label>
           <select
             id={`cons-${item.id}`}
@@ -506,23 +515,22 @@ export function EditItemForm({
           >
             {(Object.keys(CONSERVAZIONE_ETICHETTA) as Conservazione[]).map((c) => (
               <option key={c} value={c}>
-                {CONSERVAZIONE_ETICHETTA[c]}
+                {nomeConservazione(c, lingua)}
               </option>
             ))}
           </select>
           <p className="mt-1 text-xs text-muted">
-            Diverso da fresco: al cliente compare l&apos;asterisco con la nota
-            di legge. Ometterlo è frode in commercio.
+            {t("modifica.conservazione.nota")}
           </p>
         </div>
         <div>
           <label className={LABEL} htmlFor={`orig2-${item.id}`}>
-            Origine (obbligatoria per la carne bovina)
+            {t("modifica.origine")}
           </label>
           <input
             id={`orig2-${item.id}`}
             name="originNote"
-            placeholder="Nato, allevato e macellato in Italia"
+            placeholder={t("modifica.origine.segnaposto")}
             defaultValue={item.origin_note ?? ""}
             className={FIELD}
           />
@@ -536,7 +544,7 @@ export function EditItemForm({
           defaultChecked={item.available}
           className="h-5 w-5"
         />
-        Disponibile — se tolto, il piatto sparisce dal menu del cliente
+        {t("modifica.disponibile")}
       </label>
 
       {error && (
@@ -552,14 +560,14 @@ export function EditItemForm({
           disabled={pending}
           className="min-h-11 flex-1 rounded-full bg-accent px-5 text-sm font-medium text-accent-foreground disabled:opacity-60"
         >
-          {pending ? "Salvataggio…" : "Salva modifiche"}
+          {pending ? t("modifica.salvataggio") : t("modifica.salva")}
         </button>
         <button
           type="button"
           onClick={() => setOpen(false)}
           className="min-h-11 rounded-full border border-border px-5 text-sm"
         >
-          Annulla
+          {tc("azione.annulla")}
         </button>
       </div>
     </form>

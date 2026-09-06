@@ -1,5 +1,8 @@
 import { db } from "@repo/shared/db";
 import { requireVenue } from "@/lib/authz";
+import { LinguaProvider } from "@repo/shared/i18n/contesto";
+import { linguaUtente } from "@/lib/lingua";
+import { tPrenotazioni } from "@/i18n/prenotazioni";
 import { SegnaLette } from "./segna-lette";
 
 /**
@@ -11,6 +14,7 @@ import { SegnaLette } from "./segna-lette";
  */
 export default async function RecensioniPage() {
   const { venue } = await requireVenue();
+  const t = tPrenotazioni(await linguaUtente());
   const sql = db();
 
   const recensioni = await sql<
@@ -47,77 +51,72 @@ export default async function RecensioniPage() {
     return urgente(a) - urgente(b) || b.created_at.getTime() - a.created_at.getTime();
   });
 
-  const dataIt = new Intl.DateTimeFormat("it-IT", {
-    dateStyle: "short",
-    timeStyle: "short",
-  });
-
   return (
-    <main className="mx-auto max-w-4xl px-4 py-5">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h1 className="text-xl font-semibold">Recensioni</h1>
-        {totale > 0 && (
-          <p className="text-sm text-muted">
-            <span className="text-base font-semibold text-foreground">
-              {somma?.media ?? "—"}
-            </span>{" "}
-            di media su {totale}
-            {daLeggere > 0 && ` · ${daLeggere} da leggere`}
-          </p>
-        )}
-      </div>
+    <LinguaProvider lingua={t.lingua}>
+      <main className="mx-auto max-w-4xl px-4 py-5">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h1 className="text-xl font-semibold">{t("recensioni.titolo")}</h1>
+          {totale > 0 && (
+            <p className="text-sm text-muted">
+              <span className="text-base font-semibold text-foreground">
+                {somma?.media ?? "—"}
+              </span>{" "}
+              {t("recensioni.media", { totale })}
+              {daLeggere > 0 && ` · ${t("recensioni.da_leggere", { n: daLeggere })}`}
+            </p>
+          )}
+        </div>
 
-      {totale === 0 ? (
-        <p className="mt-4 rounded-xl border border-border bg-surface p-4 text-sm text-muted">
-          Ancora nessuna. La richiesta compare in fondo al menu del tavolo,
-          dopo il conto: la lasciano mentre sono ancora seduti, quindi arrivano
-          dal primo servizio con i QR sui tavoli. Il link alla tua pagina
-          pubblica si imposta in Impostazioni.
-        </p>
-      ) : (
-        <>
-          {daLeggere > 0 && <SegnaLette quante={daLeggere} />}
-          <ul className="mt-4 space-y-3">
-            {ordinate.map((r) => (
-              <li
-                key={r.id}
-                className={`rounded-xl border p-4 ${
-                  r.letta_at
-                    ? "border-border bg-surface"
-                    : r.voto <= 3
-                      ? "border-danger bg-danger/5"
-                      : "border-accent bg-accent/5"
-                }`}
-              >
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <span
-                    aria-label={`${r.voto} su 5`}
-                    className="text-lg text-amber-500"
-                  >
-                    {"★".repeat(r.voto)}
-                    <span className="text-border">{"★".repeat(5 - r.voto)}</span>
-                  </span>
-                  {r.nome && <span className="text-sm font-medium">{r.nome}</span>}
-                  <span className="text-xs text-muted">
-                    {dataIt.format(r.created_at)}
-                    {r.table_code && ` · tavolo ${r.table_code}`}
-                  </span>
-                  {!r.letta_at && (
-                    <span className="rounded-full bg-foreground px-2 py-0.5 text-xs font-medium text-background">
-                      nuova
+        {totale === 0 ? (
+          <p className="mt-4 rounded-xl border border-border bg-surface p-4 text-sm text-muted">
+            {t("recensioni.vuoto")}
+          </p>
+        ) : (
+          <>
+            {daLeggere > 0 && <SegnaLette quante={daLeggere} />}
+            <ul className="mt-4 space-y-3">
+              {ordinate.map((r) => (
+                <li
+                  key={r.id}
+                  className={`rounded-xl border p-4 ${
+                    r.letta_at
+                      ? "border-border bg-surface"
+                      : r.voto <= 3
+                        ? "border-danger bg-danger/5"
+                        : "border-accent bg-accent/5"
+                  }`}
+                >
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span
+                      aria-label={t("recensioni.voto", { voto: r.voto })}
+                      className="text-lg text-amber-500"
+                    >
+                      {"★".repeat(r.voto)}
+                      <span className="text-border">{"★".repeat(5 - r.voto)}</span>
                     </span>
+                    {r.nome && <span className="text-sm font-medium">{r.nome}</span>}
+                    <span className="text-xs text-muted">
+                      {t.dataOra(r.created_at)}
+                      {r.table_code &&
+                        ` · ${t("recensioni.tavolo", { codice: r.table_code })}`}
+                    </span>
+                    {!r.letta_at && (
+                      <span className="rounded-full bg-foreground px-2 py-0.5 text-xs font-medium text-background">
+                        {t("recensioni.nuova")}
+                      </span>
+                    )}
+                  </div>
+                  {r.commento && (
+                    <p className="mt-2 whitespace-pre-line text-sm leading-relaxed">
+                      {r.commento}
+                    </p>
                   )}
-                </div>
-                {r.commento && (
-                  <p className="mt-2 whitespace-pre-line text-sm leading-relaxed">
-                    {r.commento}
-                  </p>
-                )}
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-    </main>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </main>
+    </LinguaProvider>
   );
 }

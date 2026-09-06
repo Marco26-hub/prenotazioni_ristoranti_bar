@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { requireVenue } from "@/lib/authz";
+import { tSala } from "@/i18n/sala";
+import { linguaUtente } from "@/lib/lingua";
 
 /**
  * Coperti del tavolo.
@@ -17,9 +19,10 @@ export async function impostaCoperti(
   coperti: number
 ): Promise<{ ok?: string; error?: string }> {
   const { venue } = await requireVenue();
+  const t = tSala(await linguaUtente());
 
   if (!Number.isInteger(coperti) || coperti < 1 || coperti > 50) {
-    return { error: "Numero di coperti non valido" };
+    return { error: t("azioni.coperti_non_validi") };
   }
 
   const sql = db();
@@ -34,15 +37,20 @@ export async function impostaCoperti(
   const righe = await sql`
     update table_sessions
        set guest_count = ${coperti},
-           bambini = least(bambini, ${coperti})
+           bambini = least(bambini, ${coperti}),
+           -- Dichiarati. A prezzo fisso è la differenza fra un conto e un
+           -- numero inventato: la sessione nasce a un coperto perché la apre
+           -- il cliente col QR, e "uno" è anche un tavolo vero. Solo quando
+           -- qualcuno del personale li scrive diventano un dato.
+           coperti_confermati = true
      where id = ${sessionId} and venue_id = ${venue.venueId}
        and status <> 'closed'
     returning id`;
 
-  if (righe.length === 0) return { error: "Tavolo non trovato o già chiuso" };
+  if (righe.length === 0) return { error: t("azioni.tavolo_non_valido") };
 
   revalidatePath("/dashboard");
-  return { ok: "Coperti aggiornati." };
+  return { ok: t("azioni.coperti_ok") };
 }
 
 /**
@@ -57,6 +65,7 @@ export async function impostaFormula(
   attiva: boolean
 ): Promise<{ ok?: string; error?: string }> {
   const { venue } = await requireVenue();
+  const t = tSala(await linguaUtente());
   const sql = db();
 
   const righe = await sql`
@@ -65,11 +74,11 @@ export async function impostaFormula(
        and status <> 'closed'
     returning id`;
 
-  if (righe.length === 0) return { error: "Tavolo non trovato o già chiuso" };
+  if (righe.length === 0) return { error: t("azioni.tavolo_non_valido") };
 
   revalidatePath("/dashboard");
   return {
-    ok: attiva ? "Tavolo a formula." : "Tavolo alla carta: paga i piatti.",
+    ok: attiva ? t("azioni.formula_on") : t("azioni.formula_off"),
   };
 }
 
@@ -85,8 +94,9 @@ export async function impostaBambini(
   bambini: number
 ): Promise<{ ok?: string; error?: string }> {
   const { venue } = await requireVenue();
+  const t = tSala(await linguaUtente());
   if (!Number.isInteger(bambini) || bambini < 0 || bambini > 50) {
-    return { error: "Numero non valido" };
+    return { error: t("azioni.numero_non_valido") };
   }
 
   const sql = db();
@@ -100,14 +110,17 @@ export async function impostaBambini(
        and status <> 'closed'
     returning guest_count, bambini`;
 
-  if (righe.length === 0) return { error: "Tavolo non trovato o già chiuso" };
+  if (righe.length === 0) return { error: t("azioni.tavolo_non_valido") };
 
   revalidatePath("/dashboard");
   return righe[0].bambini < bambini
     ? {
-        ok: `Il tavolo ha ${righe[0].guest_count} coperti: segnati ${righe[0].bambini} bambini.`,
+        ok: t("azioni.bambini_limitati", {
+          coperti: righe[0].guest_count,
+          bambini: righe[0].bambini,
+        }),
       }
-    : { ok: "Salvato." };
+    : { ok: t("azioni.salvato") };
 }
 
 /**
@@ -122,6 +135,7 @@ export async function applicaSupplemento(
   applica: boolean
 ): Promise<{ ok?: string; error?: string }> {
   const { venue } = await requireVenue();
+  const t = tSala(await linguaUtente());
   const sql = db();
 
   const righe = await sql<{ supplemento_cents: number }[]>`
@@ -135,12 +149,85 @@ export async function applicaSupplemento(
        and ts.status <> 'closed'
     returning supplemento_cents`;
 
-  if (righe.length === 0) return { error: "Tavolo non trovato o già chiuso" };
+  if (righe.length === 0) return { error: t("azioni.tavolo_non_valido") };
 
   revalidatePath("/dashboard");
   return {
     ok: righe[0].supplemento_cents > 0
-      ? "Supplemento aggiunto al conto."
-      : "Supplemento tolto.",
+      ? t("azioni.supplemento_on")
+      : t("azioni.supplemento_off"),
   };
+}
+
+/**
+ * Pranzo o cena, deciso a mano.
+ *
+ * Il prezzo della formula lo sceglie l'ora in cui il tavolo si è seduto, ed è
+ * la regola giusta quasi sempre. Quasi: il tavolo delle 18:30 in un locale
+ * che apre la cena alle 19 pagava il pranzo per tutta la sera, e non c'era
+ * modo di correggerlo. Su quattro persone, con dieci euro di differenza fra
+ * le due fasce, sono quaranta euro a tavolo.
+ *
+ * `null` rimette la decisione all'orario, che resta il predefinito.
+ */
+export async function impostaFascia(
+  sessionId: string,
+  fascia: "pranzo" | "cena" | null
+): Promise<{ ok?: string; error?: string }> {
+  const { venue } = await requireVenue();
+  const t = tSala(await linguaUtente());
+
+  if (fascia !== null && fascia !== "pranzo" && fascia !== "cena") {
+    return { error: t("azioni.fascia_non_valida") };
+  }
+
+  const sql = db();
+  const righe = await sql`
+    update table_sessions set fascia = ${fascia}
+     where id = ${sessionId} and venue_id = ${venue.venueId}
+       and status <> 'closed'
+    returning id`;
+
+  if (righe.length === 0) return { error: t("azioni.tavolo_non_valido") };
+
+  revalidatePath("/dashboard");
+  return {
+    ok:
+      fascia === null
+        ? t("azioni.fascia_auto")
+        : t("azioni.fascia_ok", { fascia: t(`formula.${fascia}`) }),
+  };
+}
+
+/**
+ * Accetta i coperti che ha dichiarato il tavolo.
+ *
+ * Non cambia il numero: lo conferma. Il gesto esiste separato da
+ * `impostaCoperti` perché è quello che si fa novantanove volte su cento —
+ * si passa, si guarda il tavolo, il numero è giusto, si tocca. Doverlo
+ * ribattere ogni volta significherebbe che nessuno lo tocca, e il tavolo
+ * resterebbe senza conferma fino al conto.
+ */
+export async function accettaCopertiDelTavolo(
+  sessionId: string
+): Promise<{ ok?: string; error?: string }> {
+  const { venue } = await requireVenue();
+  const t = tSala(await linguaUtente());
+
+  const sql = db();
+  const righe = await sql<{ guest_count: number }[]>`
+    update table_sessions
+       set coperti_confermati = true
+     where id = ${sessionId} and venue_id = ${venue.venueId}
+       and status <> 'closed'
+       -- Solo se il numero l'ha davvero detto il tavolo: confermare alla
+       -- cieca un tavolo che non ha dichiarato niente vorrebbe dire
+       -- accettare l'uno di partenza, che è il conto sbagliato.
+       and coperti_dal_tavolo
+    returning guest_count`;
+
+  if (righe.length === 0) return { error: t("azioni.tavolo_non_valido") };
+
+  revalidatePath("/dashboard");
+  return { ok: t("azioni.coperti_accettati", { n: righe[0].guest_count }) };
 }

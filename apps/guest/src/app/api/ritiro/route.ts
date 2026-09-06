@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@repo/shared/db";
 import { checkRateLimit, clientKey } from "@repo/shared/rate-limit";
+import { tApi, linguaRichiesta } from "@/i18n/api";
 
 /**
  * Stato dei numeri di ritiro di questo tavolo.
@@ -11,11 +12,13 @@ import { checkRateLimit, clientKey } from "@repo/shared/rate-limit";
  * gestisce chi sta al banco.
  */
 export async function GET(request: Request) {
+  const t = tApi(linguaRichiesta(request));
+
   const { searchParams } = new URL(request.url);
   const sessionId = searchParams.get("sessionId");
 
   if (!sessionId) {
-    return NextResponse.json({ error: "sessionId mancante" }, { status: 400 });
+    return NextResponse.json({ error: t("errore.sessione_id_mancante") }, { status: 400 });
   }
 
   /*
@@ -32,7 +35,7 @@ export async function GET(request: Request) {
     60
   );
   if (!allowed) {
-    return NextResponse.json({ error: "Troppe richieste" }, { status: 429 });
+    return NextResponse.json({ error: t("errore.troppe_richieste") }, { status: 429 });
   }
 
   const sql = db();

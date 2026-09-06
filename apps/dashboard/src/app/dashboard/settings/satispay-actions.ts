@@ -6,11 +6,14 @@ import { db } from "@repo/shared/db";
 import { obtainSatispayKeyId } from "@repo/shared/satispay";
 import { encryptSecret } from "@repo/shared/crypto";
 import { requireRole } from "@/lib/authz";
+import { linguaUtente } from "@/lib/lingua";
+import { tImpostazioni } from "@/i18n/impostazioni";
 
 export async function connectSatispay(formData: FormData) {
   const { venue } = await requireRole(["owner", "manager"]);
+  const t = tImpostazioni(await linguaUtente());
   const activationToken = String(formData.get("activationToken") ?? "").trim();
-  if (!activationToken) return { error: "Codice attivazione mancante" };
+  if (!activationToken) return { error: t("satispay.errore.codice") };
 
   // La coppia di chiavi si genera una volta sola, qui: solo la chiave
   // pubblica lascia il server (va a Satispay per l'attivazione), la privata
@@ -34,7 +37,7 @@ export async function connectSatispay(formData: FormData) {
     return { success: true };
   } catch (err) {
     return {
-      error: err instanceof Error ? err.message : "Attivazione Satispay non riuscita",
+      error: err instanceof Error ? err.message : t("satispay.errore.attivazione"),
     };
   }
 }

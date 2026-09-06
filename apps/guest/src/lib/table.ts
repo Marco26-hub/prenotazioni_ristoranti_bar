@@ -7,6 +7,8 @@ export interface ResolvedVenue {
   name: string;
   slug: string;
   currency: string;
+  /** Con che lingua parte la pagina quando il telefono non dice niente. */
+  lingua_predefinita: string;
   logo_url: string | null;
   brand_color: string | null;
   public_phone: string | null;
@@ -45,7 +47,7 @@ export async function resolveTableFromQr(
   const sql = db();
 
   const [venue] = await sql<ResolvedVenue[]>`
-    select id, name, slug, currency, logo_url, brand_color,
+    select id, name, slug, currency, lingua_predefinita, logo_url, brand_color,
            public_phone, public_email, vat_number,
            address, address_zip, address_city, address_province,
            subscription_status, subscription_period_end, modules,

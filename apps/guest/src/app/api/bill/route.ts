@@ -7,11 +7,14 @@ import {
   supplementiCents,
   formulaCents,
 } from "@/lib/balance";
+import { tApi, linguaRichiesta } from "@/i18n/api";
 
 export async function GET(request: Request) {
+  const t = tApi(linguaRichiesta(request));
+
   const sessionId = new URL(request.url).searchParams.get("sessionId");
   if (!sessionId) {
-    return NextResponse.json({ error: "sessionId mancante" }, { status: 400 });
+    return NextResponse.json({ error: t("errore.sessione_id_mancante") }, { status: 400 });
   }
 
   /*
@@ -30,7 +33,7 @@ export async function GET(request: Request) {
     60
   );
   if (!allowed) {
-    return NextResponse.json({ error: "Troppe richieste" }, { status: 429 });
+    return NextResponse.json({ error: t("errore.troppe_richieste") }, { status: 429 });
   }
 
   const sql = db();
@@ -38,7 +41,7 @@ export async function GET(request: Request) {
     select id, venue_id, status from table_sessions where id = ${sessionId}`;
 
   if (!session) {
-    return NextResponse.json({ error: "Sessione non valida" }, { status: 404 });
+    return NextResponse.json({ error: t("errore.sessione_non_valida") }, { status: 404 });
   }
 
   const [venue] = await sql<
@@ -95,18 +98,21 @@ export async function GET(request: Request) {
       extra.servizioCents > 0
         ? { percent: extra.servizioPercent, totaleCents: extra.servizioCents }
         : null,
-    // A formula il totale non torna con la somma dei piatti, ed è giusto
-    // così: va detto da dove viene, o il primo gesto è chiamare il cameriere.
-    formula: formula.attiva
-      ? {
-          fascia: formula.fascia,
-          prezzoUnitarioCents: formula.prezzoUnitarioCents,
-          adulti: formula.adulti,
-          bambini: formula.bambini,
-          prezzoBambinoCents: formula.prezzoBambinoCents,
-          supplementoCents: formula.supplementoCents,
-          totaleCents: formula.totaleCents,
-        }
-      : null,
+    /*
+     * A formula il totale non torna con la somma dei piatti, ed è giusto
+     * così: va detto da dove viene, o il primo gesto è chiamare il cameriere.
+     *
+     * Si manda l'oggetto intero, non ricopiato campo per campo.
+     *
+     * Ricopiandolo, un campo nuovo si perde in silenzio: `NextResponse.json`
+     * accetta qualunque oggetto, quindi il tipo non protegge niente. È
+     * successo con `copertiDaConfermare` — il conto sapeva che i coperti non
+     * erano dichiarati e la pagina mostrava lo stesso il totale di una
+     * persona sola, senza un errore da nessuna parte.
+     *
+     * `Formula` non contiene nulla che il tavolo non debba vedere: sono gli
+     * stessi numeri che gli stiamo scrivendo sullo schermo.
+     */
+    formula: formula.attiva ? formula : null,
   });
 }

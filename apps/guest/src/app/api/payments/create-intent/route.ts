@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { db } from "@repo/shared/db";
+import { contoSessione } from "@repo/shared/conto";
 import { checkRateLimit, clientKey } from "@repo/shared/rate-limit";
 import { hasModulo } from "@repo/shared";
 import { messaggioErrore } from "@repo/shared/errori";
 import { stripeClient } from "@/lib/stripe";
 import { outstandingBalanceCents } from "@/lib/balance";
+import { tApi, linguaRichiesta } from "@/i18n/api";
 
 interface CreateIntentBody {
   sessionId: string;
@@ -30,14 +32,16 @@ function intentSconosciuto(err: unknown): boolean {
 }
 
 export async function POST(request: Request) {
+  const t = tApi(linguaRichiesta(request));
+
   const { allowed } = await checkRateLimit(clientKey(request, "create-intent"), 10, 60);
   if (!allowed) {
-    return NextResponse.json({ error: "Troppe richieste, riprova tra poco" }, { status: 429 });
+    return NextResponse.json({ error: t("errore.troppe_richieste_riprova") }, { status: 429 });
   }
 
   const body = (await request.json().catch(() => null)) as CreateIntentBody | null;
   if (!body?.sessionId) {
-    return NextResponse.json({ error: "sessionId mancante" }, { status: 400 });
+    return NextResponse.json({ error: t("errore.sessione_id_mancante") }, { status: 400 });
   }
   const tipCents = Number.isInteger(body.tipCents) ? Math.max(body.tipCents!, 0) : 0;
 
@@ -46,7 +50,23 @@ export async function POST(request: Request) {
     select id, venue_id, status from table_sessions where id = ${body.sessionId}`;
 
   if (!session || session.status !== "open") {
-    return NextResponse.json({ error: "Sessione tavolo non valida" }, { status: 404 });
+    return NextResponse.json({ error: t("errore.sessione_tavolo_non_valida") }, { status: 404 });
+  }
+
+  /*
+   * A prezzo fisso non si incassa finché la sala non dice in quanti sono.
+   *
+   * Il bottone a schermo è già sparito, ma questa rotta è un POST pubblico
+   * come tutte le altre: chi la chiama a mano pagherebbe il conto di una
+   * persona sola per un tavolo da sei, e la differenza non tornerebbe più.
+   * Il controllo dev'essere qui, non solo in pagina.
+   */
+  const contoAdesso = await contoSessione(sql, session.id);
+  if (contoAdesso.copertiDaConfermare) {
+    return NextResponse.json(
+      { error: t("pagamento.errore.coperti_da_confermare") },
+      { status: 409 }
+    );
   }
 
   const [venue] = await sql<
@@ -70,14 +90,14 @@ export async function POST(request: Request) {
     )
   ) {
     return NextResponse.json(
-      { error: "Pagamento dal tavolo non attivo per questo locale — chiedi al personale" },
+      { error: t("pagamento.errore.non_attivo") },
       { status: 402 }
     );
   }
 
   if (!venue?.stripe_account_id) {
     return NextResponse.json(
-      { error: "Locale non ancora abilitato ai pagamenti" },
+      { error: t("pagamento.errore.locale_non_abilitato") },
       { status: 409 }
     );
   }
@@ -87,7 +107,7 @@ export async function POST(request: Request) {
     // per il cliente al tavolo deve restare un messaggio comprensibile.
     console.error("[create-intent] STRIPE_SECRET_KEY mancante");
     return NextResponse.json(
-      { error: "Pagamento online non disponibile al momento — chiedi al personale" },
+      { error: t("pagamento.errore.non_disponibile") },
       { status: 503 }
     );
   }
@@ -171,8 +191,8 @@ export async function POST(request: Request) {
       {
         error:
           altroInCorso.split_type === "per_item"
-            ? "Qualcuno al tavolo sta pagando i suoi piatti. Aspetta che finisca, poi riprova."
-            : "Un pagamento su questo tavolo è già in corso. Aspetta che finisca, poi riprova.",
+            ? t("pagamento.errore.altro_split")
+            : t("pagamento.errore.altro_in_corso"),
       },
       { status: 409 }
     );
@@ -180,13 +200,14 @@ export async function POST(request: Request) {
 
   if (altroInCorso && isSplit && altroInCorso.split_type !== "per_item") {
     return NextResponse.json(
-      { error: "Qualcuno sta pagando l'intero conto. Aspetta che finisca, poi riprova." },
+      { error: t("pagamento.errore.altro_conto_intero") },
       { status: 409 }
     );
   }
 
   if (isSplit) {
     return createSplitPayment({
+      t,
       sql,
       stripe,
       session,
@@ -241,7 +262,7 @@ export async function POST(request: Request) {
           `[create-intent] Stripe non raggiungibile sul pending ${existingPending.id}: ${messaggioErrore(err)}`
         );
         return NextResponse.json(
-          { error: "Pagamento non disponibile in questo momento, riprova fra poco" },
+          { error: t("pagamento.errore.temporaneo") },
           { status: 503 }
         );
       }
@@ -262,7 +283,7 @@ export async function POST(request: Request) {
       }
 
       if (existingIntent.status === "succeeded") {
-        return NextResponse.json({ error: "Conto già pagato" }, { status: 409 });
+        return NextResponse.json({ error: t("pagamento.errore.gia_pagato") }, { status: 409 });
       }
 
       // canceled/failed lato Stripe ma la riga da noi è rimasta 'pending'
@@ -275,7 +296,7 @@ export async function POST(request: Request) {
   const balanceCents = await outstandingBalanceCents(session.id);
   const amountCents = balanceCents + tipCents;
   if (amountCents <= 0) {
-    return NextResponse.json({ error: "Nessun importo da pagare" }, { status: 409 });
+    return NextResponse.json({ error: t("pagamento.errore.nessun_importo") }, { status: 409 });
   }
 
   const intent = await stripe.paymentIntents.create(
@@ -330,6 +351,7 @@ export async function POST(request: Request) {
  * payment_order_items dentro la stessa transazione.
  */
 async function createSplitPayment(params: {
+  t: ReturnType<typeof tApi>;
   sql: ReturnType<typeof db>;
   stripe: ReturnType<typeof stripeClient>;
   session: { id: string; venue_id: string };
@@ -337,7 +359,7 @@ async function createSplitPayment(params: {
   tipCents: number;
   orderItemIds: string[];
 }) {
-  const { sql, stripe, session, venue, tipCents, orderItemIds } = params;
+  const { t, sql, stripe, session, venue, tipCents, orderItemIds } = params;
 
   let claimed: { id: string; amount_cents: number }[];
   try {
@@ -365,7 +387,7 @@ async function createSplitPayment(params: {
   } catch (err) {
     if (err instanceof Error && err.message === "ITEMS_UNAVAILABLE") {
       return NextResponse.json(
-        { error: "Alcuni piatti sono già stati pagati o sono in pagamento" },
+        { error: t("pagamento.errore.piatti_gia_pagati") },
         { status: 409 }
       );
     }
@@ -375,7 +397,7 @@ async function createSplitPayment(params: {
   const itemsTotal = claimed.reduce((sum, r) => sum + r.amount_cents, 0);
   const amountCents = itemsTotal + tipCents;
   if (amountCents <= 0) {
-    return NextResponse.json({ error: "Nessun importo da pagare" }, { status: 409 });
+    return NextResponse.json({ error: t("pagamento.errore.nessun_importo") }, { status: 409 });
   }
 
   const intent = await stripe.paymentIntents.create(

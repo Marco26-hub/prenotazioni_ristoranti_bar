@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { syncInvoice } from "./actions";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tSoldi } from "@/i18n/soldi";
 
 /**
  * Chiede all'intermediario com'è andata la trasmissione allo SDI.
@@ -13,6 +15,7 @@ import { syncInvoice } from "./actions";
  * che il controllo non è riuscito.
  */
 export function SyncButton({ invoiceId }: { invoiceId: string }) {
+  const t = tSoldi(useLingua());
   const [pending, startTransition] = useTransition();
   const [avviso, setAvviso] = useState<string | null>(null);
 
@@ -28,13 +31,13 @@ export function SyncButton({ invoiceId }: { invoiceId: string }) {
               const r = await syncInvoice(invoiceId);
               if (r?.error) setAvviso(r.error);
             } catch {
-              setAvviso("Controllo non riuscito: riprova fra poco.");
+              setAvviso(t("fattura.aggiorna.errore"));
             }
           })
         }
         className="min-h-11 rounded-full border border-border px-4 text-sm font-medium hover:bg-background disabled:opacity-50"
       >
-        {pending ? "Aggiorno…" : "Aggiorna stato"}
+        {pending ? t("fattura.aggiorna.corso") : t("fattura.aggiorna")}
       </button>
       {avviso && (
         <span role="alert" className="text-sm text-danger">

@@ -1,5 +1,8 @@
 "use client";
 
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tAnalisi } from "@/i18n/analisi";
+
 /**
  * Stampa del report del periodo scelto.
  *
@@ -9,13 +12,15 @@
  * un commercialista il numero lo copia, non lo ricopia a mano.
  */
 export function StampaReport() {
+  const t = tAnalisi(useLingua());
+
   return (
     <button
       type="button"
       onClick={() => window.print()}
       className="min-h-11 rounded-full border border-border px-4 text-sm print:hidden"
     >
-      Stampa o salva PDF
+      {t("analisi.stampa.pulsante")}
     </button>
   );
 }

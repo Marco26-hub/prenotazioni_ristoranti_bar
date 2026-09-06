@@ -24,10 +24,29 @@ export interface TavoloRiconosciuto {
   y: number;
 }
 
+/**
+ * I motivi per cui la lettura può non riuscire.
+ *
+ * Un codice e non una frase: questo modulo sta in `packages/shared` e non
+ * sa in che lingua legge chi ha premuto il pulsante. Chi lo chiama sì —
+ * traduce il codice e, quando c'è, aggiunge il `dettaglio`, che è
+ * diagnostica (uno stato HTTP, il messaggio di una libreria) e non si
+ * traduce in nessuna lingua.
+ */
+export type MotivoPiantina =
+  | "non_json"
+  | "chiave_mancante"
+  | "fornitore"
+  | "vuoto"
+  | "troppo_lenta"
+  | "rete";
+
 export interface EsitoPiantina {
   tavoli?: TavoloRiconosciuto[];
   avviso?: string;
-  errore?: string;
+  errore?: MotivoPiantina;
+  /** Dettaglio tecnico, da mostrare così com'è. */
+  dettaglio?: string;
 }
 
 const ISTRUZIONI = `Guarda questa piantina di un locale di ristorazione e
@@ -73,11 +92,11 @@ function interpreta(testo: string): EsitoPiantina {
     dati = JSON.parse(pulito) as typeof dati;
   } catch {
     const m = pulito.match(/\{[\s\S]*\}/);
-    if (!m) return { errore: "Il modello non ha risposto in JSON" };
+    if (!m) return { errore: "non_json" };
     try {
       dati = JSON.parse(m[0]) as typeof dati;
     } catch {
-      return { errore: "Il modello non ha risposto in JSON" };
+      return { errore: "non_json" };
     }
   }
 
@@ -110,7 +129,7 @@ export async function leggiPiantina(
   apiKey: string,
   modello: string
 ): Promise<EsitoPiantina> {
-  if (!apiKey) return { errore: "Chiave OpenRouter non configurata" };
+  if (!apiKey) return { errore: "chiave_mancante" };
 
   try {
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -136,24 +155,26 @@ export async function leggiPiantina(
 
     if (!res.ok) {
       const corpo = await res.text().catch(() => "");
-      return { errore: `OpenRouter ${res.status}: ${corpo.slice(0, 200)}` };
+      return {
+        errore: "fornitore",
+        dettaglio: `OpenRouter ${res.status}: ${corpo.slice(0, 200)}`,
+      };
     }
 
     const dati = (await res.json()) as {
       choices?: Array<{ message?: { content?: string } }>;
     };
     const testo = dati.choices?.[0]?.message?.content;
-    if (!testo) return { errore: "Il modello non ha restituito nulla" };
+    if (!testo) return { errore: "vuoto" };
 
     return interpreta(testo);
   } catch (e) {
+    if (e instanceof Error && e.name === "TimeoutError") {
+      return { errore: "troppo_lenta" };
+    }
     return {
-      errore:
-        e instanceof Error && e.name === "TimeoutError"
-          ? "La lettura ha impiegato troppo. Disponi i tavoli a mano."
-          : e instanceof Error
-            ? e.message
-            : "Errore di rete verso OpenRouter",
+      errore: "rete",
+      dettaglio: e instanceof Error ? e.message : undefined,
     };
   }
 }

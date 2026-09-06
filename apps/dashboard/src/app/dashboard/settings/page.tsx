@@ -14,16 +14,24 @@ import { FormulaForm } from "./formula-form";
 import { RitiroForm } from "./ritiro-form";
 import { TestiForm } from "./testi-form";
 import { SogliaForm } from "./soglia-form";
+import { SessioneForm } from "./sessione-form";
 import { OpenRouterForm } from "./openrouter-form";
 import { AssistenteForm } from "./assistente-form";
 import { emailConfigurata } from "@repo/shared/email";
 import { AnnuncioForm } from "./annuncio-form";
 import { messaggioErrore } from "@repo/shared/errori";
+import { LinguaProvider } from "@repo/shared/i18n/contesto";
+import { normalizzaLinguaUI } from "@repo/shared/i18n";
+import { linguaUtente } from "@/lib/lingua";
+import { tImpostazioni } from "@/i18n/impostazioni";
+import { LinguaForm } from "./lingua-form";
 
 export default async function SettingsPage() {
   const session = await auth();
+  const lingua = await linguaUtente();
+  const t = tImpostazioni(lingua);
   const venue = session?.venues[0];
-  if (!venue) return <main className="p-4">Nessun locale associato.</main>;
+  if (!venue) return <main className="p-4">{t("pagina.nessun_locale")}</main>;
 
   /*
    * Solo titolare e responsabile.
@@ -34,10 +42,8 @@ export default async function SettingsPage() {
   if (venue.role !== "owner" && venue.role !== "manager") {
     return (
       <main className="mx-auto max-w-lg px-4 py-16">
-        <h1 className="text-lg font-semibold">Non è roba tua</h1>
-        <p className="mt-2 text-sm text-muted">
-          Le impostazioni del locale le cambia chi comanda. Chiedi al titolare se ti serve.
-        </p>
+        <h1 className="text-lg font-semibold">{t("pagina.negato.titolo")}</h1>
+        <p className="mt-2 text-sm text-muted">{t("pagina.negato.testo")}</p>
       </main>
     );
   }
@@ -80,6 +86,7 @@ export default async function SettingsPage() {
       cover_charge_label: string | null;
       soglia_attesa_min: number;
       soglia_liberazione_min: number;
+      sessione_max_ore: number;
       public_texts: Record<string, string> | null;
       openrouter_api_key: string | null;
       openrouter_model: string | null;
@@ -103,6 +110,7 @@ export default async function SettingsPage() {
       address_city: string | null;
       address_province: string | null;
       invoice_provider_api_key: string | null;
+      lingua_predefinita: string | null;
     }[]
   >`select name, logo_url,
            announcement_title, announcement_body, announcement_image_url,
@@ -118,13 +126,17 @@ export default async function SettingsPage() {
            formula_supplemento_cents, formula_nota,
            pickup_numbering_enabled, pickup_metodi, servizio_al_banco,
            cover_charge_label, public_texts,
-           soglia_attesa_min, soglia_liberazione_min,
+           soglia_attesa_min, soglia_liberazione_min, sessione_max_ore,
            openrouter_api_key, openrouter_model,
            opening_hours, practical_info, assistant_enabled, brand_color, public_phone, public_email,
            tilby_shop_name, tips_enabled, tip_percents, google_review_url,
            stripe_account_id, satispay_key_id, vat_number, fiscal_code, regime_fiscale,
-           address, address_zip, address_city, address_province, invoice_provider_api_key
+           address, address_zip, address_city, address_province, invoice_provider_api_key,
+           lingua_predefinita
     from venues where id = ${venue.venueId}`;
+
+  const [utenteRow] = await sql<{ lingua_ui: string | null }[]>`
+    select lingua_ui from users where id = ${session.user.id}`;
 
   // Lo stato Stripe è un'informazione accessoria: se la chiamata fallisce
   // (chiave non configurata, Stripe irraggiungibile) la pagina deve restare
@@ -145,14 +157,15 @@ export default async function SettingsPage() {
   }
 
   return (
+    <LinguaProvider lingua={lingua}>
     <main className="mx-auto max-w-2xl space-y-4 px-4 py-5">
-      <h1 className="text-lg font-semibold">Impostazioni — {venue.venueName}</h1>
+      <h1 className="text-lg font-semibold">
+        {t("pagina.titolo", { locale: venue.venueName })}
+      </h1>
 
       <section className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="mb-1 font-semibold">Il tuo marchio</h2>
-        <p className="mb-3 text-sm text-muted">
-          Logo, colore e contatti che i clienti vedono quando scansionano il QR.
-        </p>
+        <h2 className="mb-1 font-semibold">{t("sezione.brand.titolo")}</h2>
+        <p className="mb-3 text-sm text-muted">{t("sezione.brand.testo")}</p>
         <BrandForm
           defaults={{
             name: venueRow?.name ?? venue.venueName,
@@ -168,13 +181,8 @@ export default async function SettingsPage() {
       </section>
 
       <section className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="mb-1 font-semibold">Annuncio ai clienti</h2>
-        <p className="mb-3 text-sm text-muted">
-          Compare all&apos;apertura del menu, sia al tavolo sia dalla pagina
-          pubblica. Serve per il menu del giorno, una serata a tema o una
-          chiusura straordinaria. Chi lo chiude non lo rivede, finché non ne
-          pubblichi uno diverso.
-        </p>
+        <h2 className="mb-1 font-semibold">{t("sezione.annuncio.titolo")}</h2>
+        <p className="mb-3 text-sm text-muted">{t("sezione.annuncio.testo")}</p>
         <AnnuncioForm
           corrente={{
             title: venueRow?.announcement_title ?? null,
@@ -190,11 +198,8 @@ export default async function SettingsPage() {
       </section>
 
       <section className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="mb-1 font-semibold">Prenotazioni</h2>
-        <p className="mb-3 text-sm text-muted">
-          Regola come arrivano e come vengono accettate le richieste dalla tua
-          pagina pubblica di prenotazione.
-        </p>
+        <h2 className="mb-1 font-semibold">{t("sezione.prenotazioni.titolo")}</h2>
+        <p className="mb-3 text-sm text-muted">{t("sezione.prenotazioni.testo")}</p>
         <PrenotazioniForm
           email={venueRow?.reservation_email ?? null}
           capienza={venueRow?.reservation_capacity ?? null}
@@ -203,12 +208,8 @@ export default async function SettingsPage() {
       </section>
 
       <section className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="mb-1 font-semibold">Orari e assistente</h2>
-        <p className="mb-3 text-sm text-muted">
-          Gli orari servono comunque. L&apos;assistente è facoltativo e a
-          consumo: risponde ai clienti sulle pagine pubbliche e li porta a
-          prenotare.
-        </p>
+        <h2 className="mb-1 font-semibold">{t("sezione.assistente.titolo")}</h2>
+        <p className="mb-3 text-sm text-muted">{t("sezione.assistente.testo")}</p>
         <AssistenteForm
           orari={venueRow?.opening_hours ?? null}
           info={venueRow?.practical_info ?? null}
@@ -218,12 +219,8 @@ export default async function SettingsPage() {
       </section>
 
       <section className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="mb-1 font-semibold">Schede vino da foto</h2>
-        <p className="mb-3 text-sm text-muted">
-          Fotografi l&apos;etichetta e la scheda si compila da sé. Quello che
-          esce è una proposta da rileggere: in carta ci va quello che
-          confermi tu.
-        </p>
+        <h2 className="mb-1 font-semibold">{t("sezione.openrouter.titolo")}</h2>
+        <p className="mb-3 text-sm text-muted">{t("sezione.openrouter.testo")}</p>
         <OpenRouterForm
           collegata={Boolean(venueRow?.openrouter_api_key)}
           modello={venueRow?.openrouter_model ?? null}
@@ -231,24 +228,17 @@ export default async function SettingsPage() {
       </section>
 
       <section className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="mb-1 font-semibold">Testi delle pagine pubbliche</h2>
-        <p className="mb-3 text-sm text-muted">
-          Piatti e prezzi li scrivi dal Menu. Qui riscrivi le frasi intorno:
-          il titolo della pagina prenotazioni, la presentazione del locale, la
-          nota in fondo alla carta.
-        </p>
+        <h2 className="mb-1 font-semibold">{t("sezione.testi.titolo")}</h2>
+        <p className="mb-3 text-sm text-muted">{t("sezione.testi.testo")}</p>
         <TestiForm
           testi={venueRow?.public_texts ?? {}}
-          nomeLocale={venueRow?.name ?? "il tuo locale"}
+          nomeLocale={venueRow?.name ?? t("testi.locale_generico")}
         />
       </section>
 
       <section className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="mb-1 font-semibold">Tempi e allarmi</h2>
-        <p className="mb-3 text-sm text-muted">
-          Quanto può aspettare un tavolo, e quanto può restare seduto dopo
-          aver pagato, prima che tu voglia accorgertene.
-        </p>
+        <h2 className="mb-1 font-semibold">{t("sezione.soglie.titolo")}</h2>
+        <p className="mb-3 text-sm text-muted">{t("sezione.soglie.testo")}</p>
         <SogliaForm
           minuti={venueRow?.soglia_attesa_min ?? 20}
           liberazione={venueRow?.soglia_liberazione_min ?? 15}
@@ -256,11 +246,14 @@ export default async function SettingsPage() {
       </section>
 
       <section className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="mb-1 font-semibold">Coperto e servizio</h2>
-        <p className="mb-3 text-sm text-muted">
-          Se il tuo locale li applica, vanno dichiarati al cliente insieme ai
-          prezzi dei piatti.
-        </p>
+        <h2 className="mb-1 font-semibold">{t("sezione.sessione.titolo")}</h2>
+        <p className="mb-3 text-sm text-muted">{t("sezione.sessione.testo")}</p>
+        <SessioneForm ore={venueRow?.sessione_max_ore ?? 6} />
+      </section>
+
+      <section className="rounded-xl border border-border bg-surface p-4">
+        <h2 className="mb-1 font-semibold">{t("sezione.coperto.titolo")}</h2>
+        <p className="mb-3 text-sm text-muted">{t("sezione.coperto.testo")}</p>
         <CopertoForm
           copertoCents={venueRow?.cover_charge_cents ?? 0}
           servizio={Number(venueRow?.service_percent ?? 0)}
@@ -271,12 +264,8 @@ export default async function SettingsPage() {
       </section>
 
       <section className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="mb-1 font-semibold">Formula a prezzo fisso</h2>
-        <p className="mb-3 text-sm text-muted">
-          Si paga a persona e i piatti compresi non si pagano a piatto: è il
-          modello dell&apos;all you can eat. Il tavolo può comunque essere
-          passato alla carta dallo staff.
-        </p>
+        <h2 className="mb-1 font-semibold">{t("sezione.formula.titolo")}</h2>
+        <p className="mb-3 text-sm text-muted">{t("sezione.formula.testo")}</p>
         <FormulaForm
           attiva={venueRow?.formula_attiva ?? false}
           predefinita={venueRow?.formula_predefinita ?? true}
@@ -291,13 +280,8 @@ export default async function SettingsPage() {
       </section>
 
       <section className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="mb-1 font-semibold">Numeri di ritiro</h2>
-        <p className="mb-3 text-sm text-muted">
-          Per chi consegna al bancone e non al tavolo: piadineria, pizza al
-          taglio, gastronomia. Ogni ordine prende un numero che riparte da uno
-          a ogni giornata di servizio, e lo schermo del banco dice quale
-          chiamare.
-        </p>
+        <h2 className="mb-1 font-semibold">{t("sezione.ritiro.titolo")}</h2>
+        <p className="mb-3 text-sm text-muted">{t("sezione.ritiro.testo")}</p>
         <RitiroForm
           attivo={venueRow?.pickup_numbering_enabled ?? false}
           metodi={venueRow?.pickup_metodi ?? []}
@@ -306,10 +290,8 @@ export default async function SettingsPage() {
       </section>
 
       <section className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="mb-1 font-semibold">Email ai clienti</h2>
-        <p className="mb-3 text-sm text-muted">
-          Da quale indirizzo partono conferme e rifiuti delle prenotazioni.
-        </p>
+        <h2 className="mb-1 font-semibold">{t("sezione.email.titolo")}</h2>
+        <p className="mb-3 text-sm text-muted">{t("sezione.email.testo")}</p>
         <EmailForm
           collegato={Boolean(venueRow?.resend_api_key && venueRow?.resend_from)}
           from={venueRow?.resend_from ?? null}
@@ -318,57 +300,46 @@ export default async function SettingsPage() {
       </section>
 
       <section className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="mb-2 font-semibold">Password</h2>
+        <h2 className="mb-2 font-semibold">{t("sezione.password.titolo")}</h2>
         <PasswordForm />
       </section>
 
       <section className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="mb-2 font-semibold">Pagamenti (Stripe)</h2>
+        <h2 className="mb-2 font-semibold">{t("sezione.stripe.titolo")}</h2>
         {stripeStatusUnavailable ? (
-          <p className="text-sm text-muted">
-            Stato del collegamento non verificabile in questo momento. I pagamenti
-            già attivi continuano a funzionare.
-          </p>
+          <p className="text-sm text-muted">{t("stripe.stato_ignoto")}</p>
         ) : chargesEnabled ? (
-          <p className="text-sm text-success">
-            Attivo — i clienti possono pagare il conto dal telefono.
-          </p>
+          <p className="text-sm text-success">{t("stripe.attivo")}</p>
         ) : venueRow?.stripe_account_id ? (
           <div className="space-y-2">
-            <p className="text-sm text-accent">
-              Onboarding iniziato ma non completato — mancano dati richiesti da Stripe.
-            </p>
-            <ConnectStripeButton label="Completa onboarding Stripe" />
+            <p className="text-sm text-accent">{t("stripe.incompleto")}</p>
+            <ConnectStripeButton label={t("stripe.completa")} />
           </div>
         ) : (
           <div className="space-y-2">
-            <p className="text-sm text-muted">
-              Collega un account Stripe per accettare pagamenti al tavolo. Ti verranno
-              chiesti dati dell&apos;attività e coordinate bancarie sulla pagina Stripe.
-            </p>
-            <ConnectStripeButton label="Connetti Stripe" />
+            <p className="text-sm text-muted">{t("stripe.collega.testo")}</p>
+            <ConnectStripeButton label={t("stripe.connetti")} />
           </div>
         )}
       </section>
 
       <section className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="mb-2 font-semibold">Pagamenti (Satispay)</h2>
+        <h2 className="mb-2 font-semibold">{t("sezione.satispay.titolo")}</h2>
         {venueRow?.satispay_key_id ? (
-          <p className="text-sm text-success">Connesso.</p>
+          <p className="text-sm text-success">{t("satispay.connesso")}</p>
         ) : (
           <div className="space-y-2">
             <p className="text-sm text-muted">
-              Serve prima un{" "}
+              {t("satispay.serve.prima")}{" "}
               <a
                 href="https://business.satispay.com"
                 target="_blank"
                 rel="noreferrer"
                 className="underline"
               >
-                account Satispay Business
+                {t("satispay.serve.link")}
               </a>{" "}
-              attivato, con un negozio creato e un codice di attivazione generato
-              dalla loro dashboard — incollalo qui sotto.
+              {t("satispay.serve.dopo")}
             </p>
             <SatispayForm />
           </div>
@@ -376,46 +347,42 @@ export default async function SettingsPage() {
       </section>
 
       <section className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="mb-1 font-semibold">Gestionale di cassa (Tilby)</h2>
+        <h2 className="mb-1 font-semibold">{t("sezione.tilby.titolo")}</h2>
         <p className="mb-3 text-sm text-muted">
-          Collegando la cassa puoi importare il menu che hai già, con prezzi e
-          aliquote IVA corretti, senza reinserirlo a mano. Il token si ottiene
-          aderendo al{" "}
+          {t("tilby.intro.prima")}{" "}
           <a
             href="https://developer.tilby.com/docs"
             target="_blank"
             rel="noreferrer"
             className="underline"
           >
-            Developer Program di Tilby
+            {t("tilby.intro.link")}
           </a>
-          , che prevede approvazione e costi propri.
+          {t("tilby.intro.dopo")}
         </p>
         <TilbyForm shopName={venueRow?.tilby_shop_name ?? null} />
       </section>
 
       <section className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="mb-2 font-semibold">Fatturazione elettronica (SDI)</h2>
+        <h2 className="mb-2 font-semibold">{t("sezione.fattura.titolo")}</h2>
         <p className="mb-3 text-sm text-muted">
-          Serve un account{" "}
+          {t("fattura.serve.prima")}{" "}
           <a href="https://invoicetronic.com" target="_blank" rel="noreferrer" className="underline">
             Invoicetronic
           </a>{" "}
-          (o compatibile) con la sua API key. Verifica i dati fiscali con il tuo
-          commercialista prima di attivare — qui gestiamo il caso di vendita
-          standard (TD01) a privato o azienda.
+          {t("fattura.serve.dopo")}
         </p>
         <form action={saveInvoiceSettings} className="space-y-2">
           <input
             name="vatNumber"
-            placeholder="Partita IVA (es. IT01234567891)"
+            placeholder={t("fattura.piva.placeholder")}
             defaultValue={venueRow?.vat_number ?? ""}
             required
             className="min-h-11 w-full rounded-lg border border-border bg-background px-3"
           />
           <input
             name="fiscalCode"
-            placeholder="Codice fiscale"
+            placeholder={t("fattura.cf.placeholder")}
             defaultValue={venueRow?.fiscal_code ?? ""}
             required
             className="min-h-11 w-full rounded-lg border border-border bg-background px-3"
@@ -425,12 +392,12 @@ export default async function SettingsPage() {
             defaultValue={venueRow?.regime_fiscale ?? "RF01"}
             className="min-h-11 w-full rounded-lg border border-border bg-background px-3"
           >
-            <option value="RF01">RF01 — Ordinario</option>
-            <option value="RF19">RF19 — Forfettario</option>
+            <option value="RF01">{t("fattura.regime.ordinario")}</option>
+            <option value="RF19">{t("fattura.regime.forfettario")}</option>
           </select>
           <input
             name="address"
-            placeholder="Indirizzo (via e numero civico)"
+            placeholder={t("fattura.indirizzo.placeholder")}
             defaultValue={venueRow?.address ?? ""}
             required
             className="min-h-11 w-full rounded-lg border border-border bg-background px-3"
@@ -438,21 +405,21 @@ export default async function SettingsPage() {
           <div className="flex gap-2">
             <input
               name="addressZip"
-              placeholder="CAP"
+              placeholder={t("fattura.cap.placeholder")}
               defaultValue={venueRow?.address_zip ?? ""}
               required
               className="min-h-11 w-24 rounded-lg border border-border bg-background px-3"
             />
             <input
               name="addressCity"
-              placeholder="Comune"
+              placeholder={t("fattura.comune.placeholder")}
               defaultValue={venueRow?.address_city ?? ""}
               required
               className="min-h-11 flex-1 rounded-lg border border-border bg-background px-3"
             />
             <input
               name="addressProvince"
-              placeholder="Prov."
+              placeholder={t("fattura.provincia.placeholder")}
               maxLength={2}
               defaultValue={venueRow?.address_province ?? ""}
               required
@@ -464,16 +431,26 @@ export default async function SettingsPage() {
             type="password"
             placeholder={
               venueRow?.invoice_provider_api_key
-                ? "API key già impostata — lascia vuoto per non cambiarla"
-                : "API key Invoicetronic (ik_live_... o ik_test_...)"
+                ? t("fattura.chiave.impostata")
+                : t("fattura.chiave.placeholder")
             }
             className="min-h-11 w-full rounded-lg border border-border bg-background px-3"
           />
           <button type="submit" className="min-h-11 w-full rounded-full bg-accent font-medium text-accent-foreground active:scale-95">
-            Salva dati fatturazione
+            {t("fattura.salva")}
           </button>
         </form>
       </section>
+
+      <section className="rounded-xl border border-border bg-surface p-4">
+        <h2 className="mb-1 font-semibold">{t("sezione.lingua.titolo")}</h2>
+        <p className="mb-3 text-sm text-muted">{t("sezione.lingua.testo")}</p>
+        <LinguaForm
+          mia={normalizzaLinguaUI(utenteRow?.lingua_ui)}
+          pubblica={normalizzaLinguaUI(venueRow?.lingua_predefinita) ?? "it"}
+        />
+      </section>
     </main>
+    </LinguaProvider>
   );
 }

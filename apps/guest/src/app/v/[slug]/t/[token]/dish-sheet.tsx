@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatPriceCents } from "@repo/shared";
-import { descriviBevanda, CONSERVAZIONE_ETICHETTA, type Conservazione } from "@repo/shared/bevande";
+import { descriviBevanda, type Conservazione } from "@repo/shared/bevande";
+import { ALLERGENI } from "@repo/shared/allergeni";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tComune, type VociComuni } from "@repo/shared/i18n/comune";
+import { tTavolo } from "@/i18n/tavolo";
 
 export interface OpzioneCliente {
   id: string;
@@ -43,13 +46,26 @@ export interface DishDetail {
   serving_note?: string | null;
 }
 
-const DIETARY_LABEL: Record<string, string> = {
-  vegetariano: "Vegetariano",
-  vegano: "Vegano",
-  senza_glutine: "Senza glutine",
-  senza_lattosio: "Senza lattosio",
-  piccante: "Piccante",
-};
+type ChiaveComune = Extract<keyof VociComuni, string>;
+
+/*
+ * Diciture e allergeni li traduce comune.ts, non questa scheda.
+ *
+ * Sono le stesse parole del menu pubblico e della carta stampata, e un
+ * allergene scritto in due modi diversi è un allergene di cui il cliente non
+ * si fida. Qui restano solo gli insiemi dei valori che comune.ts conosce: un
+ * valore fuori elenco — un menu importato da CSV ne ha — si mostra com'è,
+ * perché cancellarlo sarebbe peggio che mostrarlo in italiano.
+ */
+const DICITURE_TRADOTTE = new Set([
+  "vegetariano",
+  "vegano",
+  "senza_glutine",
+  "senza_lattosio",
+  "piccante",
+]);
+
+const ALLERGENI_TRADOTTI = new Set(ALLERGENI.map((a) => a.chiave));
 
 /**
  * Scheda del piatto. Gli allergeni sono un obbligo di legge (Reg. UE
@@ -78,6 +94,9 @@ export function DishSheet({
   /** Voce compresa in una formula a prezzo fisso: il prezzo non si paga. */
   aFormula?: boolean;
 }) {
+  const lingua = useLingua();
+  const t = tTavolo(lingua);
+  const tc = tComune(lingua);
   const gruppi = dish.gruppi ?? [];
   const [scelte, setScelte] = useState<Record<string, string[]>>({});
   const [errore, setErrore] = useState<string | null>(null);
@@ -126,7 +145,9 @@ export function DishSheet({
       .filter((o) => idScelti.includes(o.id))
       .map((o) => {
         const g = gruppi.find((x) => x.opzioni.some((y) => y.id === o.id));
-        return g?.kind === "rimozione" ? `Senza ${o.name.toLowerCase()}` : o.name;
+        return g?.kind === "rimozione"
+          ? t("varianti.senza", { nome: o.name.toLowerCase() })
+          : o.name;
       })
       .join(" · ") || null;
 
@@ -136,11 +157,16 @@ export function DishSheet({
     for (const g of gruppi) {
       const n = (scelte[g.id] ?? []).length;
       if (g.required && n === 0) {
-        setErrore(`Scegli ${g.name.toLowerCase()}`);
+        setErrore(t("varianti.scegli", { gruppo: g.name.toLowerCase() }));
         return;
       }
       if (n < g.min_choices) {
-        setErrore(`Per ${g.name.toLowerCase()} scegli almeno ${g.min_choices}`);
+        setErrore(
+          t("varianti.minimo", {
+            gruppo: g.name.toLowerCase(),
+            n: g.min_choices,
+          })
+        );
         return;
       }
     }
@@ -185,7 +211,7 @@ export function DishSheet({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Chiudi"
+            aria-label={tc("azione.chiudi")}
             className="h-11 w-11 rounded-full border border-border text-lg leading-none"
           >
             ×
@@ -229,31 +255,35 @@ export function DishSheet({
                 mostrarlo contraddice il menu, che dice "compreso". */}
             {aFormula ? (
               <p className="mt-1 text-sm font-medium text-success">
-                Compreso nella formula
+                {t("formula.compreso")}
               </p>
             ) : (
               <p className="mt-1 text-lg font-semibold tabular-nums">
-                {formatPriceCents(dish.price_cents, currency)}
+                {t.prezzo(dish.price_cents, currency)}
               </p>
             )}
             {dish.conservation && dish.conservation !== "fresco" && (
               <p className="mt-1 text-sm text-muted">
-                * {CONSERVAZIONE_ETICHETTA[dish.conservation].toLowerCase()}
+                * {tc(`conservazione.${dish.conservation}`).toLowerCase()}
               </p>
             )}
             {dish.origin_note && (
-              <p className="mt-0.5 text-sm text-muted">Origine: {dish.origin_note}</p>
+              <p className="mt-0.5 text-sm text-muted">
+                {t("piatto.origine", { nota: dish.origin_note })}
+              </p>
             )}
           </div>
 
           {dish.dietary_tags && dish.dietary_tags.length > 0 && (
             <ul className="flex flex-wrap gap-2">
-              {dish.dietary_tags.map((t) => (
+              {dish.dietary_tags.map((dicitura) => (
                 <li
-                  key={t}
+                  key={dicitura}
                   className="rounded-full border border-accent px-3 py-1 text-xs font-medium"
                 >
-                  {DIETARY_LABEL[t] ?? t}
+                  {DICITURE_TRADOTTE.has(dicitura)
+                    ? tc(`dicitura.${dicitura}` as ChiaveComune)
+                    : dicitura}
                 </li>
               ))}
             </ul>
@@ -264,7 +294,7 @@ export function DishSheet({
           {dish.ingredients && (
             <div>
               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted">
-                Ingredienti
+                {t("piatto.ingredienti")}
               </h3>
               <p className="mt-1 leading-relaxed">{dish.ingredients}</p>
             </div>
@@ -272,14 +302,20 @@ export function DishSheet({
 
           <div>
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted">
-              Allergeni
+              {tc("allergeni.titolo")}
             </h3>
             {dish.allergens && dish.allergens.length > 0 ? (
-              <p className="mt-1">{dish.allergens.join(", ")}</p>
-            ) : (
-              <p className="mt-1 text-muted">
-                Nessuno segnalato. Per intolleranze o allergie chiedi al personale.
+              <p className="mt-1">
+                {dish.allergens
+                  .map((a) =>
+                    ALLERGENI_TRADOTTI.has(a)
+                      ? tc(`allergene.${a}` as ChiaveComune)
+                      : a
+                  )
+                  .join(", ")}
               </p>
+            ) : (
+              <p className="mt-1 text-muted">{t("allergeni.nessuno")}</p>
             )}
           </div>
 
@@ -287,10 +323,12 @@ export function DishSheet({
             <div key={g.id}>
               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted">
                 {g.name}
-                {g.required && <span className="ml-1 text-accent">obbligatorio</span>}
+                {g.required && (
+                  <span className="ml-1 text-accent">{t("varianti.obbligatorio")}</span>
+                )}
                 {g.max_choices > 1 && (
                   <span className="ml-1 font-normal normal-case">
-                    — fino a {g.max_choices}
+                    {t("varianti.finoa", { n: g.max_choices })}
                   </span>
                 )}
               </h3>
@@ -310,16 +348,18 @@ export function DishSheet({
                       >
                         <span>
                           {g.kind === "rimozione"
-                            ? `Senza ${o.name.toLowerCase()}`
+                            ? t("varianti.senza", { nome: o.name.toLowerCase() })
                             : o.name}
                           {!o.available && (
-                            <span className="ml-2 text-xs text-muted">esaurito</span>
+                            <span className="ml-2 text-xs text-muted">
+                              {t("varianti.esaurito")}
+                            </span>
                           )}
                         </span>
                         {o.price_delta_cents !== 0 && (
                           <span className="shrink-0 text-sm tabular-nums text-muted">
                             {o.price_delta_cents > 0 ? "+" : "−"}
-                            {formatPriceCents(Math.abs(o.price_delta_cents), currency)}
+                            {t.prezzo(Math.abs(o.price_delta_cents), currency)}
                           </span>
                         )}
                       </button>
@@ -333,13 +373,13 @@ export function DishSheet({
           {pairing && (
             <div className="rounded-xl border border-border p-3">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted">
-                Si abbina bene con
+                {t("abbinamento.titolo")}
               </h3>
               <div className="mt-2 flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="truncate font-medium">{pairing.name}</p>
                   <p className="text-sm tabular-nums text-muted">
-                    {formatPriceCents(pairing.price_cents, currency)}
+                    {t.prezzo(pairing.price_cents, currency)}
                   </p>
                 </div>
                 <button
@@ -347,7 +387,7 @@ export function DishSheet({
                   onClick={onAddPairing}
                   className="min-h-11 shrink-0 rounded-full border border-accent px-4 text-sm font-medium"
                 >
-                  Aggiungi
+                  {tc("azione.aggiungi")}
                 </button>
               </div>
             </div>
@@ -371,14 +411,16 @@ export function DishSheet({
           >
             <span>
               {gruppoMancante
-                ? `Scegli ${gruppoMancante.name.toLowerCase()} per continuare`
+                ? t("varianti.continua", {
+                    gruppo: gruppoMancante.name.toLowerCase(),
+                  })
                 : giaNelCarrello > 0
-                  ? `Aggiungi ancora (${giaNelCarrello} nel carrello)`
-                  : "Aggiungi al carrello"}
+                  ? t("aggiungi.ancora", { n: giaNelCarrello })
+                  : t("aggiungi.carrello")}
             </span>
             {!gruppoMancante && !aFormula && (
               <span className="tabular-nums">
-                {formatPriceCents(prezzoUnitario, currency)}
+                {t.prezzo(prezzoUnitario, currency)}
               </span>
             )}
           </button>

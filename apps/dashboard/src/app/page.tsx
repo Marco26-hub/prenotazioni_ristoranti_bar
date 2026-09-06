@@ -2,11 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { PLANS, setupCents, TRIAL_DAYS, formatPriceCents } from "@repo/shared";
+import { PLANS, setupCents, TRIAL_DAYS } from "@repo/shared";
+import { tGuscio } from "@/i18n/guscio";
+import { linguaUtente } from "@/lib/lingua";
 import { MockupTelefono } from "./mockup-telefono";
 
-const WHATSAPP_URL =
-  "https://wa.me/393477196603?text=Buongiorno%2C%20vorrei%20prenotare%20una%20call%20per%20conoscere%20Tavolo.";
+/** Le chiavi del dizionario, per gli elenchi che stanno fuori dal JSX. */
+type Chiave = Parameters<ReturnType<typeof tGuscio>>[0];
+
+const NUMERO_WHATSAPP = "393477196603";
 
 /**
  * Pagina commerciale per il ristoratore.
@@ -16,141 +20,159 @@ const WHATSAPP_URL =
  * cose non implementate si paga alla prima demo.
  */
 
-export const metadata: Metadata = {
-  title: "Ordini e pagamenti al tavolo per ristoranti e bar",
-  description:
-    "Menu QR, ordine e pagamento al tavolo, conto alla romana, prenotazioni online e fattura elettronica. Con il marchio del tuo locale, e senza percentuali trattenute da noi sui tuoi incassi.",
-  alternates: { canonical: "/" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = tGuscio(await linguaUtente());
+  return {
+    title: t("vetrina.meta.titolo"),
+    description: t("vetrina.meta.descrizione"),
+    alternates: { canonical: "/" },
+  };
+}
 
-const NASTRO = [
-  "Menu QR",
-  "Ordine al tavolo",
-  "Conto alla romana",
-  "Apple Pay",
-  "Satispay",
-  "Prenotazioni online",
-  "Fattura elettronica",
-  "Allergeni a norma",
-  "Il tuo marchio",
-  "Nessuna percentuale trattenuta",
+const NASTRO: Chiave[] = [
+  "vetrina.nastro.menuqr",
+  "vetrina.nastro.ordine",
+  "vetrina.nastro.romana",
+  "vetrina.nastro.applepay",
+  "vetrina.nastro.satispay",
+  "vetrina.nastro.prenotazioni",
+  "vetrina.nastro.fattura",
+  "vetrina.nastro.allergeni",
+  "vetrina.nastro.marchio",
+  "vetrina.nastro.percentuale",
 ];
 
-const COME_FUNZIONA = [
-  {
-    titolo: "Il cliente inquadra il QR",
-    testo:
-      "Si apre il menu del locale sul suo telefono, con foto, ingredienti e allergeni. Nessuna app da scaricare.",
-  },
-  {
-    titolo: "Ordina dal tavolo",
-    testo:
-      "Sceglie i piatti, aggiunge le note per la cucina, invia. L'ordine compare subito in gestionale.",
-  },
-  {
-    titolo: "Paga quando vuole",
-    testo:
-      "Carta, Apple Pay, Google Pay o Satispay. Può dividere il conto per piatto o pagare tutto lui, e lasciare la mancia.",
-  },
-  {
-    titolo: "Il tavolo si libera",
-    testo:
-      "Conto saldato, sessione chiusa. Nessuno aspetta il POS, e chi vuole la fattura la chiede dal telefono.",
-  },
+const COME_FUNZIONA: Array<{ titolo: Chiave; testo: Chiave }> = [
+  { titolo: "vetrina.passo.qr.titolo", testo: "vetrina.passo.qr.testo" },
+  { titolo: "vetrina.passo.ordina.titolo", testo: "vetrina.passo.ordina.testo" },
+  { titolo: "vetrina.passo.paga.titolo", testo: "vetrina.passo.paga.testo" },
+  { titolo: "vetrina.passo.libera.titolo", testo: "vetrina.passo.libera.testo" },
 ];
 
 /** `ampio` marca le celle che occupano due colonne nella griglia bento. */
-const FUNZIONI = [
+const FUNZIONI: Array<{ titolo: Chiave; testo: Chiave; ampio?: boolean }> = [
   {
-    titolo: "Menu sempre aggiornato",
-    testo:
-      "Aggiungi, modifica, riordina e nascondi i piatti in tempo reale. Finito il branzino, lo togli e sparisce da tutti i tavoli nello stesso istante.",
+    titolo: "vetrina.funzione.menu.titolo",
+    testo: "vetrina.funzione.menu.testo",
     ampio: true,
   },
   {
-    titolo: "Allergeni a norma",
-    testo:
-      "Campo dedicato su ogni piatto, come richiede il Reg. UE 1169/2011. Il cliente li legge da solo.",
+    titolo: "vetrina.funzione.allergeni.titolo",
+    testo: "vetrina.funzione.allergeni.testo",
   },
   {
-    titolo: "Conto alla romana",
-    testo:
-      "Ognuno paga i propri piatti dal proprio telefono. Il conto si chiude da sé quando è tutto saldato.",
+    titolo: "vetrina.funzione.romana.titolo",
+    testo: "vetrina.funzione.romana.testo",
   },
   {
-    titolo: "Prenotazioni online",
-    testo:
-      "Una pagina da mettere sul tuo sito e sui social. Le richieste arrivano dritte in gestionale, con il promemoria automatico il giorno prima e un link per disdire: il tavolo dimenticato si libera in tempo per darlo a qualcun altro.",
+    titolo: "vetrina.funzione.prenotazioni.titolo",
+    testo: "vetrina.funzione.prenotazioni.testo",
     ampio: true,
   },
   {
-    titolo: "Recensioni chieste al tavolo",
-    testo:
-      "Appena finito di mangiare, col telefono già in mano. Chi è contento lo scrive anche pubblicamente; chi non lo è ti dice cosa non è andato, e lo leggi stasera invece che su Google fra una settimana.",
+    titolo: "vetrina.funzione.recensioni.titolo",
+    testo: "vetrina.funzione.recensioni.testo",
   },
   {
-    titolo: "Numero di ritiro al banco",
-    testo:
-      "Piadineria, pizza al taglio, gastronomia: chi ordina prende un numero che riparte da uno ogni giorno. Avvisi come preferisci — segnaposto sul tavolo, cercapersone, o il numero che diventa «pronto» da solo sul telefono di chi ha ordinato. Sullo schermo del banco vedi cosa chiamare.",
+    titolo: "vetrina.funzione.banco.titolo",
+    testo: "vetrina.funzione.banco.testo",
     ampio: true,
   },
   {
-    titolo: "All you can eat",
-    testo:
-      "Prezzo a persona, pranzo e cena separati, bambini a tariffa ridotta o gratis. Le ordinazioni a ondate, con l'attesa che decidi tu: senza, un tavolo da sei manda ottanta piatti in tre minuti e metà restano nel piatto.",
+    titolo: "vetrina.funzione.formula.titolo",
+    testo: "vetrina.funzione.formula.testo",
   },
   {
-    titolo: "Il tuo marchio",
-    testo:
-      "Logo, colori e dati del locale su ogni pagina che vede il cliente. Il nostro nome non compare mai.",
+    titolo: "vetrina.funzione.marchio.titolo",
+    testo: "vetrina.funzione.marchio.testo",
     ampio: true,
   },
   {
-    titolo: "Fattura elettronica",
-    testo:
-      "Il cliente inserisce i dati dal tavolo e la fattura parte allo SDI, tramite un intermediario che colleghi tu.",
+    titolo: "vetrina.funzione.fattura.titolo",
+    testo: "vetrina.funzione.fattura.testo",
   },
   {
-    titolo: "Trovabile su Google e dalle AI",
-    testo:
-      "Il menu ha una pagina pubblica con dati strutturati: è quello che motori di ricerca e assistenti leggono e citano.",
+    titolo: "vetrina.funzione.google.titolo",
+    testo: "vetrina.funzione.google.testo",
   },
   {
-    titolo: "Accessi separati",
-    testo:
-      "Titolare, responsabile, sala e cucina vedono solo il proprio. Chi è in sala non tocca incassi e dati fiscali.",
+    titolo: "vetrina.funzione.accessi.titolo",
+    testo: "vetrina.funzione.accessi.testo",
   },
   {
-    titolo: "Importazione del menu",
-    testo: "Da file CSV o TSV, oppure dalla cassa Tilby. Non si ribatte tutto a mano.",
+    titolo: "vetrina.funzione.importa.titolo",
+    testo: "vetrina.funzione.importa.testo",
   },
   {
-    titolo: "Assistenza dentro il gestionale",
-    testo:
-      "Scrivi da qui, non su WhatsApp: la richiesta non vive nel telefono di chi l'ha ricevuta, e la risposta la ritrovi una settimana dopo dov'era.",
+    titolo: "vetrina.funzione.assistenza.titolo",
+    testo: "vetrina.funzione.assistenza.testo",
   },
 ];
 
-const CONFRONTO: Array<[string, string, string]> = [
-  ["Canone", "da 89 €/mese", "29–249 €/mese"],
-  ["Costo di attivazione", "449–649 €", "0–600 €"],
-  ["Percentuale che tratteniamo noi", "Nessuna", "1,2–2% dell'incassato"],
-  ["Il tuo marchio sulle pagine cliente", "Incluso", "Raro, o a pagamento"],
-  ["Fattura elettronica dal tavolo", "Inclusa", "Quasi mai"],
-  ["Prenotazioni online incluse", "Sì", "Spesso a parte"],
-  ["Scegli tu il fornitore di pagamento", "Sì", "Quasi mai"],
-  ["Compri solo il modulo che ti serve", "Sì", "Quasi mai"],
-  ["Promemoria e disdetta al cliente", "Inclusi", "Solo sui portali, con commissione"],
-  ["Formula a prezzo fisso (all you can eat)", "Inclusa", "Rara"],
-  ["Numero di ritiro al banco", "Incluso", "Di solito un sistema a parte"],
+const CONFRONTO: Array<[Chiave, Chiave, Chiave]> = [
+  ["confronto.canone.voce", "confronto.canone.noi", "confronto.canone.altri"],
+  [
+    "confronto.attivazione.voce",
+    "confronto.attivazione.noi",
+    "confronto.attivazione.altri",
+  ],
+  [
+    "confronto.percentuale.voce",
+    "confronto.percentuale.noi",
+    "confronto.percentuale.altri",
+  ],
+  ["confronto.marchio.voce", "confronto.marchio.noi", "confronto.marchio.altri"],
+  ["confronto.fattura.voce", "confronto.fattura.noi", "confronto.fattura.altri"],
+  [
+    "confronto.prenotazioni.voce",
+    "confronto.prenotazioni.noi",
+    "confronto.prenotazioni.altri",
+  ],
+  [
+    "confronto.fornitore.voce",
+    "confronto.fornitore.noi",
+    "confronto.fornitore.altri",
+  ],
+  ["confronto.moduli.voce", "confronto.moduli.noi", "confronto.moduli.altri"],
+  [
+    "confronto.promemoria.voce",
+    "confronto.promemoria.noi",
+    "confronto.promemoria.altri",
+  ],
+  ["confronto.formula.voce", "confronto.formula.noi", "confronto.formula.altri"],
+  ["confronto.banco.voce", "confronto.banco.noi", "confronto.banco.altri"],
 ];
 
-const SERVE = [
-  "Un account Stripe del locale, per incassare. La verifica è di Stripe.",
-  "I dati del locale: indirizzo, telefono, partita IVA.",
-  "Il menu, da caricare da file o scrivere in gestionale.",
-  "Una stampa dei QR, uno per tavolo, che generi tu.",
+const SERVE: Chiave[] = [
+  "vetrina.serve.stripe",
+  "vetrina.serve.dati",
+  "vetrina.serve.menu",
+  "vetrina.serve.qr",
 ];
+
+/*
+ * I piani restano in italiano in `plans.ts`, che è condiviso e serve anche a
+ * Stripe: qui c'è solo la versione da mostrare, una per chiave di piano. Se
+ * un piano nuovo non ha ancora la sua voce, si ripiega su quella scritta nel
+ * listino — italiana, ma giusta, che è meglio di una cella vuota.
+ */
+const VOCE_PIANO: Record<string, { titolo: Chiave; testo: Chiave; nota: Chiave }> = {
+  "ordini-mensile": {
+    titolo: "piano.ordini.titolo",
+    testo: "piano.ordini.testo",
+    nota: "piano.ordini.nota",
+  },
+  "prenotazioni-mensile": {
+    titolo: "piano.prenotazioni.titolo",
+    testo: "piano.prenotazioni.testo",
+    nota: "piano.prenotazioni.nota",
+  },
+  "completo-mensile": {
+    titolo: "piano.completo.titolo",
+    testo: "piano.completo.testo",
+    nota: "piano.completo.nota",
+  },
+};
 
 function Titolo({ children }: { children: React.ReactNode }) {
   return (
@@ -161,10 +183,17 @@ function Titolo({ children }: { children: React.ReactNode }) {
 }
 
 export default async function LandingPage() {
+  const t = tGuscio(await linguaUtente());
   const session = await auth();
   if (session?.user) redirect("/dashboard");
 
   const mensili = PLANS.filter((p) => p.interval === "month");
+
+  // Il messaggio precompilato è la prima cosa che il ristoratore vede
+  // arrivare da sé nella chat: scritto nella sua lingua, non nella nostra.
+  const whatsappUrl = `https://wa.me/${NUMERO_WHATSAPP}?text=${encodeURIComponent(
+    t("vetrina.whatsapp.messaggio")
+  )}`;
 
   return (
     <div data-landing className="relative overflow-x-clip">
@@ -184,15 +213,15 @@ export default async function LandingPage() {
               href="/login"
               className="flex min-h-11 items-center rounded-full px-4 text-sm font-medium"
             >
-              Accedi
+              {t("vetrina.accedi")}
             </Link>
             <a
-              href={WHATSAPP_URL}
+              href={whatsappUrl}
               target="_blank"
               rel="noreferrer"
               className="flex min-h-11 items-center rounded-full bg-accent px-4 text-sm font-medium text-accent-foreground"
             >
-              Prenota una call
+              {t("vetrina.call")}
             </a>
           </div>
         </nav>
@@ -213,42 +242,40 @@ export default async function LandingPage() {
                 aria-hidden
                 className="h-1.5 w-1.5 rounded-full bg-accent"
               />
-              Per ristoranti e bar in Italia
+              {t("vetrina.badge")}
             </p>
 
             <h1 className="titolo-sfumato display text-[2.75rem] sm:text-7xl">
-              I tuoi clienti ordinano e pagano dal tavolo.
+              {t("vetrina.titolo")}
             </h1>
 
             <p className="mx-auto mt-5 max-w-xl text-pretty text-lg text-muted sm:text-xl">
-              Tu servi, non rincorri il POS. Menu QR, ordine, pagamento e
-              prenotazioni — con il marchio del tuo locale. Le commissioni
-              della carta le paghi al tuo fornitore, non a noi.
+              {t("vetrina.sottotitolo")}
             </p>
 
             <div className="mt-9 flex flex-wrap justify-center gap-3">
               <a
-                href={WHATSAPP_URL}
+                href={whatsappUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="flex min-h-12 items-center rounded-full bg-accent px-7 font-medium text-accent-foreground shadow-[0_14px_34px_-14px_var(--accent)] transition-transform active:scale-95"
               >
-                Prenota una call
+                {t("vetrina.call")}
               </a>
               <a
                 href="https://ristoranti-guest.vercel.app/m/trattoria-da-luca"
                 className="vetro flex min-h-12 items-center rounded-full px-7 font-medium"
               >
-                Guarda un menu vero
+                {t("vetrina.menu_vero")}
               </a>
             </div>
 
             <p className="mt-4 text-sm text-muted">
-              Preferisci provare da solo?{" "}
+              {t("vetrina.prova.domanda")}{" "}
               <Link href="/registrati" className="font-medium text-accent underline underline-offset-4">
-                Inizia {TRIAL_DAYS} giorni gratis
+                {t("vetrina.prova.link", { giorni: TRIAL_DAYS })}
               </Link>
-              , senza carta.
+              {t("vetrina.prova.coda")}
             </p>
           </div>
 
@@ -267,7 +294,7 @@ export default async function LandingPage() {
             <div key={giro} aria-hidden={giro === 1} className="flex gap-8">
               {NASTRO.map((v) => (
                 <span key={v} className="flex items-center gap-8">
-                  {v}
+                  {t(v)}
                   <span className="text-accent">◆</span>
                 </span>
               ))}
@@ -278,7 +305,7 @@ export default async function LandingPage() {
 
       {/* ---------------------------------------------------------------- */}
       <section className="mx-auto max-w-5xl px-4 py-20">
-        <Titolo>Quattro passaggi, nessuna attesa</Titolo>
+        <Titolo>{t("vetrina.passi.titolo")}</Titolo>
         <ol className="mt-10 grid gap-5 sm:grid-cols-2">
           {COME_FUNZIONA.map((p, i) => (
             <li
@@ -292,8 +319,8 @@ export default async function LandingPage() {
               >
                 {i + 1}
               </span>
-              <p className="font-medium">{p.titolo}</p>
-              <p className="mt-1 text-sm leading-relaxed text-muted">{p.testo}</p>
+              <p className="font-medium">{t(p.titolo)}</p>
+              <p className="mt-1 text-sm leading-relaxed text-muted">{t(p.testo)}</p>
             </li>
           ))}
         </ol>
@@ -301,7 +328,7 @@ export default async function LandingPage() {
 
       {/* ---------------------------------------------------------------- */}
       <section className="mx-auto max-w-5xl px-4 pb-20">
-        <Titolo>Tutto quello che serve, già dentro</Titolo>
+        <Titolo>{t("vetrina.funzioni.titolo")}</Titolo>
         <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {FUNZIONI.map((f) => (
             <li
@@ -310,8 +337,8 @@ export default async function LandingPage() {
                 f.ampio ? "sm:col-span-2 lg:col-span-1 xl:col-span-2" : ""
               }`}
             >
-              <p className="font-medium">{f.titolo}</p>
-              <p className="mt-1.5 text-sm leading-relaxed text-muted">{f.testo}</p>
+              <p className="font-medium">{t(f.titolo)}</p>
+              <p className="mt-1.5 text-sm leading-relaxed text-muted">{t(f.testo)}</p>
             </li>
           ))}
         </ul>
@@ -320,14 +347,15 @@ export default async function LandingPage() {
       {/* ---------------------------------------------------------------- */}
       <section className="relative overflow-hidden px-4 py-20">
         <div className="mx-auto max-w-5xl">
-          <Titolo>Un prezzo solo, scritto sul sito</Titolo>
+          <Titolo>{t("vetrina.prezzo.titolo")}</Titolo>
           <p className="compare mt-3 max-w-xl text-muted">
-            Nessun preventivo da chiedere, nessuna percentuale nascosta sul tuo
-            incassato.
+            {t("vetrina.prezzo.sottotitolo")}
           </p>
 
           <div className="mt-10 grid gap-5 sm:grid-cols-3">
-            {mensili.map((plan) => (
+            {mensili.map((plan) => {
+              const voce = VOCE_PIANO[plan.key];
+              return (
               <div
                 key={plan.key}
                 className={`compare rounded-2xl p-6 ${
@@ -340,38 +368,40 @@ export default async function LandingPage() {
                   }
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm text-muted">{plan.label}</p>
+                    <p className="text-sm text-muted">
+                      {voce ? t(voce.titolo) : plan.label}
+                    </p>
                     {plan.moduli.length > 1 && (
                       <span className="rounded-full bg-accent px-2.5 py-1 text-[11px] font-medium text-accent-foreground">
-                        Consigliato
+                        {t("vetrina.prezzo.consigliato")}
                       </span>
                     )}
                   </div>
                   <p className="mt-2 text-3xl font-semibold tabular-nums tracking-tight">
-                    {formatPriceCents(plan.amountCents, "EUR")}
-                    <span className="text-base font-normal text-muted"> al mese</span>
+                    {t.prezzo(plan.amountCents)}
+                    <span className="text-base font-normal text-muted"> {t("vetrina.prezzo.almese")}</span>
                   </p>
                   <p className="mt-2 text-sm leading-relaxed text-muted">
-                    {plan.descrizione}
+                    {voce ? t(voce.testo) : plan.descrizione}
                   </p>
                   {plan.note && (
-                    <p className="mt-2 text-sm font-medium text-accent">{plan.note}</p>
+                    <p className="mt-2 text-sm font-medium text-accent">
+                      {voce ? t(voce.nota) : plan.note}
+                    </p>
                   )}
                   <p className="mt-2 text-sm text-muted">
-                    + {formatPriceCents(setupCents(plan), "EUR")} di attivazione
+                    {t("vetrina.prezzo.attivazione", {
+                      prezzo: t.prezzo(setupCents(plan)),
+                    })}
                   </p>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           <p className="compare mt-4 text-sm text-muted">
-            Sull&apos;annuale due mesi sono in omaggio. L&apos;attivazione si
-            paga una sola volta e vale 449 € per le sole prenotazioni, 649 €
-            dove ci sono anche gli ordini: comprende menu caricato, QR pronti
-            da stampare, Stripe collegato e marchio configurato. Hai già la
-            tua cassa? Prendi solo quello che ti manca: i moduli si comprano
-            separati.
+            {t("vetrina.prezzo.nota")}
           </p>
 
           <div className="compare mt-8 overflow-x-auto">
@@ -379,18 +409,18 @@ export default async function LandingPage() {
               <thead>
                 <tr className="border-b border-border text-left">
                   <th className="py-3 pr-4 font-medium" />
-                  <th className="py-3 pr-4 font-medium">Noi</th>
+                  <th className="py-3 pr-4 font-medium">{t("vetrina.confronto.noi")}</th>
                   <th className="py-3 font-medium text-muted">
-                    Gli altri in Italia
+                    {t("vetrina.confronto.altri")}
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {CONFRONTO.map(([voce, noi, altri]) => (
                   <tr key={voce} className="border-b border-border/70">
-                    <td className="py-3 pr-4">{voce}</td>
-                    <td className="py-3 pr-4 font-medium text-accent">{noi}</td>
-                    <td className="py-3 text-muted">{altri}</td>
+                    <td className="py-3 pr-4">{t(voce)}</td>
+                    <td className="py-3 pr-4 font-medium text-accent">{t(noi)}</td>
+                    <td className="py-3 text-muted">{t(altri)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -398,82 +428,64 @@ export default async function LandingPage() {
           </div>
 
           <div className="compare mt-10 space-y-3">
-            <h3 className="text-lg font-medium">Come si paga davvero</h3>
+            <h3 className="text-lg font-medium">{t("vetrina.pagamenti.titolo")}</h3>
             <p className="max-w-2xl text-muted">
-              <strong>Noi non prendiamo nulla sui tuoi incassi.</strong> Le
-              commissioni della carta le paghi al tuo fornitore di pagamento,
-              non a noi, e il denaro arriva sul tuo conto senza passare da
-              noi.
+              <strong>{t("vetrina.pagamenti.forte")}</strong>{" "}
+              {t("vetrina.pagamenti.uno")}
             </p>
             <p className="max-w-2xl text-muted">
-              Chi ti offre un canone basso e una percentuale unica sta
-              incassando lui e girandoti il resto. A volte quella percentuale
-              conviene, soprattutto con volumi bassi. Quello che perdi è il
-              rapporto diretto: non puoi negoziare la tariffa, non puoi
-              cambiare fornitore senza cambiare gestionale, e il giorno che
-              cresci la percentuale cresce con te.
+              {t("vetrina.pagamenti.due")}
             </p>
             <p className="max-w-2xl text-muted">
-              Da noi il fornitore di pagamento è tuo. Se hai già un POS e un
-              acquirer che ti fa una tariffa buona, tienili: il conto si
-              chiude segnando l&apos;incasso sul tuo terminale e il tavolo si
-              libera lo stesso.
+              {t("vetrina.pagamenti.tre")}
             </p>
           </div>
 
           <p className="compare mt-6 text-sm text-muted">
-            Prezzi IVA esclusa. L&apos;attivazione è una sola volta e comprende
-            il menu caricato, i QR pronti da stampare, Stripe collegato e il
-            marchio configurato. La colonna di destra riporta i listini
-            pubblici dei concorrenti italiani a settembre 2026; molti non
-            pubblicano i propri prezzi.
+            {t("vetrina.prezzo.piede")}
           </p>
         </div>
       </section>
 
       {/* ---------------------------------------------------------------- */}
       <section className="mx-auto max-w-5xl px-4 pb-20">
-        <Titolo>Solo prenotazioni, se è quello che ti serve</Titolo>
+        <Titolo>{t("vetrina.soloprenotazioni.titolo")}</Titolo>
         <div className="compare scheda vetro mt-8 rounded-2xl p-6">
           <p className="leading-relaxed text-muted">
-            Una pagina di prenotazione da mettere sul tuo sito e nei profili
-            social. Il cliente sceglie giorno, ora e persone; tu ricevi la
-            richiesta per email e la confermi o la rifiuti dal calendario.
+            {t("vetrina.soloprenotazioni.testo")}
           </p>
           <ul className="mt-4 grid gap-2 text-sm text-muted sm:grid-cols-2">
-            <li>— Controllo capienza: se quell&apos;ora è piena, il sistema lo dice subito</li>
-            <li>— Rifiutando, al cliente arrivano gli orari vicini in cui c&apos;è posto</li>
-            <li>— Calendario del mese con coperti e richieste da confermare</li>
-            <li>— Conferma automatica, se preferisci non rispondere a mano</li>
-            <li>— Arrivi e no-show segnati, per sapere su chi contare</li>
-            <li>— Funziona da sola: non serve il resto del gestionale</li>
+            <li>{t("vetrina.soloprenotazioni.capienza")}</li>
+            <li>{t("vetrina.soloprenotazioni.alternative")}</li>
+            <li>{t("vetrina.soloprenotazioni.calendario")}</li>
+            <li>{t("vetrina.soloprenotazioni.automatica")}</li>
+            <li>{t("vetrina.soloprenotazioni.noshow")}</li>
+            <li>{t("vetrina.soloprenotazioni.sola")}</li>
           </ul>
           <a
             href="https://ristoranti-guest.vercel.app/p/trattoria-da-luca"
             className="mt-6 inline-flex min-h-12 items-center rounded-full border border-border px-6 font-medium"
           >
-            Prova la pagina di prenotazione
+            {t("vetrina.soloprenotazioni.prova")}
           </a>
         </div>
       </section>
 
       {/* ---------------------------------------------------------------- */}
       <section className="mx-auto max-w-5xl px-4 pb-20">
-        <Titolo>Cosa serve per partire</Titolo>
+        <Titolo>{t("vetrina.serve.titolo")}</Titolo>
         <ul className="compare mt-8 grid gap-3 sm:grid-cols-2">
           {SERVE.map((v) => (
             <li key={v} className="flex gap-3 text-muted">
               <span aria-hidden className="mt-1 text-accent">
                 ✓
               </span>
-              {v}
+              {t(v)}
             </li>
           ))}
         </ul>
         <p className="compare mt-5 text-sm text-muted">
-          Per la fattura elettronica serve in più un intermediario SDI
-          accreditato; per il collegamento alla cassa Tilby, l&apos;adesione al
-          loro programma per sviluppatori.
+          {t("vetrina.serve.nota")}
         </p>
       </section>
 
@@ -487,22 +499,21 @@ export default async function LandingPage() {
 
         <div className="relative z-10 mx-auto max-w-xl">
           <h2 className="titolo-sfumato display text-4xl sm:text-5xl">
-            Provalo sul tuo menu, non sul nostro
+            {t("vetrina.chiusura.titolo")}
           </h2>
           <p className="mt-4 text-lg text-muted">
-            {TRIAL_DAYS} giorni per caricare i tuoi piatti, stampare i QR e far
-            provare il servizio a un tavolo vero.
+            {t("vetrina.chiusura.testo", { giorni: TRIAL_DAYS })}
           </p>
           <Link
             href="/registrati"
             className="mt-8 inline-flex min-h-12 items-center rounded-full bg-accent px-7 font-medium text-accent-foreground shadow-[0_14px_34px_-14px_var(--accent)] transition-transform active:scale-95"
           >
-            Comincia la prova
+            {t("vetrina.chiusura.prova")}
           </Link>
           <p className="mt-4 text-sm text-muted">
-            Hai già un account?{" "}
+            {t("vetrina.chiusura.gia")}{" "}
             <Link href="/login" className="underline underline-offset-4">
-              Accedi
+              {t("vetrina.accedi")}
             </Link>
           </p>
         </div>
@@ -510,29 +521,29 @@ export default async function LandingPage() {
 
       <footer className="border-t border-border px-4 py-8">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 text-sm text-muted">
-          <span>Ordini e pagamenti al tavolo per ristoranti e bar.</span>
+          <span>{t("vetrina.piede.claim")}</span>
           <span className="flex flex-wrap gap-x-4">
             <Link href="/privacy" className="underline underline-offset-4">
-              Privacy
+              {t("vetrina.piede.privacy")}
             </Link>
             <Link href="/dpa" className="underline underline-offset-4">
-              Trattamento dati
+              {t("vetrina.piede.dpa")}
             </Link>
             <a
               href="https://ristoranti-guest.vercel.app/cookie"
               className="underline underline-offset-4"
             >
-              Cookie
+              {t("vetrina.piede.cookie")}
             </a>
           </span>
         </div>
       </footer>
 
       <a
-        href={WHATSAPP_URL}
+        href={whatsappUrl}
         target="_blank"
         rel="noreferrer"
-        aria-label="Contattaci su WhatsApp"
+        aria-label={t("vetrina.whatsapp.contatta")}
         className="fixed bottom-5 right-5 z-40 flex min-h-12 items-center rounded-full bg-[#1f8f55] px-5 text-sm font-semibold text-white shadow-lg transition-transform hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 active:scale-95"
       >
         WhatsApp

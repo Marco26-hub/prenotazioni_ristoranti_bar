@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { auth } from "@/auth";
 import { db } from "@repo/shared/db";
-import { formatPriceCents } from "@repo/shared";
 import { moduloAttivo } from "@/lib/authz";
 import { ModuloNonAttivo } from "../../modulo-non-attivo";
+import { linguaUtente } from "@/lib/lingua";
+import { tServizio } from "@/i18n/servizio";
 
 interface DayRow {
   order_id: string;
@@ -25,7 +26,8 @@ export default async function OrdersHistoryPage({
 }: PageProps<"/dashboard/orders/storico">) {
   const session = await auth();
   const venue = session?.venues[0];
-  if (!venue) return <main className="p-4">Nessun locale associato.</main>;
+  const t = tServizio(await linguaUtente());
+  if (!venue) return <main className="p-4">{t("errore.senza_locale")}</main>;
 
   // Il modulo si verifica qui e non solo nel menu: chi digita
   // l'indirizzo la pagina la otterrebbe lo stesso.
@@ -90,9 +92,9 @@ export default async function OrdersHistoryPage({
   return (
     <main className="mx-auto max-w-3xl space-y-5 px-4 py-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">Storico ordini</h1>
+        <h1 className="text-lg font-semibold">{t("storico.titolo")}</h1>
         <Link href="/dashboard/orders" className="text-sm underline">
-          Ordini in corso
+          {t("storico.in_corso")}
         </Link>
       </div>
 
@@ -101,7 +103,7 @@ export default async function OrdersHistoryPage({
           href={`/dashboard/orders/storico?giorno=${shift(-1)}`}
           className="min-h-11 rounded-full border border-border px-4 text-sm leading-[2.75rem]"
         >
-          ← Giorno prima
+          {t("storico.giorno_prima")}
         </Link>
         <input
           type="date"
@@ -113,41 +115,38 @@ export default async function OrdersHistoryPage({
           type="submit"
           className="min-h-11 rounded-full bg-accent px-5 text-sm font-medium text-accent-foreground"
         >
-          Vai
+          {t("storico.vai")}
         </button>
         <Link
           href={`/dashboard/orders/storico?giorno=${shift(1)}`}
           className="min-h-11 rounded-full border border-border px-4 text-sm leading-[2.75rem]"
         >
-          Giorno dopo →
+          {t("storico.giorno_dopo")}
         </Link>
       </form>
 
       <section className="grid grid-cols-3 gap-3">
         <div className="rounded-xl border border-border bg-surface p-4">
-          <p className="text-xs text-muted">Ordinato</p>
-          <p className="text-lg font-semibold tabular-nums">{formatPriceCents(orderedCents)}</p>
+          <p className="text-xs text-muted">{t("storico.ordinato")}</p>
+          <p className="text-lg font-semibold tabular-nums">{t.prezzo(orderedCents)}</p>
         </div>
         <div className="rounded-xl border border-border bg-surface p-4">
-          <p className="text-xs text-muted">Incassato</p>
-          <p className="text-lg font-semibold tabular-nums">{formatPriceCents(paidCents)}</p>
+          <p className="text-xs text-muted">{t("storico.incassato")}</p>
+          <p className="text-lg font-semibold tabular-nums">{t.prezzo(paidCents)}</p>
         </div>
         <div className="rounded-xl border border-border bg-surface p-4">
-          <p className="text-xs text-muted">Ordini</p>
+          <p className="text-xs text-muted">{t("storico.ordini")}</p>
           <p className="text-lg font-semibold tabular-nums">{orderIds.size}</p>
         </div>
       </section>
 
       {paidCents !== orderedCents && orderIds.size > 0 && (
-        <p className="text-xs text-muted">
-          Ordinato e incassato non coincidono quando un conto è stato pagato in
-          contanti, è ancora aperto, oppure include una mancia.
-        </p>
+        <p className="text-xs text-muted">{t("storico.scarto")}</p>
       )}
 
       {topItems.length > 0 && (
         <section className="rounded-xl border border-border bg-surface p-4">
-          <h2 className="mb-2 font-semibold">Più ordinati</h2>
+          <h2 className="mb-2 font-semibold">{t("storico.piu_ordinati")}</h2>
           <ul className="space-y-1 text-sm">
             {topItems.map(([name, qty]) => (
               <li key={name} className="flex justify-between">
@@ -163,12 +162,11 @@ export default async function OrdersHistoryPage({
         {[...byOrder.entries()].map(([orderId, items]) => (
           <article key={orderId} className="rounded-xl border border-border bg-surface p-4">
             <div className="mb-2 flex items-baseline justify-between">
-              <p className="font-semibold">Tavolo {items[0].table_code}</p>
+              <p className="font-semibold">
+                {t("tavolo.etichetta")} {items[0].table_code}
+              </p>
               <p className="text-xs text-muted">
-                {new Date(items[0].created_at).toLocaleTimeString("it-IT", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
+                {t.ora(new Date(items[0].created_at))}
               </p>
             </div>
             <ul className="space-y-0.5 text-sm">
@@ -178,7 +176,7 @@ export default async function OrdersHistoryPage({
                     {i.quantity}× {i.item_name}
                   </span>
                   <span className="tabular-nums text-muted">
-                    {formatPriceCents(i.quantity * i.unit_price_cents)}
+                    {t.prezzo(i.quantity * i.unit_price_cents)}
                   </span>
                 </li>
               ))}
@@ -188,7 +186,7 @@ export default async function OrdersHistoryPage({
 
         {orderIds.size === 0 && (
           <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted">
-            Nessun ordine in questa giornata.
+            {t("storico.vuoto")}
           </p>
         )}
       </section>

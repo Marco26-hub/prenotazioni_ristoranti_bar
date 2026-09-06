@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { requireRole } from "@/lib/authz";
+import { linguaUtente } from "@/lib/lingua";
+import { tImpostazioni } from "@/i18n/impostazioni";
 
 export interface BrandResult {
   error?: string;
@@ -14,6 +16,7 @@ const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"]
 
 export async function saveBranding(formData: FormData): Promise<BrandResult> {
   const { venue } = await requireRole(["owner", "manager"]);
+  const t = tImpostazioni(await linguaUtente());
 
   const displayName = String(formData.get("displayName") ?? "").trim();
   const brandColor = String(formData.get("brandColor") ?? "").trim();
@@ -30,15 +33,15 @@ export async function saveBranding(formData: FormData): Promise<BrandResult> {
     .slice(0, 4);
   const logo = formData.get("logo");
 
-  if (!displayName) return { error: "Il nome del locale è obbligatorio" };
+  if (!displayName) return { error: t("brand.errore.nome") };
   if (tipsEnabled && tipPercents.length === 0) {
-    return { error: "Indica almeno una percentuale di mancia, es. 5,10,15" };
+    return { error: t("brand.errore.mancia") };
   }
   if (googleReviewUrl && !/^https?:\/\//.test(googleReviewUrl)) {
-    return { error: "Il link recensioni deve iniziare con https://" };
+    return { error: t("brand.errore.recensioni") };
   }
   if (brandColor && !/^#[0-9a-fA-F]{6}$/.test(brandColor)) {
-    return { error: "Colore non valido: usa il formato #RRGGBB" };
+    return { error: t("brand.errore.colore") };
   }
 
   let logoDataUrl: string | null | undefined;
@@ -47,10 +50,10 @@ export async function saveBranding(formData: FormData): Promise<BrandResult> {
     logoDataUrl = null;
   } else if (logo instanceof File && logo.size > 0) {
     if (!ALLOWED_TYPES.includes(logo.type)) {
-      return { error: "Formato logo non supportato: usa PNG, JPG, WEBP o SVG" };
+      return { error: t("brand.errore.logo.formato") };
     }
     if (logo.size > MAX_LOGO_BYTES) {
-      return { error: "Il logo supera 200 KB: caricane uno più leggero" };
+      return { error: t("brand.errore.logo.peso") };
     }
     const base64 = Buffer.from(await logo.arrayBuffer()).toString("base64");
     logoDataUrl = `data:${logo.type};base64,${base64}`;

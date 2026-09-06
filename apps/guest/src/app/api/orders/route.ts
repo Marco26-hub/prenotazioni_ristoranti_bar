@@ -3,6 +3,7 @@ import { db } from "@repo/shared/db";
 import { checkRateLimit, clientKey } from "@repo/shared/rate-limit";
 import { hasModulo } from "@repo/shared";
 import { gruppiPerPiatti, calcolaPrezzo } from "@repo/shared/varianti";
+import { tApi, linguaRichiesta } from "@/i18n/api";
 
 interface CreateOrderBody {
   sessionId: string;
@@ -19,18 +20,20 @@ interface CreateOrderBody {
 const MAX_NOTE_LENGTH = 140;
 
 export async function POST(request: Request) {
+  const t = tApi(linguaRichiesta(request));
+
   const { allowed } = await checkRateLimit(clientKey(request, "orders"), 20, 60);
   if (!allowed) {
-    return NextResponse.json({ error: "Troppe richieste, riprova tra poco" }, { status: 429 });
+    return NextResponse.json({ error: t("errore.troppe_richieste_riprova") }, { status: 429 });
   }
 
   const body = (await request.json().catch(() => null)) as CreateOrderBody | null;
 
   if (!body?.sessionId || !Array.isArray(body.items) || body.items.length === 0) {
-    return NextResponse.json({ error: "Payload non valido" }, { status: 400 });
+    return NextResponse.json({ error: t("errore.payload_non_valido") }, { status: 400 });
   }
   if (body.items.some((i) => !i.menuItemId || !Number.isInteger(i.quantity) || i.quantity < 1)) {
-    return NextResponse.json({ error: "Righe ordine non valide" }, { status: 400 });
+    return NextResponse.json({ error: t("ordine.errore.righe_non_valide") }, { status: 400 });
   }
 
   const sql = db();
@@ -41,7 +44,7 @@ export async function POST(request: Request) {
     select id, venue_id, status from table_sessions where id = ${body.sessionId}`;
 
   if (!session || session.status !== "open") {
-    return NextResponse.json({ error: "Sessione tavolo non valida" }, { status: 404 });
+    return NextResponse.json({ error: t("errore.sessione_tavolo_non_valida") }, { status: 404 });
   }
 
   // Il servizio è a canone: se il locale non ha un abbonamento valido i suoi
@@ -67,7 +70,7 @@ export async function POST(request: Request) {
     )
   ) {
     return NextResponse.json(
-      { error: "Ordine dal tavolo non attivo per questo locale — chiedi al personale" },
+      { error: t("ordine.errore.non_attivo") },
       { status: 402 }
     );
   }
@@ -102,10 +105,7 @@ export async function POST(request: Request) {
       const minuti = Math.ceil(mancano / 60);
       return NextResponse.json(
         {
-          error:
-            minuti === 1
-              ? "Ancora un minuto e puoi ordinare di nuovo."
-              : `Puoi ordinare di nuovo fra ${minuti} minuti.`,
+          error: t.n(minuti, "ordine.attesa"),
           attesaSecondi: mancano,
         },
         { status: 429 }
@@ -123,10 +123,10 @@ export async function POST(request: Request) {
   >`select id, price_cents, available, venue_id from menu_items where id in ${sql(menuItemIds)}`;
 
   if (menuItems.length !== menuItemIds.length) {
-    return NextResponse.json({ error: "Piatto non trovato" }, { status: 404 });
+    return NextResponse.json({ error: t("ordine.errore.piatto_non_trovato") }, { status: 404 });
   }
   if (menuItems.some((m) => m.venue_id !== session.venue_id || !m.available)) {
-    return NextResponse.json({ error: "Piatto non disponibile" }, { status: 409 });
+    return NextResponse.json({ error: t("ordine.errore.piatto_non_disponibile") }, { status: 409 });
   }
 
   const priceByItem = new Map(menuItems.map((m) => [m.id, m.price_cents]));

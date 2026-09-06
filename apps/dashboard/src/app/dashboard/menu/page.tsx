@@ -29,6 +29,15 @@ import { MODELLI } from "@repo/shared/formati";
 import { ModelloForm } from "./modello-form";
 import { moduloAttivo } from "@/lib/authz";
 import { ModuloNonAttivo } from "../modulo-non-attivo";
+import { linguaUtente } from "@/lib/lingua";
+import { LinguaProvider } from "@repo/shared/i18n/contesto";
+import { tComune } from "@repo/shared/i18n/comune";
+import {
+  tMenuAdmin,
+  nomeAllergene,
+  nomeConservazione,
+  nomeDicitura,
+} from "@/i18n/menu";
 
 const AZIONE = "flex min-h-11 items-center px-1 text-sm underline";
 
@@ -45,22 +54,17 @@ async function renameCategory(formData: FormData) {
   await updateCategory(formData);
 }
 
-const DIETA_ETICHETTA: Record<string, string> = {
-  vegetariano: "Vegetariano",
-  vegano: "Vegano",
-  senza_glutine: "Senza glutine",
-  senza_lattosio: "Senza lattosio",
-  piccante: "Piccante",
-};
-
 export default async function MenuPage({
   searchParams,
 }: PageProps<"/dashboard/menu">) {
   const params = await searchParams;
   const daAprire = Array.isArray(params.modifica) ? params.modifica[0] : params.modifica;
   const session = await auth();
+  const lingua = await linguaUtente();
+  const t = tMenuAdmin(lingua);
+  const tc = tComune(lingua);
   const venue = session?.venues[0];
-  if (!venue) return <main className="p-4">Nessun locale associato.</main>;
+  if (!venue) return <main className="p-4">{t("pagina.nessun.locale")}</main>;
 
   // Il modulo si verifica qui e non solo nel menu: chi digita
   // l'indirizzo la pagina la otterrebbe lo stesso.
@@ -126,9 +130,10 @@ export default async function MenuPage({
 
   // Un menu senza allergeni non è a norma (Reg. UE 1169/2011) e senza foto
   // vende meno: il ristoratore deve vederlo, non scoprirlo dal cliente.
-  const nomeModello =
-    MODELLI.find((m) => m.tipo === (venueRow?.venue_type ?? "ristorante"))?.nome ??
-    "Ristorante";
+  const tipoModello =
+    MODELLI.find((m) => m.tipo === (venueRow?.venue_type ?? "ristorante"))?.tipo ??
+    "ristorante";
+  const nomeModello = t(`formato.${tipoModello}.nome`);
 
   const senzaAllergeni = items.filter((i) => !i.allergens?.length).length;
   const senzaFoto = items.filter((i) => !i.image_url).length;
@@ -158,11 +163,11 @@ export default async function MenuPage({
                 <p className="flex flex-wrap items-baseline gap-x-2">
                   <span className="font-medium">{item.name}</span>
                   <span className="text-xs text-muted">
-                    IVA {Number(item.vat_rate)}%
+                    {t("piatto.iva", { aliquota: Number(item.vat_rate) })}
                   </span>
                   {!item.available && (
                     <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">
-                      Nascosto
+                      {t("piatto.nascosto")}
                     </span>
                   )}
                 </p>
@@ -178,40 +183,46 @@ export default async function MenuPage({
                 )}
 
                 <div className="mt-2 flex flex-wrap gap-1.5 text-xs">
-                  {item.dietary_tags?.map((t) => (
+                  {item.dietary_tags?.map((d) => (
                     <span
-                      key={t}
+                      key={d}
                       className="rounded-full border border-accent px-2 py-0.5"
                     >
-                      {DIETA_ETICHETTA[t] ?? t}
+                      {nomeDicitura(d, lingua)}
                     </span>
                   ))}
 
                   {item.conservation !== "fresco" && (
                     <span className="rounded-full bg-background px-2 py-0.5 text-muted">
-                      {item.conservation}
+                      {nomeConservazione(item.conservation, lingua)}
                     </span>
                   )}
 
                   {mancanoSolfiti(item.kind, item.allergens) && (
                     <span className="rounded-full border border-amber-400 px-2 py-0.5 text-amber-700">
-                      Solfiti non dichiarati
+                      {t("piatto.solfiti.mancanti")}
                     </span>
                   )}
 
                   {item.allergens?.length ? (
                     <span className="rounded-full bg-background px-2 py-0.5 text-muted">
-                      Allergeni: {item.allergens.join(", ")}
+                      {t("piatto.allergeni", {
+                        elenco: item.allergens
+                          .map((a) => nomeAllergene(a, lingua))
+                          .join(", "),
+                      })}
                     </span>
                   ) : (
                     <span className="rounded-full border border-amber-400 px-2 py-0.5 text-amber-700">
-                      Allergeni non indicati
+                      {t("piatto.allergeni.mancanti")}
                     </span>
                   )}
 
                   {item.pairing_item_id && nomePerId.get(item.pairing_item_id) && (
                     <span className="rounded-full bg-background px-2 py-0.5 text-muted">
-                      Con {nomePerId.get(item.pairing_item_id)}
+                      {t("piatto.abbinamento", {
+                        nome: nomePerId.get(item.pairing_item_id)!,
+                      })}
                     </span>
                   )}
                 </div>
@@ -224,7 +235,7 @@ export default async function MenuPage({
                 >
                   <input type="hidden" name="itemId" value={item.id} />
                   <label className="text-xs font-medium text-muted">
-                    Prezzo
+                    {t("piatto.prezzo")}
                     <span className="mt-1 flex min-h-10 items-center rounded-md border border-border bg-surface px-2">
                       <input
                         name="price"
@@ -233,7 +244,7 @@ export default async function MenuPage({
                         min="0"
                         required
                         defaultValue={(item.price_cents / 100).toFixed(2)}
-                        aria-label={`Prezzo di ${item.name}`}
+                        aria-label={t("piatto.prezzo.di", { nome: item.name })}
                         className="w-20 bg-transparent text-right text-sm font-semibold tabular-nums outline-none"
                       />
                       <span className="ml-1 text-sm">€</span>
@@ -241,10 +252,10 @@ export default async function MenuPage({
                   </label>
                   <button
                     type="submit"
-                    aria-label={`Salva prezzo di ${item.name}`}
+                    aria-label={t("piatto.prezzo.salva", { nome: item.name })}
                     className="min-h-10 rounded-md bg-accent px-3 text-sm font-medium text-accent-foreground"
                   >
-                    Salva
+                    {tc("azione.salva")}
                   </button>
                 </form>
 
@@ -258,7 +269,7 @@ export default async function MenuPage({
                     >
                       <button
                         type="submit"
-                        aria-label={`Sposta ${item.name} su`}
+                        aria-label={t("piatto.sposta.su", { nome: item.name })}
                         className={AZIONE}
                       >
                         ↑
@@ -274,7 +285,7 @@ export default async function MenuPage({
                     >
                       <button
                         type="submit"
-                        aria-label={`Sposta ${item.name} giù`}
+                        aria-label={t("piatto.sposta.giu", { nome: item.name })}
                         className={AZIONE}
                       >
                         ↓
@@ -288,7 +299,7 @@ export default async function MenuPage({
                     }}
                   >
                     <button type="submit" className={AZIONE}>
-                      {item.available ? "Nascondi" : "Riattiva"}
+                      {item.available ? t("piatto.nascondi") : t("piatto.riattiva")}
                     </button>
                   </form>
                   <form
@@ -299,10 +310,10 @@ export default async function MenuPage({
                   >
                     <button
                       type="submit"
-                      aria-label={`Duplica ${item.name}`}
+                      aria-label={t("piatto.duplica.di", { nome: item.name })}
                       className={AZIONE}
                     >
-                      Duplica
+                      {t("piatto.duplica")}
                     </button>
                   </form>
                   <form
@@ -312,7 +323,7 @@ export default async function MenuPage({
                     }}
                   >
                     <button type="submit" className={`${AZIONE} text-danger`}>
-                      Elimina
+                      {tc("azione.elimina")}
                     </button>
                   </form>
                 </div>
@@ -350,26 +361,36 @@ export default async function MenuPage({
     );
   }
 
+  /*
+   * Il provider sta anche qui e non solo nel layout: quasi tutto quello che
+   * c'è in pagina è un componente client, e senza contesto scriverebbe in
+   * italiano dentro una pagina inglese. Se il layout ne mette già uno, questo
+   * vale lo stesso valore e non cambia niente.
+   */
   return (
+    <LinguaProvider lingua={lingua}>
     <main className="mx-auto max-w-3xl space-y-8 px-4 py-5">
       <header className="space-y-3">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <div>
-            <h1 className="text-lg font-semibold">Menu</h1>
+            <h1 className="text-lg font-semibold">{t("pagina.titolo")}</h1>
             {/* Quale modello è in uso stava solo in fondo alla pagina, dentro
                 il selettore, dove si confondeva con quello che si sta
                 scegliendo. È la prima cosa da sapere aprendo il menu. */}
             <p className="mt-0.5 text-sm text-muted">
-              Formato in uso:{" "}
+              {t("pagina.formato.in.uso")}{" "}
               <strong className="text-foreground">{nomeModello}</strong>
               {" · "}
               <a href="#formato" className="underline underline-offset-2">
-                cambia
+                {t("pagina.formato.cambia")}
               </a>
             </p>
           </div>
           <p className="text-sm text-muted">
-            {items.length} piatti in {categories.length} categorie
+            {t("pagina.riepilogo", {
+              piatti: items.length,
+              categorie: categories.length,
+            })}
           </p>
         </div>
 
@@ -377,17 +398,17 @@ export default async function MenuPage({
           <ul className="flex flex-wrap gap-2 text-xs">
             {senzaAllergeni > 0 && (
               <li className="rounded-full border border-amber-400 px-3 py-1 text-amber-700">
-                {senzaAllergeni} senza allergeni — obbligatori per legge
+                {t("avviso.senza.allergeni", { n: senzaAllergeni })}
               </li>
             )}
             {senzaFoto > 0 && (
               <li className="rounded-full border border-border px-3 py-1 text-muted">
-                {senzaFoto} senza foto
+                {t("avviso.senza.foto", { n: senzaFoto })}
               </li>
             )}
             {nascosti > 0 && (
               <li className="rounded-full border border-border px-3 py-1 text-muted">
-                {nascosti} nascosti al cliente
+                {t("avviso.nascosti", { n: nascosti })}
               </li>
             )}
             {mancanti
@@ -397,7 +418,7 @@ export default async function MenuPage({
                   key={m.codice}
                   className="rounded-full border border-amber-400 px-3 py-1 text-amber-700"
                 >
-                  {m.n} da tradurre in {m.nome}
+                  {t("avviso.da.tradurre", { n: m.n, lingua: m.nome })}
                 </li>
               ))}
           </ul>
@@ -422,14 +443,14 @@ export default async function MenuPage({
               <input
                 name="name"
                 defaultValue={cat.name}
-                aria-label={`Nome della categoria ${cat.name}`}
+                aria-label={t("categoria.nome", { nome: cat.name })}
                 className="min-h-11 w-full min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-2 text-base font-semibold hover:border-border focus:border-border focus:bg-background"
               />
               <button
                 type="submit"
                 className="min-h-11 shrink-0 rounded-lg border border-border px-3 text-sm"
               >
-                Rinomina
+                {t("categoria.rinomina")}
               </button>
             </form>
 
@@ -443,7 +464,7 @@ export default async function MenuPage({
                 >
                   <button
                     type="submit"
-                    aria-label={`Sposta ${cat.name} su`}
+                    aria-label={t("categoria.sposta.su", { nome: cat.name })}
                     className={AZIONE}
                   >
                     ↑
@@ -459,7 +480,7 @@ export default async function MenuPage({
                 >
                   <button
                     type="submit"
-                    aria-label={`Sposta ${cat.name} giù`}
+                    aria-label={t("categoria.sposta.giu", { nome: cat.name })}
                     className={AZIONE}
                   >
                     ↓
@@ -473,7 +494,7 @@ export default async function MenuPage({
                 }}
               >
                 <button type="submit" className={`${AZIONE} text-danger`}>
-                  Elimina categoria
+                  {t("categoria.elimina")}
                 </button>
               </form>
             </div>
@@ -487,17 +508,19 @@ export default async function MenuPage({
 
       {itemsByCategory.get(null) && (
         <section className="space-y-3">
-          <h2 className="px-2 text-base font-semibold">Senza categoria</h2>
+          <h2 className="px-2 text-base font-semibold">
+            {t("pagina.senza.categoria")}
+          </h2>
           {renderItems(itemsByCategory.get(null)!)}
         </section>
       )}
 
       <section className="space-y-3 border-t border-border pt-6">
-        <h2 className="font-semibold">Nuova categoria</h2>
+        <h2 className="font-semibold">{t("categoria.nuova.titolo")}</h2>
         <form action={addCategory} className="flex flex-wrap gap-2">
           <input
             name="name"
-            placeholder="Antipasti, Primi, Dolci…"
+            placeholder={t("categoria.nuova.segnaposto")}
             required
             className="min-h-11 w-full min-w-0 flex-1 rounded-lg border border-border bg-background px-3 sm:w-auto"
           />
@@ -505,43 +528,46 @@ export default async function MenuPage({
             type="submit"
             className="min-h-11 flex-1 rounded-full bg-accent px-5 font-medium text-accent-foreground sm:flex-none"
           >
-            Aggiungi categoria
+            {t("categoria.nuova.aggiungi")}
           </button>
         </form>
         {categories.length === 0 && (
-          <AggiungiPiatto categoryId={null} categoryName="nessuna categoria" />
+          <AggiungiPiatto
+            categoryId={null}
+            categoryName={t("pagina.nessuna.categoria")}
+          />
         )}
       </section>
 
       <RepartiForm reparti={reparti} usate={categoriePerReparto} />
 
       <section className="space-y-3 border-t border-border pt-6">
-        <h2 id="formato" className="scroll-mt-20 font-semibold">Che locale sei</h2>
-        <p className="text-sm text-muted">
-          Imposta categorie e scelte tipiche del tuo formato, e ti ricorda
-          quello che in quel formato si dimentica.
-        </p>
+        <h2 id="formato" className="scroll-mt-20 font-semibold">
+          {t("sezione.formato.titolo")}
+        </h2>
+        <p className="text-sm text-muted">{t("sezione.formato.testo")}</p>
         <ModelloForm tipoAttuale={venueRow?.venue_type ?? "ristorante"} />
       </section>
 
       <section className="space-y-3 border-t border-border pt-6">
-        <h2 className="font-semibold">Lingue del menu</h2>
+        <h2 className="font-semibold">{t("sezione.lingue.titolo")}</h2>
         <LingueForm attive={lingueAttive} />
       </section>
 
       <section className="space-y-4 border-t border-border pt-6">
-        <h2 className="font-semibold">Importa un menu esistente</h2>
+        <h2 className="font-semibold">{t("sezione.importa.titolo")}</h2>
 
         <div className="rounded-xl border border-border bg-surface p-4">
-          <h3 className="mb-2 text-sm font-medium">Dalla cassa</h3>
+          <h3 className="mb-2 text-sm font-medium">{t("sezione.importa.cassa")}</h3>
           <TilbyImportForm connected={Boolean(venueRow?.tilby_token)} />
         </div>
 
         <div className="rounded-xl border border-border bg-surface p-4">
-          <h3 className="mb-2 text-sm font-medium">Da file CSV o TSV</h3>
+          <h3 className="mb-2 text-sm font-medium">{t("sezione.importa.file")}</h3>
           <ImportForm />
         </div>
       </section>
     </main>
+    </LinguaProvider>
   );
 }

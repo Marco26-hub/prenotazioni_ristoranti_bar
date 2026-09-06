@@ -2,6 +2,9 @@
 
 import { useActionState, useState, useTransition } from "react";
 import { salvaRt, generaCodiceAgente, type EsitoFiscale } from "./actions";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tComune } from "@repo/shared/i18n/comune";
+import { tSoldi } from "@/i18n/soldi";
 
 const CAMPO =
   "min-h-11 w-full rounded-lg border border-border bg-background px-3 text-base";
@@ -43,6 +46,9 @@ export function RtForm({
   agenteVistoIl: string | null;
   agenteFermo: boolean;
 }) {
+  const lingua = useLingua();
+  const t = tSoldi(lingua);
+  const tc = tComune(lingua);
   const [state, azione, pending] = useActionState<EsitoFiscale | null, FormData>(
     async (_p, formData) => salvaRt(formData),
     null
@@ -64,31 +70,28 @@ export function RtForm({
             onChange={(e) => setAcceso(e.target.checked)}
             className="h-4 w-4"
           />
-          Metti in coda un documento commerciale a ogni conto chiuso
+          {t("rt.coda")}
         </label>
 
         {acceso && (
           <>
             <div>
               <label className="mb-1 block text-sm" htmlFor="matricola">
-                Matricola del registratore
+                {t("rt.matricola.etichetta")}
               </label>
               <input
                 id="matricola"
                 name="matricola"
                 defaultValue={matricola}
-                placeholder="es. 99XXX1234567"
+                placeholder={t("rt.matricola.segnaposto")}
                 className={CAMPO}
               />
-              <p className="mt-1 text-xs text-muted">
-                È quella che hai comunicato all&apos;Agenzia collegando il POS
-                al registratore.
-              </p>
+              <p className="mt-1 text-xs text-muted">{t("rt.matricola.aiuto")}</p>
             </div>
 
             <div>
               <label className="mb-1 block text-sm" htmlFor="stacco">
-                A che ora finisce la giornata di servizio
+                {t("rt.stacco.etichetta")}
               </label>
               <select
                 id="stacco"
@@ -102,26 +105,21 @@ export function RtForm({
                   </option>
                 ))}
               </select>
-              <p className="mt-1 text-xs text-muted">
-                I corrispettivi si chiudono per giornata di servizio, non a
-                mezzanotte: chi chiude alle due mette le 5:00. Un bar che apre
-                alle sei mette un&apos;ora prima, o i primi caffè finiscono
-                nella giornata di ieri.
-              </p>
+              <p className="mt-1 text-xs text-muted">{t("rt.stacco.aiuto")}</p>
             </div>
 
             <fieldset className="space-y-1">
-              <legend className="mb-1 text-sm font-medium">Come si emette</legend>
+              <legend className="mb-1 text-sm font-medium">{t("rt.come.legenda")}</legend>
               {[
                 [
                   "agente",
-                  "Un programma sulla cassa",
-                  "Gira sul computer del locale, prende i documenti dalla coda e li fa stampare al registratore. La stampante sta sulla tua rete e da qui non la raggiungiamo: serve qualcosa lì.",
+                  t("rt.modo.agente.titolo"),
+                  t("rt.modo.agente.testo"),
                 ],
                 [
                   "manuale",
-                  "Li batto io in cassa",
-                  "Il gestionale non emette niente: ti prepara il riepilogo di giornata per metodo di pagamento, e tu lo batti come hai sempre fatto.",
+                  t("rt.modo.manuale.titolo"),
+                  t("rt.modo.manuale.testo"),
                 ],
               ].map(([valore, titolo, spiegazione]) => (
                 <label
@@ -153,7 +151,7 @@ export function RtForm({
           disabled={pending}
           className="min-h-11 rounded-full bg-accent px-5 text-sm font-medium text-accent-foreground disabled:opacity-60"
         >
-          {pending ? "Salvo…" : "Salva"}
+          {pending ? t("rt.salva.corso") : tc("azione.salva")}
         </button>
 
         {state?.error && <p className="text-sm text-danger">{state.error}</p>}
@@ -164,23 +162,20 @@ export function RtForm({
         <div className="space-y-3 rounded-lg border border-border p-3">
           <div>
             <label className="mb-1 block text-sm" htmlFor="marca">
-              Marca della stampante fiscale
+              {t("rt.marca.etichetta")}
             </label>
             <select id="marca" name="marca" defaultValue={marca} className={CAMPO} form="rt">
               <option value="epson">Epson</option>
               <option value="custom">Custom</option>
               <option value="rch">RCH</option>
             </select>
-            <p className="mt-1 text-xs text-muted">
-              Parlano dialetti diversi. Se non sai quale hai, c&apos;è scritto
-              sulla stampante.
-            </p>
+            <p className="mt-1 text-xs text-muted">{t("rt.marca.aiuto")}</p>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-sm" htmlFor="operatore">
-                Numero operatore
+                {t("rt.operatore.etichetta")}
               </label>
               <input
                 id="operatore"
@@ -195,13 +190,13 @@ export function RtForm({
             </div>
             <div>
               <label className="mb-1 block text-sm" htmlFor="percorso">
-                Percorso, se il modello lo cambia
+                {t("rt.percorso.etichetta")}
               </label>
               <input
                 id="percorso"
                 name="percorso"
                 defaultValue={percorso}
-                placeholder="lascia vuoto"
+                placeholder={t("rt.percorso.segnaposto")}
                 className={CAMPO}
                 form="rt"
               />
@@ -209,25 +204,19 @@ export function RtForm({
           </div>
 
           <div>
-            <p className="text-sm font-medium">Reparti IVA</p>
-            <p className="mt-0.5 text-xs text-muted">
-              Sulla stampante ogni aliquota sta su un reparto numerato, e la
-              numerazione l&apos;ha decisa chi l&apos;ha configurata. Mandare
-              tutto sul reparto 1 vuol dire dichiarare tutto con
-              l&apos;aliquota di quel reparto: nessun errore a schermo, un
-              errore fiscale in silenzio.
-            </p>
+            <p className="text-sm font-medium">{t("rt.reparti.titolo")}</p>
+            <p className="mt-0.5 text-xs text-muted">{t("rt.reparti.aiuto")}</p>
             <div className="mt-2 grid gap-2 sm:grid-cols-3">
               {(aliquote.length > 0 ? aliquote : [4, 10, 22]).map((a) => (
                 <label key={a} className="text-xs font-medium text-muted">
-                  IVA {a}%
+                  {t("rt.reparti.aliquota", { aliquota: a })}
                   <input
                     name={`reparto-${a}`}
                     type="number"
                     min="1"
                     max="99"
                     defaultValue={reparti[String(a)] ?? ""}
-                    placeholder="reparto"
+                    placeholder={t("rt.reparti.segnaposto")}
                     className={`${CAMPO} mt-1`}
                     form="rt"
                   />
@@ -235,25 +224,22 @@ export function RtForm({
               ))}
             </div>
             {aliquote.length > 0 && (
-              <p className="mt-1 text-xs text-muted">
-                Queste sono le aliquote che compaiono davvero nel tuo menu.
-              </p>
+              <p className="mt-1 text-xs text-muted">{t("rt.reparti.dal_menu")}</p>
             )}
           </div>
 
-          <p className="text-sm font-medium">Codice per il programma sulla cassa</p>
+          <p className="text-sm font-medium">{t("rt.codice.titolo")}</p>
 
           {haCodice && (
             <p className="mt-1 text-xs text-muted">
               {agenteFermo ? (
                 <span className="text-danger">
-                  La cassa non si fa sentire
-                  {agenteVistoIl ? ` dalle ${agenteVistoIl}` : " da quando hai generato il codice"}:
-                  i documenti restano in coda. Controlla che il programma sia
-                  acceso.
+                  {agenteVistoIl
+                    ? t("rt.cassa.ferma.da", { quando: agenteVistoIl })
+                    : t("rt.cassa.ferma.mai")}
                 </span>
               ) : (
-                <>Cassa collegata, ultimo contatto {agenteVistoIl}.</>
+                <>{t("rt.cassa.collegata", { quando: agenteVistoIl ?? "" })}</>
               )}
             </p>
           )}
@@ -271,24 +257,19 @@ export function RtForm({
             className="mt-2 min-h-11 rounded-full border border-border px-5 text-sm disabled:opacity-60"
           >
             {generando
-              ? "Genero…"
+              ? t("rt.codice.corso")
               : haCodice
-                ? "Genera un codice nuovo"
-                : "Genera il codice"}
+                ? t("rt.codice.rigenera")
+                : t("rt.codice.genera")}
           </button>
 
           {haCodice && !segreto && (
-            <p className="mt-1 text-xs text-muted">
-              Generarne uno nuovo spegne il precedente: è il modo di togliere
-              l&apos;accesso a un computer che non c&apos;è più.
-            </p>
+            <p className="mt-1 text-xs text-muted">{t("rt.codice.rigenera.aiuto")}</p>
           )}
 
           {segreto && (
             <div className="mt-2">
-              <p className="text-xs text-danger">
-                Copialo adesso: non si può rivedere.
-              </p>
+              <p className="text-xs text-danger">{t("rt.codice.copia")}</p>
               <code className="mt-1 block overflow-x-auto rounded-lg bg-background p-3 text-xs">
                 {segreto}
               </code>

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tSala } from "@/i18n/sala";
 import {
   disegnaLocandina,
   pdfLocandine,
@@ -19,6 +21,7 @@ export type { DatiLocandina };
  * tavola. Qui esce un pezzo finito, con il marchio del locale.
  */
 export function ScaricaLocandina({ dati }: { dati: DatiLocandina }) {
+  const t = tSala(useLingua());
   const [errore, setErrore] = useState<string | null>(null);
   const [inCorso, setInCorso] = useState(false);
 
@@ -28,7 +31,7 @@ export function ScaricaLocandina({ dati }: { dati: DatiLocandina }) {
     try {
       await fn();
     } catch (e) {
-      setErrore(e instanceof Error ? e.message : "Non è stato possibile creare il file");
+      setErrore(e instanceof Error ? e.message : t("locandina.errore.file"));
     } finally {
       setInCorso(false);
     }
@@ -42,35 +45,37 @@ export function ScaricaLocandina({ dati }: { dati: DatiLocandina }) {
           disabled={inCorso}
           onClick={() =>
             esegui(async () => {
-              const canvas = await disegnaLocandina(dati);
+              const canvas = await disegnaLocandina(dati, t);
               const blob = await new Promise<Blob | null>((r) =>
                 canvas.toBlob(r, "image/png")
               );
-              if (!blob) throw new Error("Immagine non generata");
-              scarica(blob, `tavolo-${dati.codice}.png`);
+              if (!blob) throw new Error(t("locandina.errore.png"));
+              scarica(blob, `${t("locandina.file.tavolo")}-${dati.codice}.png`);
             })
           }
           className="inline-flex min-h-11 items-center rounded-full border border-border px-4 text-sm disabled:opacity-50"
         >
-          {inCorso ? "Preparo…" : "Scarica PNG"}
+          {inCorso ? t("locandina.preparo") : t("locandina.scarica_png")}
         </button>
         <button
           type="button"
           disabled={inCorso}
           onClick={() =>
             esegui(async () => {
-              const blob = await pdfLocandine([dati]);
-              scarica(blob, `tavolo-${dati.codice}-stampa.pdf`);
+              const blob = await pdfLocandine([dati], t);
+              scarica(
+                blob,
+                `${t("locandina.file.tavolo")}-${dati.codice}-${t("locandina.file.stampa")}.pdf`
+              );
             })
           }
           className="inline-flex min-h-11 items-center rounded-full border border-accent px-4 text-sm font-medium disabled:opacity-50"
         >
-          PDF per la tipografia
+          {t("locandina.pdf_stampa")}
         </button>
       </div>
       <p className="mt-1 text-xs text-muted">
-        A6 a 300 dpi. Il PDF ha {ABBONDANZA_MM} mm di abbondanza per lato e i
-        crocini di taglio.
+        {t("locandina.nota_stampa", { mm: ABBONDANZA_MM })}
       </p>
       {errore && <p className="mt-1 text-xs text-danger">{errore}</p>}
     </div>

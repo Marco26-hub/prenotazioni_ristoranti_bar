@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { db } from "@repo/shared/db";
 import { inviaEmail } from "@repo/shared/email";
-import { formattaOrario } from "@repo/shared/prenotazioni";
+import { formattaOrarioLingua } from "@repo/shared/prenotazioni";
+import { tEmail } from "@repo/shared/i18n/email";
+import type { LinguaUI } from "@repo/shared/i18n";
 import { linkDisdetta } from "@repo/shared/prenotazioni-token";
 import { messaggioErrore } from "@repo/shared/errori";
 import { decryptSecret } from "@repo/shared/crypto";
@@ -87,6 +89,7 @@ export async function GET(request: Request) {
       party_size: number;
       reserved_at: Date;
       cancel_token: string | null;
+      lingua: LinguaUI;
       venue_name: string;
       slug: string;
       public_phone: string | null;
@@ -123,7 +126,7 @@ export async function GET(request: Request) {
        and r.reserved_at between now() + interval '23 hours'
                              and now() + interval '25 hours'
     returning r.id, r.customer_name, r.customer_email, r.party_size,
-              r.reserved_at, r.cancel_token,
+              r.reserved_at, r.cancel_token, r.lingua,
               v.name as venue_name, v.slug, v.public_phone, v.timezone,
               v.resend_api_key, v.resend_from,
               v.reservation_email, v.public_email`;
@@ -136,29 +139,33 @@ export async function GET(request: Request) {
 
   for (const r of righe) {
     const fuso = r.timezone ?? "Europe/Rome";
-    const quando = formattaOrario(r.reserved_at, fuso);
+    // La lingua è quella salvata sulla prenotazione: qui non c'è una
+    // richiesta da cui dedurla, e chi ha prenotato in inglese deve ricevere
+    // in inglese proprio il messaggio che contiene il link per disdire.
+    const t = tEmail(r.lingua ?? "it");
+    const quando = formattaOrarioLingua(r.reserved_at, fuso, r.lingua ?? "it");
 
     const esito = await inviaEmail({
       a: r.customer_email,
       rispondiA: r.reservation_email ?? r.public_email ?? undefined,
       mittenteLocale: mittenteDelLocale(r.resend_api_key, r.resend_from, "promemoria"),
-      oggetto: `Domani ti aspettiamo — ${r.venue_name}`,
+      oggetto: t("promemoria.oggetto", { locale: r.venue_name }),
       testo: [
-        `Ciao ${r.customer_name},`,
+        t("promemoria.saluto", { nome: r.customer_name }),
         "",
-        `un promemoria: domani hai un tavolo da ${r.venue_name}.`,
+        t("promemoria.corpo", { locale: r.venue_name }),
         "",
-        `Quando: ${quando}`,
-        `Persone: ${r.party_size}`,
+        t("promemoria.quando", { quando }),
+        t("promemoria.persone", { persone: r.party_size }),
         "",
         r.public_phone
-          ? `Se cambia qualcosa chiamaci al ${r.public_phone}.`
-          : "Se cambia qualcosa rispondi a questa email.",
+          ? t("promemoria.telefono", { telefono: r.public_phone })
+          : t("promemoria.rispondi"),
         ...(r.cancel_token
           ? [
               "",
-              "Se non riesci a venire, disdici da qui: ci vuole un momento e",
-              "il tavolo torna disponibile per qualcun altro.",
+              t("promemoria.disdetta.1"),
+              t("promemoria.disdetta.2"),
               linkDisdetta(base, r.slug, r.cancel_token),
             ]
           : []),

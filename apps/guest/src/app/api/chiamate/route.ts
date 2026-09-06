@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@repo/shared/db";
 import { checkRateLimit, clientKey } from "@repo/shared/rate-limit";
+import { tApi, linguaRichiesta } from "@/i18n/api";
 
 /**
  * Chiamata dal tavolo.
@@ -23,9 +24,11 @@ const MOTIVI = new Set(["contanti", "cameriere", "conto"]);
 const DOCUMENTI = new Set(["scontrino", "fattura"]);
 
 export async function POST(request: Request) {
+  const t = tApi(linguaRichiesta(request));
+
   const corpo = (await request.json().catch(() => null)) as Corpo | null;
   if (!corpo?.token || !MOTIVI.has(corpo.motivo)) {
-    return NextResponse.json({ error: "Richiesta non valida" }, { status: 400 });
+    return NextResponse.json({ error: t("errore.richiesta_non_valida") }, { status: 400 });
   }
 
   /*
@@ -45,12 +48,12 @@ export async function POST(request: Request) {
   );
   if (!allowed) {
     return NextResponse.json(
-      { error: "Hai già chiamato. Il personale sta arrivando." },
+      { error: t("chiamata.errore.gia_chiamato") },
       { status: 429 }
     );
   }
   if (corpo.documento && !DOCUMENTI.has(corpo.documento)) {
-    return NextResponse.json({ error: "Documento non valido" }, { status: 400 });
+    return NextResponse.json({ error: t("chiamata.errore.documento_non_valido") }, { status: 400 });
   }
 
   const sql = db();
@@ -65,7 +68,7 @@ export async function POST(request: Request) {
 
   if (!sessione) {
     return NextResponse.json(
-      { error: "Nessun tavolo aperto: chiedi al personale" },
+      { error: t("chiamata.errore.nessun_tavolo") },
       { status: 404 }
     );
   }
@@ -87,7 +90,7 @@ export async function POST(request: Request) {
     tavolo: sessione.code,
     messaggio:
       corpo.motivo === "contanti"
-        ? "Il personale sta arrivando al tavolo per l'incasso."
-        : "Il personale sta arrivando.",
+        ? t("chiamata.messaggio.contanti")
+        : t("chiamata.messaggio.arrivo"),
   });
 }

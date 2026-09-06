@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@repo/shared/db";
 import { localeDalToken } from "@/lib/rt-auth";
 import { messaggioErrore } from "@repo/shared/errori";
+import { RT_SENZA_NUMERO } from "@/lib/rt-errori";
 
 /**
  * L'agente racconta com'è andata.
@@ -64,7 +65,7 @@ export async function POST(request: Request) {
              corpo.esito === "errore"
                ? (corpo.errore ?? "").slice(0, 500)
                : senzaNumero
-                 ? "Emesso, ma la stampante non ha restituito il numero: recuperalo dal registratore."
+                 ? RT_SENZA_NUMERO
                  : null
            }
      where id = ${corpo.id} and venue_id = ${locale.venueId}

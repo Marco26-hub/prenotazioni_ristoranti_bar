@@ -9,9 +9,11 @@ import { decryptSecret } from "@repo/shared/crypto";
 import {
   assegnaTavoliPrenotazione,
   slotAlternativi,
-  formattaOrario,
   interpretaOrario,
 } from "@repo/shared/prenotazioni";
+import { normalizzaLinguaUI } from "@repo/shared/i18n";
+import { linguaUtente } from "@/lib/lingua";
+import { tPrenotazioni, orarioLungo } from "@/i18n/prenotazioni";
 
 export interface EsitoPrenotazione {
   error?: string;
@@ -32,6 +34,8 @@ interface RigaPrenotazione {
   status: Stato;
   /** Null sulle prenotazioni nate prima della disdetta autonoma. */
   cancel_token: string | null;
+  /** La lingua di chi ha prenotato, non di chi sta al gestionale. */
+  lingua: string;
 }
 
 interface RigaLocale {
@@ -60,7 +64,7 @@ async function caricaContesto(venueId: string, reservationId: string) {
   const sql = db();
   const [prenotazione] = await sql<RigaPrenotazione[]>`
     select id, customer_name, customer_email, customer_phone, party_size,
-           reserved_at, notes, status, cancel_token
+           reserved_at, notes, status, cancel_token, lingua
       from reservations
      where id = ${reservationId} and venue_id = ${venueId}`;
 
@@ -71,6 +75,17 @@ async function caricaContesto(venueId: string, reservationId: string) {
       from venues where id = ${venueId}`;
 
   return { sql, prenotazione, locale };
+}
+
+/**
+ * La lingua in cui scrivere al cliente.
+ *
+ * Sta sulla riga della prenotazione e non sull'utente collegato: al
+ * gestionale c'è il ristoratore, l'email la legge chi ha prenotato. Il
+ * ripiego è l'italiano, come il default della colonna.
+ */
+function linguaCliente(prenotazione: RigaPrenotazione) {
+  return normalizzaLinguaUI(prenotazione.lingua) ?? "it";
 }
 
 /**
@@ -96,9 +111,10 @@ export async function confermaPrenotazione(
   reservationId: string
 ): Promise<EsitoPrenotazione> {
   const { venue, userId } = await requireVenue();
+  const t = tPrenotazioni(await linguaUtente());
   const { sql, prenotazione, locale } = await caricaContesto(venue.venueId, reservationId);
 
-  if (!prenotazione) return { error: "Prenotazione non trovata" };
+  if (!prenotazione) return { error: t("errore.non_trovata") };
 
   /*
    * Una richiesta già chiusa non si riapre confermandola.
@@ -112,8 +128,8 @@ export async function confermaPrenotazione(
     return {
       error:
         prenotazione.status === "cancelled"
-          ? "Il cliente ha disdetto questa prenotazione: non si può confermare."
-          : "Questa richiesta è già stata chiusa.",
+          ? t("errore.disdetta_dal_cliente")
+          : t("errore.gia_chiusa"),
     };
   }
 
@@ -137,39 +153,50 @@ export async function confermaPrenotazione(
   });
 
   if (tavoli.length === 0) {
-    return { error: "Nessun tavolo libero adatto in questa fascia oraria." };
+    return { error: t("errore.nessun_tavolo_fascia") };
   }
   const tavoliTesto = tavoli.map((t) => t.code).join(" + ");
 
   let avviso: string | undefined;
 
   if (prenotazione.customer_email) {
-    const quando = formattaOrario(prenotazione.reserved_at, locale?.timezone ?? "Europe/Rome");
+    // L'email la legge il cliente: va nella sua lingua, non in quella di chi
+    // ha premuto Conferma.
+    const tc = tPrenotazioni(linguaCliente(prenotazione));
+    const quando = orarioLungo(
+      prenotazione.reserved_at,
+      locale?.timezone ?? "Europe/Rome",
+      tc.lingua
+    );
     const esito = await inviaEmail({
       a: prenotazione.customer_email,
       rispondiA: locale?.reservation_email ?? locale?.public_email ?? undefined,
       mittenteLocale: mittenteDi(locale),
-      oggetto: `Prenotazione confermata — ${locale?.name ?? "il ristorante"}`,
+      oggetto: tc("email.conferma.oggetto", {
+        locale: locale?.name ?? tc("email.locale.ripiego"),
+      }),
       testo: [
-        `Ciao ${prenotazione.customer_name},`,
+        tc("email.saluto", { nome: prenotazione.customer_name }),
         "",
-        `la tua prenotazione da ${locale?.name ?? "noi"} è confermata.`,
+        tc("email.conferma.intro", {
+          locale: locale?.name ?? tc("email.locale.ripiego.noi"),
+        }),
         "",
-        `Quando: ${quando}`,
-        `Persone: ${prenotazione.party_size}`,
-        `Tavolo: ${tavoliTesto}`,
-        prenotazione.notes ? `Richieste: ${prenotazione.notes}` : null,
+        tc("email.conferma.quando", { quando }),
+        tc("email.conferma.persone", { n: prenotazione.party_size }),
+        tc("email.conferma.tavolo", { tavoli: tavoliTesto }),
+        prenotazione.notes ? tc("email.conferma.richieste", { note: prenotazione.notes }) : null,
         "",
         locale?.public_phone
-          ? `Per qualsiasi cambiamento chiamaci al ${locale.public_phone}.`
-          : "Per qualsiasi cambiamento rispondi a questa email.",
+          ? tc("email.conferma.cambiamenti.telefono", { telefono: locale.public_phone })
+          : tc("email.conferma.cambiamenti"),
         // Il link c'è solo sulle prenotazioni nate dopo che la disdetta
         // esiste: alle vecchie non si può mandare un token che non hanno.
         ...(prenotazione.cancel_token
           ? [
               "",
-              "Se non riesci a venire, disdici da qui: ci vuole un momento e",
-              "il tavolo torna disponibile per qualcun altro.",
+              tc("email.conferma.disdetta.riga1"),
+              tc("email.conferma.disdetta.riga2"),
               linkDisdetta(
                 process.env.GUEST_APP_URL ?? "https://ristoranti-guest.vercel.app",
                 locale?.slug ?? "",
@@ -184,14 +211,17 @@ export async function confermaPrenotazione(
 
     await segnaAvviso(sql, reservationId, esito);
     if (!esito.inviata) {
-      avviso = `Confermata, ma l'email al cliente non è partita: ${esito.errore}. Chiamalo${
-        prenotazione.customer_phone ? ` al ${prenotazione.customer_phone}` : ""
-      }.`;
+      avviso = prenotazione.customer_phone
+        ? t("avviso.confermata.email_ko.telefono", {
+            errore: String(esito.errore),
+            telefono: prenotazione.customer_phone,
+          })
+        : t("avviso.confermata.email_ko", { errore: String(esito.errore) });
     }
   } else {
-    avviso = `Confermata. Il cliente non ha lasciato un'email: avvisalo${
-      prenotazione.customer_phone ? ` al ${prenotazione.customer_phone}` : " tu"
-    }.`;
+    avviso = prenotazione.customer_phone
+      ? t("avviso.confermata.senza_email.telefono", { telefono: prenotazione.customer_phone })
+      : t("avviso.confermata.senza_email");
   }
 
   revalidatePath("/dashboard/reservations");
@@ -210,11 +240,16 @@ export async function rifiutaPrenotazione(
   motivo: string
 ): Promise<EsitoPrenotazione> {
   const { venue, userId } = await requireVenue();
+  const t = tPrenotazioni(await linguaUtente());
   const { sql, prenotazione, locale } = await caricaContesto(venue.venueId, reservationId);
 
-  if (!prenotazione) return { error: "Prenotazione non trovata" };
+  if (!prenotazione) return { error: t("errore.non_trovata") };
 
-  const testoMotivo = motivo.trim().slice(0, 300) || "Non abbiamo disponibilità per quell'orario.";
+  // Il motivo lo scrive il ristoratore e finisce tale e quale nell'email: il
+  // ripiego va nella lingua del cliente, non nella sua.
+  const tMotivo = tPrenotazioni(linguaCliente(prenotazione));
+  const testoMotivo =
+    motivo.trim().slice(0, 300) || tMotivo("email.rifiuto.motivo_predefinito");
 
   await sql`
     update reservations
@@ -234,26 +269,40 @@ export async function rifiutaPrenotazione(
 
     const urlPrenota = `${process.env.GUEST_APP_URL ?? "https://ristoranti-guest.vercel.app"}/p/${locale?.slug ?? ""}`;
 
+    // Come sopra: chi legge è il cliente.
+    const tc = tMotivo;
     const esito = await inviaEmail({
       a: prenotazione.customer_email,
       rispondiA: locale?.reservation_email ?? locale?.public_email ?? undefined,
       mittenteLocale: mittenteDi(locale),
-      oggetto: `Prenotazione non disponibile — ${locale?.name ?? "il ristorante"}`,
+      oggetto: tc("email.rifiuto.oggetto", {
+        locale: locale?.name ?? tc("email.locale.ripiego"),
+      }),
       testo: [
-        `Ciao ${prenotazione.customer_name},`,
+        tc("email.saluto", { nome: prenotazione.customer_name }),
         "",
-        `purtroppo per ${formattaOrario(prenotazione.reserved_at, fuso)} non possiamo accogliere ${prenotazione.party_size} persone.`,
+        tc("email.rifiuto.intro", {
+          quando: orarioLungo(prenotazione.reserved_at, fuso, tc.lingua),
+          n: prenotazione.party_size,
+        }),
         "",
         testoMotivo,
         "",
         alternative.length > 0
-          ? ["Abbiamo posto in questi orari:", ...alternative.map((d) => `— ${formattaOrario(d, fuso)}`)].join("\n")
-          : "Puoi provare un altro giorno o un altro orario.",
+          ? [
+              tc("email.rifiuto.alternative"),
+              ...alternative.map((d) =>
+                tc("email.rifiuto.alternativa", { quando: orarioLungo(d, fuso, tc.lingua) })
+              ),
+            ].join("\n")
+          : tc("email.rifiuto.nessuna_alternativa"),
         "",
-        `Prenota qui: ${urlPrenota}`,
-        locale?.public_phone ? `Oppure chiamaci al ${locale.public_phone}.` : null,
+        tc("email.rifiuto.prenota", { url: urlPrenota }),
+        locale?.public_phone
+          ? tc("email.rifiuto.telefono", { telefono: locale.public_phone })
+          : null,
         "",
-        "Ci dispiace, e ci farebbe piacere vederti presto.",
+        tc("email.rifiuto.saluto"),
       ]
         .filter((r) => r !== null)
         .join("\n"),
@@ -261,14 +310,17 @@ export async function rifiutaPrenotazione(
 
     await segnaAvviso(sql, reservationId, esito);
     if (!esito.inviata) {
-      avviso = `Rifiutata, ma l'email al cliente non è partita: ${esito.errore}. Chiamalo${
-        prenotazione.customer_phone ? ` al ${prenotazione.customer_phone}` : ""
-      }.`;
+      avviso = prenotazione.customer_phone
+        ? t("avviso.rifiutata.email_ko.telefono", {
+            errore: String(esito.errore),
+            telefono: prenotazione.customer_phone,
+          })
+        : t("avviso.rifiutata.email_ko", { errore: String(esito.errore) });
     }
   } else {
-    avviso = `Rifiutata. Il cliente non ha lasciato un'email: avvisalo${
-      prenotazione.customer_phone ? ` al ${prenotazione.customer_phone}` : " tu"
-    }.`;
+    avviso = prenotazione.customer_phone
+      ? t("avviso.rifiutata.senza_email.telefono", { telefono: prenotazione.customer_phone })
+      : t("avviso.rifiutata.senza_email");
   }
 
   revalidatePath("/dashboard/reservations");
@@ -278,6 +330,7 @@ export async function rifiutaPrenotazione(
 /** Inserimento manuale dallo staff: nasce già confermata, l'ha presa una persona. */
 export async function addReservation(formData: FormData) {
   const { venue } = await requireVenue();
+  const t = tPrenotazioni(await linguaUtente());
   const customerName = String(formData.get("customerName") ?? "").trim();
   const partySize = Number.parseInt(String(formData.get("partySize") ?? "0"), 10);
   const reservedAt = String(formData.get("reservedAt") ?? "");
@@ -315,7 +368,7 @@ export async function addReservation(formData: FormData) {
       quando,
       partySize
     );
-    if (tavoli.length === 0) throw new Error("Nessun tavolo libero adatto");
+    if (tavoli.length === 0) throw new Error(t("errore.nessun_tavolo"));
   });
   revalidatePath("/dashboard/reservations");
 }

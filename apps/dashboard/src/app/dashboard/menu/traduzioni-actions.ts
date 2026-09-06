@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { requireRole } from "@/lib/authz";
 import { LINGUE, type Traduzioni } from "@repo/shared/lingue";
+import { linguaUtente } from "@/lib/lingua";
+import { tMenuAdmin } from "@/i18n/menu";
 
 export interface EsitoTraduzione {
   error?: string;
@@ -15,10 +17,11 @@ const CODICI = new Set(LINGUE.map((l) => l.codice));
 /** Salva la traduzione di un piatto in una lingua. */
 export async function salvaTraduzione(formData: FormData): Promise<EsitoTraduzione> {
   const { venue } = await requireRole(["owner", "manager"]);
+  const t = tMenuAdmin(await linguaUtente());
 
   const itemId = String(formData.get("itemId") ?? "");
   const lingua = String(formData.get("lingua") ?? "");
-  if (!itemId || !CODICI.has(lingua)) return { error: "Richiesta non valida" };
+  if (!itemId || !CODICI.has(lingua)) return { error: t("traduzioni.errore.richiesta") };
 
   const campo = (k: string) => {
     const v = String(formData.get(k) ?? "").trim();
@@ -29,7 +32,7 @@ export async function salvaTraduzione(formData: FormData): Promise<EsitoTraduzio
   const [riga] = await sql<{ translations: Traduzioni }[]>`
     select translations from menu_items
      where id = ${itemId} and venue_id = ${venue.venueId}`;
-  if (!riga) return { error: "Piatto non trovato" };
+  if (!riga) return { error: t("traduzioni.errore.piatto") };
 
   const nuove: Traduzioni = { ...riga.translations };
   const valori = {
@@ -53,12 +56,13 @@ export async function salvaTraduzione(formData: FormData): Promise<EsitoTraduzio
      where id = ${itemId} and venue_id = ${venue.venueId}`;
 
   revalidatePath("/dashboard/menu");
-  return { success: "Salvato" };
+  return { success: t("traduzioni.salvato") };
 }
 
 /** Lingue offerte dal locale, oltre all'italiano. */
 export async function salvaLingue(formData: FormData): Promise<EsitoTraduzione> {
   const { venue } = await requireRole(["owner", "manager"]);
+  const t = tMenuAdmin(await linguaUtente());
 
   const scelte = formData
     .getAll("lingue")
@@ -74,7 +78,7 @@ export async function salvaLingue(formData: FormData): Promise<EsitoTraduzione> 
   return {
     success:
       scelte.length === 0
-        ? "Menu solo in italiano: al cliente non compare nessun selettore."
-        : `Attivate ${scelte.length} lingue. Traduci i piatti da qui sotto.`,
+        ? t("lingue.nessuna")
+        : t("lingue.attivate", { n: scelte.length }),
   };
 }

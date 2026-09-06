@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { rispondiTicket } from "./actions";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tSuperAdmin } from "@/i18n/superadmin";
 
 export interface Ticket {
   id: string;
@@ -17,6 +19,7 @@ export interface Ticket {
 }
 
 export function TicketRiga({ ticket }: { ticket: Ticket }) {
+  const t = tSuperAdmin(useLingua());
   const [aperto, setAperto] = useState(false);
   const [risposta, setRisposta] = useState(ticket.risposta ?? "");
   const [avviso, setAvviso] = useState<string | null>(null);
@@ -39,18 +42,22 @@ export function TicketRiga({ ticket }: { ticket: Ticket }) {
           <span className="block font-medium">
             {ticket.urgente && (
               <span className="mr-2 rounded-full bg-danger px-2 py-0.5 text-xs text-white">
-                blocca il servizio
+                {t("ticket.urgente")}
               </span>
             )}
             {ticket.locale} — {ticket.oggetto}
           </span>
           <span className="mt-0.5 block text-sm text-muted">
             {ticket.chi} ·{" "}
-            {ore < 24 ? `${ore} ore fa` : `${Math.floor(ore / 24)} giorni fa`}
-            {ticket.stato === "in_corso" && " · presa in carico"}
+            {ore < 24
+              ? t.n(ore, "ticket.ore_fa")
+              : t.n(Math.floor(ore / 24), "ticket.giorni_fa")}
+            {ticket.stato === "in_corso" && t("ticket.in_corso")}
           </span>
         </span>
-        <span className="shrink-0 text-sm text-muted">{aperto ? "chiudi" : "apri"}</span>
+        <span className="shrink-0 text-sm text-muted">
+          {aperto ? t("ticket.chiudi") : t("ticket.apri")}
+        </span>
       </button>
 
       {aperto && (
@@ -61,9 +68,9 @@ export function TicketRiga({ ticket }: { ticket: Ticket }) {
             value={risposta}
             onChange={(e) => setRisposta(e.target.value)}
             rows={3}
-            placeholder="Risposta al locale"
+            placeholder={t("ticket.risposta.placeholder")}
             maxLength={4000}
-            aria-label="Risposta"
+            aria-label={t("ticket.risposta.aria")}
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
           />
 
@@ -79,7 +86,7 @@ export function TicketRiga({ ticket }: { ticket: Ticket }) {
               }
               className="min-h-11 rounded-full border border-border px-4 text-sm disabled:opacity-60"
             >
-              Rispondi, resta aperta
+              {t("ticket.rispondi")}
             </button>
             <button
               type="button"
@@ -92,7 +99,7 @@ export function TicketRiga({ ticket }: { ticket: Ticket }) {
               }
               className="min-h-11 rounded-full bg-accent px-4 text-sm font-medium text-accent-foreground disabled:opacity-60"
             >
-              Rispondi e chiudi
+              {t("ticket.rispondi_chiudi")}
             </button>
           </div>
 

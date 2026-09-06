@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@repo/shared/db";
 import { stripeClient } from "@/lib/stripe";
+import { tImpostazioni } from "@/i18n/impostazioni";
+import { linguaUtente } from "@/lib/lingua";
 
 /**
  * Onboarding Stripe Connect Express per il locale. Non gestiamo noi i dati
@@ -11,12 +13,15 @@ import { stripeClient } from "@/lib/stripe";
  */
 export async function POST() {
   const session = await auth();
+  // Questi messaggi il bottone li mostra così come arrivano: vanno tradotti
+  // qui, o una pagina in inglese risponde in italiano.
+  const t = tImpostazioni(await linguaUtente());
   const venue = session?.venues[0];
   if (!venue) {
-    return NextResponse.json({ error: "Nessun locale associato" }, { status: 403 });
+    return NextResponse.json({ error: t("stripe.errore.nessun_locale") }, { status: 403 });
   }
   if (!["owner", "manager"].includes(venue.role)) {
-    return NextResponse.json({ error: "Permessi insufficienti" }, { status: 403 });
+    return NextResponse.json({ error: t("stripe.errore.permessi") }, { status: 403 });
   }
 
   // Senza questo controllo il gestore riceverebbe un errore generico:
@@ -24,7 +29,7 @@ export async function POST() {
   // non un problema suo.
   if (!process.env.STRIPE_SECRET_KEY) {
     return NextResponse.json(
-      { error: "I pagamenti non sono ancora configurati sulla piattaforma. Contatta l'assistenza." },
+      { error: t("stripe.errore.piattaforma") },
       { status: 503 }
     );
   }
@@ -35,7 +40,7 @@ export async function POST() {
   >`select id, stripe_account_id from venues where id = ${venue.venueId}`;
 
   if (!venueRow) {
-    return NextResponse.json({ error: "Locale non trovato" }, { status: 404 });
+    return NextResponse.json({ error: t("stripe.errore.locale_non_trovato") }, { status: 404 });
   }
 
   const stripe = stripeClient();

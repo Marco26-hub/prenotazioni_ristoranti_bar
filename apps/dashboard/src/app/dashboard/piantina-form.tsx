@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tComune } from "@repo/shared/i18n/comune";
+import { tSala, type TSala } from "@/i18n/sala";
 import { salvaPiantina } from "./piantina-actions";
 import { riconosciTavoli, applicaProposte, type Proposta } from "./riconosci-actions";
 
@@ -17,7 +20,7 @@ const LATO_MAX = 1600;
  * pdfjs è importato al momento dell'uso: pesa parecchio, e la maggior parte
  * dei locali carica un'immagine, non un PDF.
  */
-async function pdfInPng(file: File): Promise<string> {
+async function pdfInPng(file: File, t: TSala): Promise<string> {
   const pdfjs = await import("pdfjs-dist");
   pdfjs.GlobalWorkerOptions.workerSrc = new URL(
     "pdfjs-dist/build/pdf.worker.min.mjs",
@@ -35,7 +38,7 @@ async function pdfInPng(file: File): Promise<string> {
   canvas.width = Math.round(viewport.width);
   canvas.height = Math.round(viewport.height);
   const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Canvas non disponibile");
+  if (!ctx) throw new Error(t("piantina.errore.canvas"));
 
   // Le piantine sono quasi sempre linee nere su nulla: senza fondo bianco
   // diventano linee nere su trasparente, illeggibili sul tema scuro.
@@ -47,11 +50,11 @@ async function pdfInPng(file: File): Promise<string> {
 }
 
 /** Riduce un raster troppo grande prima di trasformarlo in data URL. */
-async function immagineRidotta(file: File): Promise<string> {
+async function immagineRidotta(file: File, t: TSala): Promise<string> {
   const grezzo = await new Promise<string>((res, rej) => {
     const fr = new FileReader();
     fr.onload = () => res(String(fr.result));
-    fr.onerror = () => rej(new Error("File illeggibile"));
+    fr.onerror = () => rej(new Error(t("piantina.errore.file_illeggibile")));
     fr.readAsDataURL(file);
   });
 
@@ -61,7 +64,7 @@ async function immagineRidotta(file: File): Promise<string> {
   const img = await new Promise<HTMLImageElement>((res, rej) => {
     const i = new Image();
     i.onload = () => res(i);
-    i.onerror = () => rej(new Error("Immagine non valida"));
+    i.onerror = () => rej(new Error(t("piantina.errore.immagine")));
     i.src = grezzo;
   });
 
@@ -90,6 +93,9 @@ export function PiantinaForm({
   opacita: number;
   aiAttiva: boolean;
 }) {
+  const lingua = useLingua();
+  const t = tSala(lingua);
+  const tc = tComune(lingua);
   // Locale, per poterla riportare indietro se il salvataggio non riesce.
   const [opacita, setOpacita] = useState(opacitaIniziale);
   const [avviso, setAvviso] = useState<string | null>(null);
@@ -138,12 +144,14 @@ export function PiantinaForm({
     let dataUrl: string;
     try {
       dataUrl =
-        file.type === "application/pdf" ? await pdfInPng(file) : await immagineRidotta(file);
+        file.type === "application/pdf"
+          ? await pdfInPng(file, t)
+          : await immagineRidotta(file, t);
     } catch (e) {
       setAvviso(
         e instanceof Error && e.message
-          ? `Non riesco a leggere il file: ${e.message}`
-          : "Non riesco a leggere il file."
+          ? t("piantina.errore.lettura.dettaglio", { dettaglio: e.message })
+          : t("piantina.errore.lettura")
       );
       setPending(false);
       return;
@@ -156,9 +164,7 @@ export function PiantinaForm({
       const r = await salvaPiantina(fd);
       setAvviso(r.error ?? r.ok ?? null);
     } catch {
-      setAvviso(
-        "Il file va bene, ma non è stato salvato: serve il ruolo di titolare o responsabile."
-      );
+      setAvviso(t("piantina.errore.permessi"));
     } finally {
       setPending(false);
     }
@@ -166,15 +172,16 @@ export function PiantinaForm({
 
   return (
     <div className="mb-3 rounded-xl border border-border bg-surface p-3">
-      <p className="text-sm font-medium">Piantina della sala</p>
-      <p className="mt-0.5 text-xs text-muted">
-        Carica la pianta del locale e disponici sopra i tavoli. PDF, SVG, PNG o
-        JPG. Il PDF viene convertito qui nel browser: si usa la prima pagina.
-      </p>
+      <p className="text-sm font-medium">{t("piantina.titolo")}</p>
+      <p className="mt-0.5 text-xs text-muted">{t("piantina.spiegazione")}</p>
 
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <label className="min-h-11 cursor-pointer rounded-full border border-border px-4 py-2.5 text-sm">
-          {pending ? "Elaboro…" : presente ? "Sostituisci piantina" : "Scegli file"}
+          {pending
+            ? t("piantina.elaboro")
+            : presente
+              ? t("piantina.sostituisci")
+              : t("piantina.scegli")}
           <input
             type="file"
             accept="application/pdf,image/svg+xml,image/png,image/jpeg,image/webp"
@@ -191,7 +198,7 @@ export function PiantinaForm({
         {presente && (
           <>
             <label className="flex items-center gap-2 text-xs text-muted">
-              Trasparenza
+              {t("piantina.trasparenza")}
               <input
                 type="range"
                 min="0"
@@ -219,9 +226,7 @@ export function PiantinaForm({
                       setOpacita(precedente);
                     }
                   } catch {
-                    setAvviso(
-                      "Trasparenza non salvata: serve il ruolo di titolare o responsabile."
-                    );
+                    setAvviso(t("piantina.errore.trasparenza"));
                     setOpacita(precedente);
                   }
                 }}
@@ -233,14 +238,10 @@ export function PiantinaForm({
               type="button"
               disabled={pending || leggendo || !aiAttiva}
               onClick={riconosci}
-              title={
-                aiAttiva
-                  ? undefined
-                  : "Serve la chiave OpenRouter, si imposta in Impostazioni"
-              }
+              title={aiAttiva ? undefined : t("piantina.serve_chiave")}
               className="min-h-11 rounded-full bg-accent px-4 text-sm font-medium text-accent-foreground disabled:opacity-50"
             >
-              {leggendo ? "Leggo la pianta…" : "Riconosci i tavoli"}
+              {leggendo ? t("piantina.leggendo") : t("piantina.riconosci")}
             </button>
 
             <button
@@ -255,7 +256,7 @@ export function PiantinaForm({
               }}
               className="min-h-11 px-2 text-sm text-danger underline underline-offset-4"
             >
-              Rimuovi
+              {t("piantina.rimuovi")}
             </button>
           </>
         )}
@@ -270,11 +271,10 @@ export function PiantinaForm({
       {proposte && proposte.length > 0 && (
         <div className="mt-3 rounded-lg border border-accent p-3">
           <p className="text-sm font-medium">
-            {proposte.length} tavoli riconosciuti
+            {t.n(proposte.length, "piantina.proposte")}
           </p>
           <p className="mt-0.5 text-xs text-muted">
-            Controlla prima di applicare: un tavolo creato per sbaglio finisce
-            sui QR e nei conti. Togli la spunta a quello che non è un tavolo.
+            {t("piantina.proposte.controlla")}
           </p>
 
           <ul className="mt-2 grid gap-1 sm:grid-cols-2">
@@ -295,10 +295,11 @@ export function PiantinaForm({
                     className="h-4 w-4"
                   />
                   <span>
-                    <strong>{p.codice}</strong> · {p.posti}p · {p.forma}
+                    <strong>{p.codice}</strong> ·{" "}
+                    {t("pianta.posti_breve", { n: p.posti })} · {p.forma}
                     {p.esistente && (
                       <span className="ml-1 text-xs text-muted">
-                        (esiste: verrà spostato)
+                        {t("piantina.proposte.esistente")}
                       </span>
                     )}
                   </span>
@@ -315,15 +316,17 @@ export function PiantinaForm({
               className="min-h-11 rounded-full bg-accent px-5 text-sm font-medium text-accent-foreground disabled:opacity-50"
             >
               {leggendo
-                ? "Applico…"
-                : `Applica ${proposte.length - scartate.size} tavoli`}
+                ? t("piantina.proposte.applicando")
+                : t("piantina.proposte.applica", {
+                    n: proposte.length - scartate.size,
+                  })}
             </button>
             <button
               type="button"
               onClick={() => setProposte(null)}
               className="min-h-11 px-3 text-sm underline underline-offset-4"
             >
-              Annulla
+              {tc("azione.annulla")}
             </button>
           </div>
         </div>

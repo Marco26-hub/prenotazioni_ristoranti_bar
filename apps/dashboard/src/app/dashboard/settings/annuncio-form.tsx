@@ -2,6 +2,9 @@
 
 import { useActionState } from "react";
 import { salvaAnnuncio, type AnnuncioResult } from "./annuncio-actions";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tImpostazioni } from "@/i18n/impostazioni";
+import { tComune } from "@repo/shared/i18n/comune";
 
 export interface AnnuncioCorrente {
   title: string | null;
@@ -26,6 +29,8 @@ function perInput(d: Date | null): string {
 }
 
 export function AnnuncioForm({ corrente }: { corrente: AnnuncioCorrente }) {
+  const t = tImpostazioni(useLingua());
+  const c = tComune(useLingua());
   const [state, formAction, pending] = useActionState<AnnuncioResult | null, FormData>(
     async (_prev, formData) => salvaAnnuncio(formData),
     null
@@ -40,26 +45,26 @@ export function AnnuncioForm({ corrente }: { corrente: AnnuncioCorrente }) {
           defaultChecked={corrente.enabled}
           className="h-5 w-5"
         />
-        Mostra l&apos;annuncio ai clienti
+        {t("annuncio.mostra")}
       </label>
 
       <div>
         <label className={ETICHETTA} htmlFor="ann-title">
-          Titolo
+          {t("annuncio.titolo")}
         </label>
         <input
           id="ann-title"
           name="title"
           maxLength={80}
           defaultValue={corrente.title ?? ""}
-          placeholder="Menu del giorno · Serata pesce"
+          placeholder={t("annuncio.titolo.placeholder")}
           className={CAMPO}
         />
       </div>
 
       <div>
         <label className={ETICHETTA} htmlFor="ann-body">
-          Testo
+          {t("annuncio.testo")}
         </label>
         <textarea
           id="ann-body"
@@ -67,17 +72,15 @@ export function AnnuncioForm({ corrente }: { corrente: AnnuncioCorrente }) {
           rows={4}
           maxLength={600}
           defaultValue={corrente.body ?? ""}
-          placeholder={"Antipasto di mare\nRisotto allo scoglio\nDolce della casa\n\n32 € a persona, bevande escluse"}
+          placeholder={t("annuncio.testo.placeholder")}
           className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
         />
-        <p className="mt-1 text-xs text-muted">
-          Gli a capo vengono rispettati: puoi scrivere il menu una portata per riga.
-        </p>
+        <p className="mt-1 text-xs text-muted">{t("annuncio.testo.nota")}</p>
       </div>
 
       <div>
         <label className={ETICHETTA} htmlFor="ann-image">
-          Immagine (facoltativa)
+          {t("annuncio.immagine")}
         </label>
         {corrente.image_url && (
           <div className="mb-2 flex items-center gap-3">
@@ -89,7 +92,7 @@ export function AnnuncioForm({ corrente }: { corrente: AnnuncioCorrente }) {
             />
             <label className="flex min-h-11 items-center gap-2 text-sm text-muted">
               <input type="checkbox" name="removeImage" className="h-5 w-5" />
-              Rimuovi
+              {c("azione.rimuovi")}
             </label>
           </div>
         )}
@@ -100,29 +103,26 @@ export function AnnuncioForm({ corrente }: { corrente: AnnuncioCorrente }) {
           accept="image/jpeg,image/png,image/webp"
           className="w-full text-sm"
         />
-        <p className="mt-1 text-xs text-muted">
-          JPG, PNG o WEBP fino a 500 KB. Se hai già la locandina della serata,
-          caricala così com&apos;è. Lasciando vuoto resta quella attuale.
-        </p>
+        <p className="mt-1 text-xs text-muted">{t("annuncio.immagine.nota")}</p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className={ETICHETTA} htmlFor="ann-cta-label">
-            Bottone — testo
+            {t("annuncio.cta.testo")}
           </label>
           <input
             id="ann-cta-label"
             name="ctaLabel"
             maxLength={40}
             defaultValue={corrente.cta_label ?? ""}
-            placeholder="Prenota un tavolo"
+            placeholder={t("annuncio.cta.testo.placeholder")}
             className={CAMPO}
           />
         </div>
         <div>
           <label className={ETICHETTA} htmlFor="ann-cta-url">
-            Bottone — link
+            {t("annuncio.cta.link")}
           </label>
           <input
             id="ann-cta-url"
@@ -138,7 +138,7 @@ export function AnnuncioForm({ corrente }: { corrente: AnnuncioCorrente }) {
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className={ETICHETTA} htmlFor="ann-start">
-            Da (facoltativo)
+            {t("annuncio.da")}
           </label>
           <input
             id="ann-start"
@@ -150,7 +150,7 @@ export function AnnuncioForm({ corrente }: { corrente: AnnuncioCorrente }) {
         </div>
         <div>
           <label className={ETICHETTA} htmlFor="ann-end">
-            Fino a (facoltativo)
+            {t("annuncio.a")}
           </label>
           <input
             id="ann-end"
@@ -161,11 +161,7 @@ export function AnnuncioForm({ corrente }: { corrente: AnnuncioCorrente }) {
           />
         </div>
       </div>
-      <p className="text-xs text-muted">
-        Con una data di fine l&apos;annuncio sparisce da solo. Senza, resta
-        finché non lo togli: un &laquo;Menu di San Valentino&raquo; ancora
-        visibile a marzo fa più danno che altro.
-      </p>
+      <p className="text-xs text-muted">{t("annuncio.date.nota")}</p>
 
       {state?.error && <p className="text-sm text-danger">{state.error}</p>}
       {state?.success && <p className="text-sm text-success">{state.success}</p>}
@@ -175,7 +171,7 @@ export function AnnuncioForm({ corrente }: { corrente: AnnuncioCorrente }) {
         disabled={pending}
         className="min-h-11 w-full rounded-full bg-accent font-medium text-accent-foreground disabled:opacity-50"
       >
-        {pending ? "Salvataggio…" : "Salva annuncio"}
+        {pending ? t("stato.salvataggio") : t("annuncio.salva")}
       </button>
     </form>
   );

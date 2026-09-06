@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@repo/shared/db";
 import { checkRateLimit, clientKey } from "@repo/shared/rate-limit";
+import { tApi, linguaRichiesta } from "@/i18n/api";
 
 /**
  * Recensione lasciata dal tavolo.
@@ -28,11 +29,13 @@ interface Corpo {
 }
 
 export async function POST(request: Request) {
+  const t = tApi(linguaRichiesta(request));
+
   const corpo = (await request.json().catch(() => null)) as Corpo | null;
   const voto = Number(corpo?.voto);
 
   if (!corpo?.token || !Number.isInteger(voto) || voto < 1 || voto > 5) {
-    return NextResponse.json({ error: "Richiesta non valida" }, { status: 400 });
+    return NextResponse.json({ error: t("errore.richiesta_non_valida") }, { status: 400 });
   }
 
   /*
@@ -51,7 +54,7 @@ export async function POST(request: Request) {
   );
   if (!allowed) {
     return NextResponse.json(
-      { error: "Hai già lasciato la tua opinione. Grazie!" },
+      { error: t("recensione.errore.gia_lasciata") },
       { status: 429 }
     );
   }
@@ -81,7 +84,7 @@ export async function POST(request: Request) {
 
   if (!sessione) {
     return NextResponse.json(
-      { error: "Nessun servizio recente a questo tavolo" },
+      { error: t("recensione.errore.nessun_servizio") },
       { status: 404 }
     );
   }

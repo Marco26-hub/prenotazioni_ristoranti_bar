@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tMenu } from "@/i18n/menu";
 
 function temaPerOra(): "day" | "night" {
   const ora = new Date().getHours();
@@ -8,6 +10,7 @@ function temaPerOra(): "day" | "night" {
 }
 
 export function TemaMenu() {
+  const t = tMenu(useLingua());
   const [tema, setTema] = useState<"day" | "night">("day");
 
   useEffect(() => {
@@ -36,10 +39,10 @@ export function TemaMenu() {
       type="button"
       onClick={cambia}
       className="menu-theme-toggle rounded-full border border-border px-3 py-2 text-sm font-medium"
-      aria-label={tema === "day" ? "Passa al tema notte" : "Passa al tema giorno"}
-      title={tema === "day" ? "Tema notte" : "Tema giorno"}
+      aria-label={tema === "day" ? t("tema.passa_notte") : t("tema.passa_giorno")}
+      title={tema === "day" ? t("tema.titolo.notte") : t("tema.titolo.giorno")}
     >
-      {tema === "day" ? "☾ Notte" : "☀ Giorno"}
+      {tema === "day" ? t("tema.notte") : t("tema.giorno")}
     </button>
   );
 }

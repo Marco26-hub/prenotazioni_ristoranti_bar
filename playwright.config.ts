@@ -17,5 +17,19 @@ export default defineConfig({
   reporter: [["list"]],
   use: {
     trace: "retain-on-failure",
+    /*
+     * La lingua va dichiarata, adesso che l'applicazione ne parla due.
+     *
+     * Playwright lancia il suo Chromium in inglese a prescindere da come è
+     * impostato il computer: da quando esiste l'inglese, le prove scritte
+     * contro l'italiano — "Accedi", "Il conto", "Compreso nella formula" —
+     * cercavano parole che la pagina non scriveva più, e fallivano accusando
+     * il codice di qualcosa che non aveva fatto.
+     *
+     * Le prove che riguardano proprio il cambio di lingua si aprono il loro
+     * contesto con la lingua che vogliono (`browser.newContext({ locale })`),
+     * quindi questa riga non le tocca.
+     */
+    locale: "it-IT",
   },
 });

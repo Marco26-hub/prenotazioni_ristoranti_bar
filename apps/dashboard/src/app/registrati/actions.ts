@@ -6,6 +6,8 @@ import { checkRateLimit, pseudonymise } from "@repo/shared/rate-limit";
 import { DPA_VERSION } from "@/lib/dpa";
 import { headers } from "next/headers";
 import { messaggioErrore } from "@repo/shared/errori";
+import { tGuscio } from "@/i18n/guscio";
+import { linguaUtente } from "@/lib/lingua";
 
 export interface SignupResult {
   error?: string;
@@ -28,10 +30,13 @@ function slugify(name: string): string {
  * il primo utente come 'owner' del proprio locale.
  */
 export async function signup(formData: FormData): Promise<SignupResult> {
+  // Nessuna sessione qui: la lingua viene dal cookie o dal browser, che è
+  // tutto quello che si sa di chi non ha ancora un account.
+  const t = tGuscio(await linguaUtente());
   const ip = (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
   const { allowed } = await checkRateLimit(`signup:${pseudonymise(ip)}`, 5, 3600);
   if (!allowed) {
-    return { error: "Troppi tentativi, riprova più tardi" };
+    return { error: t("registrazione.errore.troppi") };
   }
 
   const venueName = String(formData.get("venueName") ?? "").trim();
@@ -40,25 +45,25 @@ export async function signup(formData: FormData): Promise<SignupResult> {
   const tableCount = Number.parseInt(String(formData.get("tableCount") ?? "0"), 10);
 
   if (!venueName || !email || !email.includes("@")) {
-    return { error: "Nome locale ed email sono obbligatori" };
+    return { error: t("registrazione.errore.campi") };
   }
   if (password.length < 8) {
-    return { error: "La password deve essere di almeno 8 caratteri" };
+    return { error: t("registrazione.errore.password") };
   }
   if (!Number.isFinite(tableCount) || tableCount < 1 || tableCount > 200) {
-    return { error: "Numero tavoli non valido (1-200)" };
+    return { error: t("registrazione.errore.tavoli") };
   }
   // Riverificato lato server: il `required` sulla casella vive solo nel
   // browser, e questa action è un endpoint POST raggiungibile comunque.
   if (formData.get("dpa") !== "on") {
-    return { error: "Per procedere devi accettare la nomina a responsabile del trattamento" };
+    return { error: t("registrazione.errore.dpa") };
   }
 
   const sql = db();
 
   const [existing] = await sql<{ id: string }[]>`select id from users where email = ${email}`;
   if (existing) {
-    return { error: "Esiste già un account con questa email" };
+    return { error: t("registrazione.errore.email_presa") };
   }
 
   // Lo slug finisce nell'URL dei QR e deve essere unico: se il nome è già
@@ -100,7 +105,7 @@ export async function signup(formData: FormData): Promise<SignupResult> {
     });
   } catch (err) {
     console.error(`[signup] creazione locale fallita: ${messaggioErrore(err)}`);
-    return { error: "Registrazione non riuscita, riprova" };
+    return { error: t("registrazione.errore.generico") };
   }
 
   return { success: true };

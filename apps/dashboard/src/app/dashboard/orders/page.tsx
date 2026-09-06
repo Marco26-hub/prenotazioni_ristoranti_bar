@@ -4,10 +4,15 @@ import { LiveBoard } from "./live-board";
 import { moduloAttivo } from "@/lib/authz";
 import { repartiDelLocale } from "@/lib/reparti-locale";
 import { ModuloNonAttivo } from "../modulo-non-attivo";
+import { linguaUtente } from "@/lib/lingua";
+import { LinguaProvider } from "@repo/shared/i18n/contesto";
+import { tServizio } from "@/i18n/servizio";
 
 export default async function OrdersPage() {
   const session = await auth();
   const venue = session?.venues[0];
+  const lingua = await linguaUtente();
+  const t = tServizio(lingua);
 
   /*
    * Senza un locale non si apre niente.
@@ -22,10 +27,9 @@ export default async function OrdersPage() {
   if (!venue) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-5">
-        <h1 className="text-lg font-semibold">Ordini in corso</h1>
+        <h1 className="text-lg font-semibold">{t("comande.titolo")}</h1>
         <p className="mt-3 rounded-xl border border-border bg-surface p-4 text-sm text-muted">
-          Il tuo utente non è associato a nessun locale. Chiedi al titolare di
-          aggiungerti al personale.
+          {t("comande.senza_locale")}
         </p>
       </main>
     );
@@ -45,12 +49,16 @@ export default async function OrdersPage() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">Ordini in corso</h1>
+        <h1 className="text-lg font-semibold">{t("comande.titolo")}</h1>
         <Link href="/dashboard/orders/stampa" className="text-sm underline">
-          Stampa comande
+          {t("comande.stampa")}
         </Link>
       </div>
-      <LiveBoard ruolo={ruolo} reparti={reparti} />
+      {/* Il provider vive nel layout; qui si rimette perché la board deve
+          trovare una lingua anche se questo albero ne è fuori. */}
+      <LinguaProvider lingua={lingua}>
+        <LiveBoard ruolo={ruolo} reparti={reparti} />
+      </LinguaProvider>
     </main>
   );
 }

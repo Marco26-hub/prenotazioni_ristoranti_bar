@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { useRitmo } from "@repo/shared/ritmo";
 import { useRouter } from "next/navigation";
 import { chiamaNumero } from "./actions";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tServizio } from "@/i18n/servizio";
 
 export interface OrdineBanco {
   id: string;
@@ -14,10 +16,11 @@ export interface OrdineBanco {
   diIeri: boolean;
 }
 
-const ISTRUZIONE: Record<string, string> = {
-  segnaposto: "Consegna il piatto a chi ha il segnaposto con questo numero.",
-  cercapersone: "Fai vibrare il cercapersone con questo numero.",
-  telefono: "Sul telefono di chi ha ordinato compare «pronto» da solo.",
+/** La chiave del metodo sta in tabella; la frase si traduce a schermo. */
+const ISTRUZIONE: Record<string, Parameters<ReturnType<typeof tServizio>>[0]> = {
+  segnaposto: "banco.metodo.segnaposto",
+  cercapersone: "banco.metodo.cercapersone",
+  telefono: "banco.metodo.telefono",
 };
 
 /**
@@ -38,6 +41,7 @@ export function BancoVivo({
   metodi: string[];
 }) {
   const router = useRouter();
+  const t = tServizio(useLingua());
   const [avviso, setAvviso] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
@@ -61,16 +65,22 @@ export function BancoVivo({
   return (
     <main className="mx-auto max-w-5xl px-4 py-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h1 className="text-xl font-semibold">Banco</h1>
+        <h1 className="text-xl font-semibold">{t("banco.titolo")}</h1>
         <p className="text-sm text-muted">
-          {pronti.length} pront{pronti.length === 1 ? "o" : "i"} ·{" "}
-          {inCorso.length} in preparazione
+          {t("banco.conteggio", {
+            pronti: t.n(pronti.length, "banco.pronti"),
+            inCorso: inCorso.length,
+          })}
         </p>
       </div>
 
       {metodi.length > 0 && (
         <p className="mt-1 text-xs text-muted">
-          {metodi.map((m) => ISTRUZIONE[m]).filter(Boolean).join(" ")}
+          {metodi
+            .map((m) => ISTRUZIONE[m])
+            .filter(Boolean)
+            .map((chiave) => t(chiave))
+            .join(" ")}
         </p>
       )}
 
@@ -82,12 +92,10 @@ export function BancoVivo({
 
       <section className="mt-4">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-muted">
-          Pronti
+          {t("banco.sezione.pronti")}
         </h2>
         {pronti.length === 0 ? (
-          <p className="mt-2 text-sm text-muted">
-            Nessun ordine pronto. Compaiono qui appena la cucina li segna.
-          </p>
+          <p className="mt-2 text-sm text-muted">{t("banco.pronti.vuoto")}</p>
         ) : (
           <ul className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {pronti.map((o) => (
@@ -103,11 +111,11 @@ export function BancoVivo({
                   {o.numero}
                 </p>
                 <p className="mt-1 text-center text-sm font-medium">
-                  {o.stato === "chiamato" ? "Chiamato" : "Da chiamare"}
+                  {t(o.stato === "chiamato" ? "banco.chiamato" : "banco.da_chiamare")}
                 </p>
                 {o.diIeri && (
                   <p className="text-center text-xs text-danger">
-                    Rimasto da ieri
+                    {t("banco.di_ieri")}
                   </p>
                 )}
                 <div className="mt-3 flex gap-2">
@@ -118,7 +126,7 @@ export function BancoVivo({
                       onClick={() => agisci(o.id, "chiama")}
                       className="min-h-11 flex-1 rounded-full bg-accent text-sm font-medium text-accent-foreground disabled:opacity-60"
                     >
-                      Chiama
+                      {t("banco.azione.chiama")}
                     </button>
                   ) : (
                     <button
@@ -127,7 +135,7 @@ export function BancoVivo({
                       onClick={() => agisci(o.id, "annulla")}
                       className="min-h-11 flex-1 rounded-full border border-border text-sm disabled:opacity-60"
                     >
-                      Non era pronto
+                      {t("banco.azione.non_pronto")}
                     </button>
                   )}
                   <button
@@ -136,7 +144,7 @@ export function BancoVivo({
                     onClick={() => agisci(o.id, "ritira")}
                     className="min-h-11 flex-1 rounded-full border border-border text-sm disabled:opacity-60"
                   >
-                    Ritirato
+                    {t("banco.azione.ritirato")}
                   </button>
                 </div>
               </li>
@@ -147,10 +155,10 @@ export function BancoVivo({
 
       <section className="mt-6">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-muted">
-          In preparazione
+          {t("banco.sezione.in_preparazione")}
         </h2>
         {inCorso.length === 0 ? (
-          <p className="mt-2 text-sm text-muted">Niente in coda.</p>
+          <p className="mt-2 text-sm text-muted">{t("banco.coda.vuota")}</p>
         ) : (
           <ul className="mt-2 flex flex-wrap gap-2">
             {inCorso.map((o) => (

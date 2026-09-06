@@ -4,6 +4,8 @@ import { db } from "@repo/shared/db";
 import { planByKey, setupPriceKey, TRIAL_DAYS } from "@repo/shared/plans";
 import { requireRole } from "@/lib/authz";
 import { stripeClient } from "@/lib/stripe";
+import { linguaUtente } from "@/lib/lingua";
+import { tSoldi } from "@/i18n/soldi";
 
 export interface BillingResult {
   url?: string;
@@ -74,16 +76,14 @@ export async function startSubscription(planKey: string): Promise<BillingResult>
   // Solo il titolare: l'abbonamento è un impegno di spesa ricorrente
   // sull'attività, non una preferenza operativa.
   const { venue, userId } = await requireRole(["owner"]);
+  const t = tSoldi(await linguaUtente());
 
   const plan = planByKey(planKey);
-  if (!plan) return { error: "Piano non valido" };
+  if (!plan) return { error: t("abbonamento.errore.piano") };
 
   const priceId = priceIdFor(plan.key);
   if (!priceId) {
-    return {
-      error:
-        "Listino non ancora configurato per questo piano. Controlla la variabile STRIPE_PRICES.",
-    };
+    return { error: t("abbonamento.errore.listino") };
   }
 
   const sql = db();
@@ -139,10 +139,10 @@ export async function startSubscription(planKey: string): Promise<BillingResult>
       cancel_url: `${appUrl()}/dashboard/billing`,
     });
 
-    if (!session.url) return { error: "Stripe non ha restituito un link di pagamento" };
+    if (!session.url) return { error: t("abbonamento.errore.link") };
     return { url: session.url };
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Errore imprevisto su Stripe" };
+    return { error: e instanceof Error ? e.message : t("abbonamento.errore.stripe") };
   }
 }
 
@@ -153,13 +153,14 @@ export async function startSubscription(planKey: string): Promise<BillingResult>
  */
 export async function openBillingPortal(): Promise<BillingResult> {
   const { venue } = await requireRole(["owner"]);
+  const t = tSoldi(await linguaUtente());
   const sql = db();
 
   const [row] = await sql<{ billing_customer_id: string | null }[]>`
     select billing_customer_id from venues where id = ${venue.venueId}`;
 
   if (!row?.billing_customer_id) {
-    return { error: "Nessun abbonamento da gestire" };
+    return { error: t("abbonamento.errore.nessuno") };
   }
 
   try {
@@ -170,6 +171,6 @@ export async function openBillingPortal(): Promise<BillingResult> {
     });
     return { url: session.url };
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Errore imprevisto su Stripe" };
+    return { error: e instanceof Error ? e.message : t("abbonamento.errore.stripe") };
   }
 }

@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { requireRole } from "@/lib/authz";
+import { linguaUtente } from "@/lib/lingua";
+import { tMenuAdmin } from "@/i18n/menu";
 
 export interface EsitoVariante {
   error?: string;
@@ -18,6 +20,7 @@ export interface EsitoVariante {
  */
 export async function creaGruppo(formData: FormData): Promise<EsitoVariante> {
   const { venue } = await requireRole(["owner", "manager"]);
+  const t = tMenuAdmin(await linguaUtente());
 
   const itemId = String(formData.get("itemId") ?? "");
   const nome = String(formData.get("name") ?? "").trim();
@@ -28,12 +31,12 @@ export async function creaGruppo(formData: FormData): Promise<EsitoVariante> {
   const tipoGrezzo = String(formData.get("kind") ?? "scelta");
   const tipo = TIPI.includes(tipoGrezzo) ? tipoGrezzo : "scelta";
 
-  if (!itemId || !nome) return { error: "Serve un nome per il gruppo" };
+  if (!itemId || !nome) return { error: t("varianti.errore.nome.gruppo") };
 
   const sql = db();
   const [piatto] = await sql<{ id: string }[]>`
     select id from menu_items where id = ${itemId} and venue_id = ${venue.venueId}`;
-  if (!piatto) return { error: "Piatto non trovato" };
+  if (!piatto) return { error: t("varianti.errore.piatto") };
 
   await sql`
     insert into menu_option_groups
@@ -45,35 +48,37 @@ export async function creaGruppo(formData: FormData): Promise<EsitoVariante> {
                        where menu_item_id = ${itemId}), 0))`;
 
   revalidatePath("/dashboard/menu");
-  return { success: "Gruppo creato: ora aggiungi le scelte." };
+  return { success: t("varianti.gruppo.creato") };
 }
 
 export async function eliminaGruppo(groupId: string): Promise<EsitoVariante> {
   const { venue } = await requireRole(["owner", "manager"]);
+  const t = tMenuAdmin(await linguaUtente());
   const sql = db();
   await sql`
     delete from menu_option_groups
      where id = ${groupId} and venue_id = ${venue.venueId}`;
   revalidatePath("/dashboard/menu");
-  return { success: "Gruppo eliminato" };
+  return { success: t("varianti.gruppo.eliminato") };
 }
 
 export async function creaOpzione(formData: FormData): Promise<EsitoVariante> {
   const { venue } = await requireRole(["owner", "manager"]);
+  const t = tMenuAdmin(await linguaUtente());
 
   const groupId = String(formData.get("groupId") ?? "");
   const nome = String(formData.get("name") ?? "").trim();
   const delta = Number.parseFloat(String(formData.get("delta") ?? "0"));
 
-  if (!groupId || !nome) return { error: "Serve un nome per la scelta" };
-  if (!Number.isFinite(delta)) return { error: "Supplemento non valido" };
+  if (!groupId || !nome) return { error: t("varianti.errore.nome.scelta") };
+  if (!Number.isFinite(delta)) return { error: t("varianti.errore.supplemento") };
 
   const sql = db();
   // Il gruppo va riverificato contro il venue: l'id arriva dal client.
   const [gruppo] = await sql<{ id: string }[]>`
     select id from menu_option_groups
      where id = ${groupId} and venue_id = ${venue.venueId}`;
-  if (!gruppo) return { error: "Gruppo non trovato" };
+  if (!gruppo) return { error: t("varianti.errore.gruppo") };
 
   await sql`
     insert into menu_options (group_id, name, price_delta_cents, sort_order)
@@ -82,11 +87,12 @@ export async function creaOpzione(formData: FormData): Promise<EsitoVariante> {
                        where group_id = ${groupId}), 0))`;
 
   revalidatePath("/dashboard/menu");
-  return { success: "Scelta aggiunta" };
+  return { success: t("varianti.scelta.aggiunta") };
 }
 
 export async function eliminaOpzione(optionId: string): Promise<EsitoVariante> {
   const { venue } = await requireRole(["owner", "manager"]);
+  const t = tMenuAdmin(await linguaUtente());
   const sql = db();
   await sql`
     delete from menu_options
@@ -94,7 +100,7 @@ export async function eliminaOpzione(optionId: string): Promise<EsitoVariante> {
        and group_id in (select id from menu_option_groups
                          where venue_id = ${venue.venueId})`;
   revalidatePath("/dashboard/menu");
-  return { success: "Scelta eliminata" };
+  return { success: t("varianti.scelta.eliminata") };
 }
 
 /** Esaurito per stasera: si nasconde senza perdere la configurazione. */

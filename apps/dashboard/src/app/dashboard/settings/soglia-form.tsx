@@ -2,6 +2,8 @@
 
 import { useActionState } from "react";
 import { salvaSoglia } from "./soglia-actions";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tImpostazioni } from "@/i18n/impostazioni";
 
 /**
  * Dopo quanti minuti una comanda va guardata.
@@ -17,6 +19,7 @@ export function SogliaForm({
   minuti: number;
   liberazione: number;
 }) {
+  const t = tImpostazioni(useLingua());
   const [state, formAction, pending] = useActionState<
     { ok?: string; error?: string } | null,
     FormData
@@ -26,7 +29,7 @@ export function SogliaForm({
     <form action={formAction} className="space-y-3">
       <div>
         <label className="mb-1 block text-sm" htmlFor="soglia">
-          Minuti dopo i quali una comanda è in ritardo
+          {t("soglia.ritardo")}
         </label>
         <input
           id="soglia"
@@ -38,16 +41,14 @@ export function SogliaForm({
           className="min-h-11 w-40 rounded-lg border border-border bg-background px-3 text-sm"
         />
         <p className="mt-1.5 text-xs text-muted">
-          Si conta dal momento in cui il cliente ordina. Superata la soglia il
-          tavolo lampeggia in rosso in sala e sul monitor comande, finché il
-          piatto non è pronto. Metti <strong>0</strong> per spegnere
-          l&apos;allarme.
+          {t("soglia.ritardo.nota.prima")} <strong>0</strong>
+          {t("soglia.ritardo.nota.dopo")}
         </p>
       </div>
 
       <div>
         <label className="mb-1 block text-sm" htmlFor="liberazione">
-          Minuti dopo il saldo oltre i quali il tavolo va recuperato
+          {t("soglia.recupero")}
         </label>
         <input
           id="liberazione"
@@ -59,10 +60,8 @@ export function SogliaForm({
           className="min-h-11 w-40 rounded-lg border border-border bg-background px-3 text-sm"
         />
         <p className="mt-1.5 text-xs text-muted">
-          Un tavolo che ha pagato e resta seduto per un po&apos; è normale — il
-          caffè, i cappotti. Passata questa soglia diventa un coperto già
-          incassato che tiene occupato un posto, e in sala lo vedi
-          evidenziato. <strong>0</strong> per non essere avvisato.
+          {t("soglia.recupero.nota.prima")} <strong>0</strong>
+          {t("soglia.recupero.nota.dopo")}
         </p>
       </div>
 
@@ -72,7 +71,7 @@ export function SogliaForm({
           disabled={pending}
           className="min-h-11 rounded-full bg-accent px-5 text-sm font-medium text-accent-foreground disabled:opacity-60"
         >
-          {pending ? "Salvo…" : "Salva soglia"}
+          {pending ? t("stato.salvo") : t("soglia.salva")}
         </button>
         {state?.ok && <p className="text-sm text-success">{state.ok}</p>}
         {state?.error && <p className="text-sm text-danger">{state.error}</p>}

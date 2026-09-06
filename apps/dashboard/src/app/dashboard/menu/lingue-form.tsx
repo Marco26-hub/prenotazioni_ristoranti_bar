@@ -3,8 +3,11 @@
 import { useActionState } from "react";
 import { LINGUE } from "@repo/shared/lingue";
 import { salvaLingue, type EsitoTraduzione } from "./traduzioni-actions";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tMenuAdmin } from "@/i18n/menu";
 
 export function LingueForm({ attive }: { attive: string[] }) {
+  const t = tMenuAdmin(useLingua());
   const [state, formAction, pending] = useActionState<EsitoTraduzione | null, FormData>(
     async (_prev, formData) => salvaLingue(formData),
     null
@@ -13,9 +16,7 @@ export function LingueForm({ attive }: { attive: string[] }) {
   return (
     <form action={formAction} className="space-y-3">
       <p className="text-sm text-muted">
-        L&apos;italiano c&apos;è sempre. Scegli le altre lingue in cui vuoi
-        offrire il menu: al cliente compare un selettore, e chi arriva con il
-        telefono in inglese lo trova già in inglese.
+        {t("lingue.testo")}
       </p>
 
       <div className="flex flex-wrap gap-2">
@@ -44,7 +45,7 @@ export function LingueForm({ attive }: { attive: string[] }) {
         disabled={pending}
         className="min-h-11 rounded-full bg-accent px-5 text-sm font-medium text-accent-foreground disabled:opacity-50"
       >
-        {pending ? "Salvo…" : "Salva lingue"}
+        {pending ? t("lingue.salvo") : t("lingue.salva")}
       </button>
     </form>
   );

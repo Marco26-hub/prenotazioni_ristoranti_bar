@@ -2,14 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { segnaBattuto } from "./actions";
-
-const ETICHETTA: Record<string, string> = {
-  da_emettere: "Da emettere",
-  in_corso: "In corso",
-  emesso: "Emesso",
-  errore: "Non riuscito",
-  battuto_a_mano: "Battuto in cassa",
-};
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tComune } from "@repo/shared/i18n/comune";
+import { tSoldi } from "@/i18n/soldi";
+import { RT_SENZA_NUMERO, RT_SENZA_NUMERO_LEGACY } from "@/lib/rt-errori";
 
 const COLORE: Record<string, string> = {
   da_emettere: "border-amber-300 bg-amber-50 text-amber-900",
@@ -43,10 +39,22 @@ export function RigaDocumento({
   quando: string;
   pagamenti: string;
 }) {
+  const lingua = useLingua();
+  const t = tSoldi(lingua);
+  const tc = tComune(lingua);
   const [aperto, setAperto] = useState(false);
   const [num, setNum] = useState("");
   const [avviso, setAvviso] = useState<string | null>(null);
   const [pending, start] = useTransition();
+
+  // Le etichette dello stato: i valori a database restano da_emettere/…
+  const ETICHETTA: Record<string, string> = {
+    da_emettere: t("documento.stato.da_emettere"),
+    in_corso: t("documento.stato.in_corso"),
+    emesso: t("documento.stato.emesso"),
+    errore: t("documento.stato.errore"),
+    battuto_a_mano: t("documento.stato.battuto_a_mano"),
+  };
 
   const daChiudere = stato === "da_emettere" || stato === "errore";
 
@@ -58,7 +66,7 @@ export function RigaDocumento({
           <p className="text-xs text-muted">
             {quando}
             {pagamenti && ` · ${pagamenti}`}
-            {numero && ` · doc. ${numero}`}
+            {numero && ` · ${t("documento.numero_breve", { numero })}`}
           </p>
         </div>
         <span
@@ -68,7 +76,13 @@ export function RigaDocumento({
         </span>
       </div>
 
-      {errore && <p className="mt-1 text-xs text-danger">{errore}</p>}
+      {errore && (
+        <p className="mt-1 text-xs text-danger">
+          {errore === RT_SENZA_NUMERO || errore === RT_SENZA_NUMERO_LEGACY
+            ? t("documento.errore.senza_numero")
+            : errore}
+        </p>
+      )}
 
       {daChiudere && !aperto && (
         <button
@@ -76,7 +90,7 @@ export function RigaDocumento({
           onClick={() => setAperto(true)}
           className="mt-2 min-h-10 text-sm underline underline-offset-4"
         >
-          L&apos;ho battuto in cassa
+          {t("documento.battuto")}
         </button>
       )}
 
@@ -85,8 +99,8 @@ export function RigaDocumento({
           <input
             value={num}
             onChange={(e) => setNum(e.target.value)}
-            placeholder="Numero del documento (se lo hai)"
-            aria-label="Numero del documento battuto in cassa"
+            placeholder={t("documento.numero.segnaposto")}
+            aria-label={t("documento.numero.aria")}
             className="min-h-11 min-w-48 flex-1 rounded-lg border border-border bg-background px-3 text-sm"
           />
           <button
@@ -101,7 +115,7 @@ export function RigaDocumento({
             }
             className="min-h-11 rounded-full border border-border px-4 text-sm disabled:opacity-60"
           >
-            Conferma
+            {tc("azione.conferma")}
           </button>
         </div>
       )}

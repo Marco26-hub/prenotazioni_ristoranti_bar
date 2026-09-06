@@ -1,19 +1,22 @@
 import { requireSuperAdmin } from "@/lib/authz";
 import { CambiaPasswordForm } from "./form";
+import { tSuperAdmin } from "@/i18n/superadmin";
+import { linguaUtente } from "@/lib/lingua";
 
 export default async function PasswordPage() {
   const admin = await requireSuperAdmin();
+  const t = tSuperAdmin(await linguaUtente());
 
   return (
     <main className="mx-auto max-w-md px-4 py-8">
       <h1 className="text-lg font-semibold">
-        {admin.deveCambiarePassword ? "Scegli la tua password" : "Cambia password"}
+        {admin.deveCambiarePassword
+          ? t("password.titolo.primo")
+          : t("password.titolo")}
       </h1>
       {admin.deveCambiarePassword && (
         <p className="mt-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-          La password con cui sei entrato è stata comunicata in chiaro per
-          poterti dare il primo accesso: da quel momento non è più un segreto.
-          Cambiala adesso — questo account vede i dati di tutti i locali.
+          {t("password.avviso")}
         </p>
       )}
       <div className="mt-5">

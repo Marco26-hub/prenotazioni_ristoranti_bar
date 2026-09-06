@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { requireRole } from "@/lib/authz";
+import { linguaUtente } from "@/lib/lingua";
+import { tImpostazioni } from "@/i18n/impostazioni";
 
 export interface EsitoRitiro {
   error?: string;
@@ -20,6 +22,7 @@ const METODI = ["segnaposto", "cercapersone", "telefono"] as const;
  */
 export async function salvaRitiro(formData: FormData): Promise<EsitoRitiro> {
   const { venue } = await requireRole(["owner", "manager"]);
+  const t = tImpostazioni(await linguaUtente());
 
   const attivo = formData.get("attivo") === "on";
   const metodi = METODI.filter((m) => formData.get(`metodo-${m}`) === "on");
@@ -36,10 +39,7 @@ export async function salvaRitiro(formData: FormData): Promise<EsitoRitiro> {
   // Numeri accesi e nessun modo di chiamarli: il cliente riceve un numero e
   // nessuno glielo dice mai. Meglio fermarsi qui che scoprirlo al bancone.
   if (attivo && metodi.length === 0) {
-    return {
-      error:
-        "Scegli almeno un modo per avvisare chi aspetta, o il numero non lo saprà nessuno.",
-    };
+    return { error: t("ritiro.errore.metodi") };
   }
 
   const sql = db();
@@ -65,10 +65,7 @@ export async function salvaRitiro(formData: FormData): Promise<EsitoRitiro> {
   revalidatePath("/dashboard");
 
   if (!attivo) {
-    return { success: "Numeri di ritiro spenti: si serve al tavolo." };
+    return { success: t("ritiro.ok.spento") };
   }
-  return {
-    success:
-      "Salvato. I numeri ripartono da uno a ogni giornata di servizio, e li vedi nella pagina Banco.",
-  };
+  return { success: t("ritiro.ok") };
 }

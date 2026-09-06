@@ -1,6 +1,9 @@
 import { db } from "@repo/shared/db";
 import { requireVenue } from "@/lib/authz";
 import { BancoVivo, type OrdineBanco } from "./banco-vivo";
+import { linguaUtente } from "@/lib/lingua";
+import { LinguaProvider } from "@repo/shared/i18n/contesto";
+import { tServizio } from "@/i18n/servizio";
 
 /**
  * Il banco: i numeri di ritiro, grandi.
@@ -11,6 +14,8 @@ import { BancoVivo, type OrdineBanco } from "./banco-vivo";
  */
 export default async function BancoPage() {
   const { venue } = await requireVenue();
+  const lingua = await linguaUtente();
+  const t = tServizio(lingua);
   const sql = db();
 
   const [locale] = await sql<
@@ -21,12 +26,9 @@ export default async function BancoPage() {
   if (!locale?.pickup_numbering_enabled) {
     return (
       <main className="mx-auto max-w-4xl px-4 py-5">
-        <h1 className="text-xl font-semibold">Banco</h1>
+        <h1 className="text-xl font-semibold">{t("banco.titolo")}</h1>
         <p className="mt-3 rounded-xl border border-border bg-surface p-4 text-sm text-muted">
-          I numeri di ritiro non sono attivi. Servono a chi consegna al
-          bancone invece che al tavolo: si accendono in Impostazioni, insieme
-          al modo di avvisare chi aspetta — segnaposto numerato, cercapersone
-          o avviso sul telefono di chi ha ordinato.
+          {t("banco.non_attivo")}
         </p>
       </main>
     );
@@ -105,6 +107,10 @@ export default async function BancoPage() {
   }));
 
   return (
-    <BancoVivo ordini={righe} metodi={locale.pickup_metodi ?? []} />
+    /* Il provider vive nel layout; qui si rimette perché lo schermo del banco
+       deve trovare una lingua anche se questo albero ne è fuori. */
+    <LinguaProvider lingua={lingua}>
+      <BancoVivo ordini={righe} metodi={locale.pickup_metodi ?? []} />
+    </LinguaProvider>
   );
 }

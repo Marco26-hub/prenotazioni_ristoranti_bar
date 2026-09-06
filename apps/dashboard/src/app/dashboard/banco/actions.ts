@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { requireVenue } from "@/lib/authz";
+import { linguaUtente } from "@/lib/lingua";
+import { tServizio } from "@/i18n/servizio";
 
 /**
  * Chiama un numero al banco, o lo archivia perché è stato ritirato.
@@ -16,6 +18,7 @@ export async function chiamaNumero(
   azione: "chiama" | "ritira" | "annulla"
 ): Promise<{ ok?: string; error?: string }> {
   const { venue } = await requireVenue();
+  const t = tServizio(await linguaUtente());
   const sql = db();
 
   /*
@@ -41,16 +44,18 @@ export async function chiamaNumero(
        and pickup_number is not null
     returning pickup_number`;
 
-  if (righe.length === 0) return { error: "Ordine non trovato" };
+  if (righe.length === 0) return { error: t("banco.errore.ordine") };
 
   revalidatePath("/dashboard/banco");
   const n = righe[0].pickup_number;
   return {
-    ok:
+    ok: t(
       azione === "chiama"
-        ? `Numero ${n} chiamato.`
+        ? "banco.esito.chiamato"
         : azione === "ritira"
-          ? `Numero ${n} ritirato.`
-          : `Numero ${n} rimesso in attesa.`,
+          ? "banco.esito.ritirato"
+          : "banco.esito.in_attesa",
+      { n: n ?? "" }
+    ),
   };
 }

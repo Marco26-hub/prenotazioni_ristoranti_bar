@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { modelloPerTipo } from "@repo/shared/formati";
 import { seminaReparti } from "@/lib/reparti-locale";
+import { tMenuAdmin } from "@/i18n/menu";
+import { linguaUtente } from "@/lib/lingua";
 
 export interface EsitoModello {
   error?: string;
@@ -32,8 +34,14 @@ export async function applicaFormato(
   /** Crea anche un listino di partenza, non disponibile finché non è rivisto. */
   conListino = false
 ): Promise<EsitoModello> {
+  /* La lingua si rilegge qui invece di arrivare come parametro: i due
+     chiamanti sono in due aree diverse — il menu del ristoratore e il
+     pannello di piattaforma — e un parametro in più è un parametro che uno
+     dei due prima o poi non passa. */
+  const t = tMenuAdmin(await linguaUtente());
+
   const modello = modelloPerTipo(tipo);
-  if (!modello) return { error: "Formato non riconosciuto" };
+  if (!modello) return { error: t("applica.errore.tipo") };
 
   const sql = db();
 
@@ -146,8 +154,8 @@ export async function applicaFormato(
     return {
       success:
         categorieCreate > 0
-          ? `${categorieCreate} categorie aggiunte. I piatti li carichi tu.`
-          : "Le categorie c'erano già. Formato impostato.",
+          ? t.n(categorieCreate, "applica.solo_categorie")
+          : t("applica.solo_categorie.nessuna"),
     };
   }
 
@@ -237,37 +245,25 @@ export async function applicaFormato(
   revalidatePath("/dashboard");
 
   const notaListino =
-    piattiCreati > 0
-      ? ` ${piattiCreati} voci di esempio create, tutte spente: prezzi e ` +
-        "allergeni vanno controllati prima di accenderle — nessun cliente le " +
-        "vede finché non lo fai."
-      : "";
+    piattiCreati > 0 ? t.n(piattiCreati, "applica.nota.listino") : "";
 
-  const notaIva =
-    ritoccati > 0
-      ? ` ${ritoccati} ${ritoccati === 1 ? "voce portata" : "voci portate"} ` +
-        "all'aliquota della loro categoria: controllale."
-      : "";
+  const notaIva = ritoccati > 0 ? t.n(ritoccati, "applica.nota.iva") : "";
 
-  const nota = modo?.alBanco
-    ? " Consegna al bancone accesa: ogni cliente ha il suo conto e il suo " +
-      "numero, e la pagina principale diventa il Banco."
-    : "";
+  const nota = modo?.alBanco ? t("applica.nota.banco") : "";
 
   if (categorieCreate === 0 && gruppiCreati === 0) {
-    return {
-      success:
-        "Formato impostato. Non c'era nulla da aggiungere: categorie e scelte esistono già." +
-        nota + notaIva + notaListino,
-    };
+    return { success: t("applica.nulla") + nota + notaIva + notaListino };
   }
 
   return {
     success:
-      `Formato impostato. ${categorieCreate} categorie aggiunte, ` +
-      `${gruppiCreati} gruppi di scelte creati sui piatti esistenti. ` +
-      "Prezzi e opzioni li ritocchi voce per voce." +
-      nota + notaIva + notaListino,
+      t("applica.fatto", {
+        categorie: t.n(categorieCreate, "applica.fatto.categorie"),
+        gruppi: t.n(gruppiCreati, "applica.fatto.gruppi"),
+      }) +
+      nota +
+      notaIva +
+      notaListino,
   };
 }
 

@@ -2,6 +2,10 @@
 
 import { useState, useSyncExternalStore, useTransition } from "react";
 import { rinominaDispositivo, dimenticaDispositivo } from "./dispositivi-actions";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tPersone } from "@/i18n/persone";
+
+type T = ReturnType<typeof tPersone>;
 
 export interface Dispositivo {
   id: string;
@@ -11,27 +15,33 @@ export interface Dispositivo {
   ultimoAccesso: string;
 }
 
-const REPARTO: Record<string, string> = {
-  cucina: "Cucina",
-  bar: "Bar",
-  pizzeria: "Pizzeria",
-  pasticceria: "Pasticceria",
+/** Le chiavi dei reparti restano a database: qui si traduce l'etichetta. */
+const REPARTO: Record<string, Parameters<T>[0]> = {
+  cucina: "reparto.cucina",
+  bar: "reparto.bar",
+  pizzeria: "reparto.pizzeria",
+  pasticceria: "reparto.pasticceria",
 };
 
 /** Da quanto non si fa vivo. Oltre i due minuti lo schermo è spento o via. */
-function daQuando(iso: string, adesso: number): { testo: string; acceso: boolean } {
+function daQuando(
+  iso: string,
+  adesso: number,
+  t: T
+): { testo: string; acceso: boolean } {
   // Prima che l'orologio parta non si afferma niente: meglio nessuno stato
   // che uno sbagliato per una frazione di secondo.
-  if (adesso === 0) return { testo: "—", acceso: false };
+  if (adesso === 0) return { testo: t("visto.mai"), acceso: false };
   const min = Math.floor((adesso - new Date(iso).getTime()) / 60000);
-  if (min < 2) return { testo: "in servizio adesso", acceso: true };
-  if (min < 60) return { testo: `visto ${min} min fa`, acceso: false };
+  if (min < 2) return { testo: t("visto.adesso"), acceso: true };
+  if (min < 60) return { testo: t("visto.minuti", { n: min }), acceso: false };
   const ore = Math.floor(min / 60);
-  if (ore < 24) return { testo: `visto ${ore} h fa`, acceso: false };
-  return { testo: `visto ${Math.floor(ore / 24)} giorni fa`, acceso: false };
+  if (ore < 24) return { testo: t("visto.ore", { n: ore }), acceso: false };
+  return { testo: t.n(Math.floor(ore / 24), "visto.giorni"), acceso: false };
 }
 
 export function DispositiviLista({ dispositivi }: { dispositivi: Dispositivo[] }) {
+  const t = tPersone(useLingua());
   const [avviso, setAvviso] = useState<string | null>(null);
   const [pending, start] = useTransition();
   // L'orologio arriva dal browser, non dal render: Date.now() durante il
@@ -47,10 +57,18 @@ export function DispositiviLista({ dispositivi }: { dispositivi: Dispositivo[] }
   );
 
   if (dispositivi.length === 0) {
+    // La frase nomina una voce di menu, e quella va in grassetto perché è
+    // qualcosa da andare a cercare sullo schermo. Il dizionario tiene la
+    // frase intera con `{ordini}` dentro invece di spezzarla in due chiavi:
+    // in inglese la parola non cade nello stesso punto, e due mezze frasi da
+    // ricucire sono il modo più sicuro di ritrovarsi con una traduzione che
+    // non sta in piedi.
+    const [prima, dopo] = t("dispositivi.vuoto").split("{ordini}");
     return (
       <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted">
-        Nessuno schermo si è ancora presentato. Apri <strong>Ordini</strong> sul
-        tablet della cucina o del bar: comparirà qui, e potrai dargli un nome.
+        {prima}
+        <strong>{t("dispositivi.ordini")}</strong>
+        {dopo}
       </p>
     );
   }
@@ -59,13 +77,13 @@ export function DispositiviLista({ dispositivi }: { dispositivi: Dispositivo[] }
     <>
       <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
         {dispositivi.map((d) => {
-          const stato = daQuando(d.ultimoAccesso, adesso);
+          const stato = daQuando(d.ultimoAccesso, adesso, t);
           return (
             <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 p-3">
               <div className="min-w-0">
                 <p className="flex flex-wrap items-center gap-2">
                   <span className="font-medium">
-                    {d.nome ?? "Schermo senza nome"}
+                    {d.nome ?? t("dispositivi.senza_nome")}
                   </span>
                   <span
                     className={`rounded-full border px-2 py-0.5 text-xs ${
@@ -78,11 +96,16 @@ export function DispositiviLista({ dispositivi }: { dispositivi: Dispositivo[] }
                   </span>
                 </p>
                 <p className="mt-0.5 text-sm text-muted">
-                  Mostra:{" "}
+                  {t("dispositivi.mostra")}{" "}
                   <strong className="text-foreground">
-                    {d.reparto ? (REPARTO[d.reparto] ?? d.reparto) : "tutti i reparti"}
+                    {d.reparto
+                      ? REPARTO[d.reparto]
+                        ? t(REPARTO[d.reparto])
+                        : d.reparto
+                      : t("dispositivi.tutti_i_reparti")}
                   </strong>
-                  {d.ultimoUtente && ` · ultimo accesso di ${d.ultimoUtente}`}
+                  {d.ultimoUtente &&
+                    t("dispositivi.ultimo_accesso", { utente: d.ultimoUtente })}
                 </p>
               </div>
 
@@ -99,9 +122,9 @@ export function DispositiviLista({ dispositivi }: { dispositivi: Dispositivo[] }
                   <input
                     name="nome"
                     defaultValue={d.nome ?? ""}
-                    placeholder="Tablet cucina"
+                    placeholder={t("dispositivi.nome.placeholder")}
                     maxLength={40}
-                    aria-label="Nome del dispositivo"
+                    aria-label={t("dispositivi.nome.etichetta")}
                     className="min-h-11 w-40 rounded-lg border border-border bg-background px-3 text-sm"
                   />
                   <button
@@ -109,7 +132,7 @@ export function DispositiviLista({ dispositivi }: { dispositivi: Dispositivo[] }
                     disabled={pending}
                     className="min-h-11 rounded-full border border-border px-3 text-sm disabled:opacity-50"
                   >
-                    Salva
+                    {t("dispositivi.salva")}
                   </button>
                 </form>
                 <button
@@ -123,7 +146,7 @@ export function DispositiviLista({ dispositivi }: { dispositivi: Dispositivo[] }
                   }
                   className="min-h-11 px-2 text-sm text-danger underline underline-offset-4 disabled:opacity-50"
                 >
-                  Dimentica
+                  {t("dispositivi.dimentica")}
                 </button>
               </div>
             </li>
@@ -138,11 +161,9 @@ export function DispositiviLista({ dispositivi }: { dispositivi: Dispositivo[] }
       )}
 
       <p className="mt-3 text-xs text-muted">
-        Il reparto lo sceglie lo schermo stesso, da <strong>Ordini</strong>: è
-        una proprietà del monitor, non della persona, così il tablet del bar
-        resta sul bar anche quando ci passa qualcun altro. Qui lo vedi e dai
-        un nome per riconoscerlo. <strong>Dimentica</strong> lo toglie
-        dall&apos;elenco ma non lo disconnette: se è ancora in uso ricompare.
+        {t("dispositivi.nota.a")} <strong>{t("dispositivi.ordini")}</strong>
+        {t("dispositivi.nota.b")} <strong>{t("dispositivi.dimentica")}</strong>{" "}
+        {t("dispositivi.nota.c")}
       </p>
     </>
   );

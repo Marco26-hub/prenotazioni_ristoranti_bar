@@ -7,6 +7,8 @@ import type { OrderItemStatus } from "@repo/shared";
 import { Sala, type TavoloSala, type RigaOrdine } from "./sala";
 import { moduloAttivo } from "@/lib/authz";
 import { ModuloNonAttivo } from "./modulo-non-attivo";
+import { tGuscio } from "@/i18n/guscio";
+import { linguaUtente } from "@/lib/lingua";
 
 interface RigaTavolo {
   id: string;
@@ -25,6 +27,7 @@ interface RigaSessione {
   guest_count: number;
   formula: boolean;
   bambini: number;
+  fascia: "pranzo" | "cena" | null;
   supplemento_cents: number;
   ordinato: string | null;
   pagato: string | null;
@@ -46,13 +49,14 @@ interface RigaComanda {
 }
 
 export default async function DashboardPage() {
+  const t = tGuscio(await linguaUtente());
   const session = await auth();
   const venue = session?.venues[0];
 
   if (!venue) {
     return (
       <main className="p-4">
-        <p>Nessun locale associato a questo utente.</p>
+        <p>{t("guscio.nessun_locale")}</p>
       </main>
     );
   }
@@ -99,7 +103,7 @@ export default async function DashboardPage() {
   // delle comande, gonfiando entrambi i totali.
     sql<RigaSessione[]>`
     select ts.table_id, ts.id as session_id, ts.opened_at, ts.guest_count,
-           ts.formula, ts.bambini, ts.supplemento_cents,
+           ts.formula, ts.bambini, ts.fascia, ts.supplemento_cents,
            (select sum(oi.quantity * oi.unit_price_cents)
               from order_items oi
               join orders o on o.id = oi.order_id
@@ -182,6 +186,14 @@ export default async function DashboardPage() {
       coperti: s?.guest_count ?? 1,
       formula: s?.formula ?? false,
       bambini: s?.bambini ?? 0,
+      // Da `conto`, non dalla colonna: la regola su quando i coperti vanno
+      // chiesti (solo a formula, e solo se il tavolo ha ordinato) sta scritta
+      // in un posto solo, come tutto il resto dell'aritmetica del conto.
+      copertiDaConfermare:
+        contiPerSessione.get(s?.session_id ?? "")?.copertiDaConfermare ?? false,
+      copertiDalTavolo:
+        contiPerSessione.get(s?.session_id ?? "")?.copertiDalTavolo ?? false,
+      fascia: s?.fascia ?? null,
       supplementoCents: Number(s?.supplemento_cents ?? 0),
       /*
        * Il dovuto lo calcola la funzione condivisa, non la somma dei piatti.

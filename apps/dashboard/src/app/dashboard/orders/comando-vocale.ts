@@ -16,13 +16,25 @@ export type Azione =
   | { tipo: "trattieni"; tavolo: string; trattieni: boolean }
   | { tipo: "sconosciuto"; testo: string };
 
-/** I numeri detti a voce arrivano scritti in lettere. */
+/**
+ * I numeri detti a voce arrivano scritti in lettere.
+ *
+ * Le due lingue stanno nella stessa tabella invece che in due: in cucina si
+ * parla come capita, e un cuoco che lavora in inglese dice comunque "tavolo"
+ * quando lo dice al collega italiano. Separarle avrebbe significato non
+ * capire proprio le frasi miste, che sono la maggioranza.
+ */
 const NUMERI: Record<string, string> = {
   uno: "1", due: "2", tre: "3", quattro: "4", cinque: "5",
   sei: "6", sette: "7", otto: "8", nove: "9", dieci: "10",
   undici: "11", dodici: "12", tredici: "13", quattordici: "14",
   quindici: "15", sedici: "16", diciassette: "17", diciotto: "18",
   diciannove: "19", venti: "20",
+  one: "1", two: "2", three: "3", four: "4", five: "5",
+  six: "6", seven: "7", eight: "8", nine: "9", ten: "10",
+  eleven: "11", twelve: "12", thirteen: "13", fourteen: "14",
+  fifteen: "15", sixteen: "16", seventeen: "17", eighteen: "18",
+  nineteen: "19", twenty: "20",
 };
 
 /**
@@ -37,7 +49,7 @@ export function interpreta(testo: string): Azione {
 
   let numero: string | null = null;
 
-  const cifra = t.match(/\b(?:tavolo\s*)?t?\s*(\d{1,2})\b/);
+  const cifra = t.match(/\b(?:tavolo|table\s*)?\s*t?\s*(\d{1,2})\b/);
   if (cifra) numero = cifra[1];
 
   if (!numero) {
@@ -54,18 +66,22 @@ export function interpreta(testo: string): Azione {
   // Trattenere prima di tutto: "ritarda il tre" e "manda il tre" contengono
   // spesso anche la parola del piatto o della portata, e finirebbero
   // interpretate come un avanzamento.
-  if (/\britard|\btratt|\baspett|\bferma/.test(t)) {
+  if (/\britard|\btratt|\baspett|\bferma|\bhold|\bwait|\bdelay/.test(t)) {
     return { tipo: "trattieni", tavolo: numero, trattieni: true };
   }
-  if (/\bmanda|\blibera|\bvai col|\bfai partire/.test(t)) {
+  if (/\bmanda|\blibera|\bvai col|\bfai partire|\bsend|\brelease|\bgo ahead/.test(t)) {
     return { tipo: "trattieni", tavolo: numero, trattieni: false };
   }
 
   // "servito" prima di "pronto": chi dice "servito" ha già superato pronto,
   // e la parola "pronto" può comparire in entrambe le frasi.
-  if (/\bserv/.test(t)) return { tipo: "avanza", tavolo: numero, a: "served" };
-  if (/\bpront/.test(t)) return { tipo: "avanza", tavolo: numero, a: "ready" };
-  if (/\bprepar|\bin lavoraz|\bpartito/.test(t)) {
+  if (/\bserv|\bdelivered|\bon the table/.test(t)) {
+    return { tipo: "avanza", tavolo: numero, a: "served" };
+  }
+  if (/\bpront|\bready|\bup\b|\bplated/.test(t)) {
+    return { tipo: "avanza", tavolo: numero, a: "ready" };
+  }
+  if (/\bprepar|\bin lavoraz|\bpartito|\bworking|\bfiring|\bstarted/.test(t)) {
     return { tipo: "avanza", tavolo: numero, a: "preparing" };
   }
 
@@ -91,8 +107,15 @@ export interface Riconoscimento {
 
 type Costruttore = new () => Riconoscimento;
 
-/** null se il browser non sa fare riconoscimento vocale (Firefox, per ora). */
-export function creaRiconoscimento(): Riconoscimento | null {
+/**
+ * null se il browser non sa fare riconoscimento vocale (Firefox, per ora).
+ *
+ * La lingua è quella dell'interfaccia e non una costante: un cuoco che lavora
+ * in inglese detta "table five ready", e un riconoscitore impostato
+ * sull'italiano gli restituisce una trascrizione che nessuna delle frasi
+ * riconosciute può soddisfare — il comando fallisce sempre e sembra rotto.
+ */
+export function creaRiconoscimento(lingua: "it" | "en" = "it"): Riconoscimento | null {
   if (typeof window === "undefined") return null;
   const w = window as unknown as {
     SpeechRecognition?: Costruttore;
@@ -102,7 +125,7 @@ export function creaRiconoscimento(): Riconoscimento | null {
   if (!C) return null;
 
   const r = new C();
-  r.lang = "it-IT";
+  r.lang = lingua === "en" ? "en-GB" : "it-IT";
   r.continuous = true;
   // I risultati parziali cambiano mentre si parla: agire su quelli
   // significherebbe segnare un tavolo sbagliato a metà frase.

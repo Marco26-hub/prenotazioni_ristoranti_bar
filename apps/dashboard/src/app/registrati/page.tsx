@@ -3,8 +3,11 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { signup, type SignupResult } from "./actions";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tGuscio } from "@/i18n/guscio";
 
 export default function SignupPage() {
+  const t = tGuscio(useLingua());
   const [state, formAction, pending] = useActionState<SignupResult | null, FormData>(
     async (_prev, formData) => signup(formData),
     null
@@ -13,13 +16,10 @@ export default function SignupPage() {
   if (state?.success) {
     return (
       <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 p-4">
-        <h1 className="text-lg font-semibold">Locale creato</h1>
-        <p className="text-sm">
-          Ora puoi accedere e trovare i QR dei tavoli già pronti da stampare in
-          Gestione tavoli.
-        </p>
+        <h1 className="text-lg font-semibold">{t("registrazione.fatto.titolo")}</h1>
+        <p className="text-sm">{t("registrazione.fatto.testo")}</p>
         <Link href="/login" className="rounded bg-black py-2 text-center text-white">
-          Vai al login
+          {t("registrazione.fatto.vai")}
         </Link>
       </main>
     );
@@ -28,33 +28,33 @@ export default function SignupPage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-5 py-10">
       <div className="rounded-2xl border border-border bg-surface p-6">
-      <h1 className="mb-1 text-xl font-semibold tracking-tight">Registra il tuo locale</h1>
-      <p className="mb-6 text-sm text-muted">Bastano un minuto e il numero di tavoli: i QR li generiamo noi.</p>
+      <h1 className="mb-1 text-xl font-semibold tracking-tight">{t("registrazione.titolo")}</h1>
+      <p className="mb-6 text-sm text-muted">{t("registrazione.sottotitolo")}</p>
 
       <form action={formAction} className="space-y-3">
         <input
           name="venueName"
-          placeholder="Nome del locale"
+          placeholder={t("registrazione.nome")}
           required
           className="min-h-11 w-full rounded-lg border border-border bg-background px-3"
         />
         <input
           name="email"
           type="email"
-          placeholder="Email"
+          placeholder={t("registrazione.email")}
           required
           className="min-h-11 w-full rounded-lg border border-border bg-background px-3"
         />
         <input
           name="password"
           type="password"
-          placeholder="Password (min 8 caratteri)"
+          placeholder={t("registrazione.password")}
           required
           minLength={8}
           className="min-h-11 w-full rounded-lg border border-border bg-background px-3"
         />
         <div>
-          <label className="mb-1 block text-sm">Quanti tavoli</label>
+          <label className="mb-1 block text-sm">{t("registrazione.tavoli")}</label>
           <input
             name="tableCount"
             type="number"
@@ -64,9 +64,7 @@ export default function SignupPage() {
             required
             className="min-h-11 w-full rounded-lg border border-border bg-background px-3"
           />
-          <p className="mt-1 text-xs text-muted">
-            Creiamo subito un QR per ogni tavolo. Potrai aggiungerne o toglierne dopo.
-          </p>
+          <p className="mt-1 text-xs text-muted">{t("registrazione.tavoli.nota")}</p>
         </div>
 
         {/* L'accordo art. 28 va accettato prima che esista un trattamento,
@@ -80,25 +78,25 @@ export default function SignupPage() {
             className="mt-0.5 h-5 w-5 shrink-0"
           />
           <span>
-            Ho letto e accetto la{" "}
+            {t("registrazione.dpa.prima")}{" "}
             <a
               href="/dpa"
               target="_blank"
               rel="noreferrer"
               className="underline underline-offset-2"
             >
-              nomina a responsabile del trattamento
+              {t("registrazione.dpa.nomina")}
             </a>{" "}
-            e l&apos;
+            {t("registrazione.dpa.mezzo")}
             <a
               href="/privacy"
               target="_blank"
               rel="noreferrer"
               className="underline underline-offset-2"
             >
-              informativa privacy
+              {t("registrazione.dpa.privacy")}
             </a>
-            . Resto titolare dei dati dei miei clienti.
+            {t("registrazione.dpa.dopo")}
           </span>
         </label>
 
@@ -109,12 +107,12 @@ export default function SignupPage() {
           disabled={pending}
           className="min-h-11 w-full rounded-full bg-accent font-medium text-accent-foreground active:scale-95 disabled:opacity-50"
         >
-          {pending ? "Creazione..." : "Crea locale"}
+          {pending ? t("registrazione.in_corso") : t("registrazione.crea")}
         </button>
       </form>
 
       <Link href="/login" className="mt-5 block text-center text-sm text-muted underline">
-        Ho già un account
+        {t("registrazione.gia")}
       </Link>
       </div>
     </main>

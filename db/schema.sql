@@ -21,7 +21,11 @@ create table users (
   name text,
   created_at timestamptz default now(),
   is_super_admin boolean default false not null,
-  must_change_password boolean default false not null
+  must_change_password boolean default false not null,
+  -- La lingua del gestionale è di chi lo usa, non del locale: in un locale a
+  -- gestione straniera il titolare può volerlo in inglese e il cameriere in
+  -- italiano. Nullo = non ha scelto, decide il browser.
+  lingua_ui text check (lingua_ui is null or lingua_ui in ('it', 'en'))
 );
 
 -- ------------------------------------------------------------
@@ -69,6 +73,12 @@ create table venues (
   -- Lingue del menu oltre all'italiano, che è sempre la base. Vuoto = nessun
   -- selettore mostrato al cliente, invece di uno che non cambia nulla.
   languages text[] not null default '{}',
+  -- Con che lingua parte una pagina pubblica quando il browser non dice nulla
+  -- di utile. Un locale in zona turistica parte in inglese invece di far
+  -- cercare il selettore a ogni cliente; la lingua del telefono vince
+  -- comunque, perché è un'informazione più precisa di una preferenza fissa.
+  lingua_predefinita text not null default 'it'
+    check (lingua_predefinita in ('it', 'en')),
   -- Formato del locale: pizzeria e steak house non compilano il menu allo
   -- stesso modo. Serve a proporre categorie, scelte e promemoria giusti.
   venue_type text not null default 'ristorante',
@@ -294,6 +304,17 @@ create table table_sessions (
   venue_id uuid references venues(id) not null,
   status text not null default 'open' check (status in ('open','billing','closed','cancelled')),
   guest_count int default 1,
+  -- La sessione la apre il cliente inquadrando il QR, quindi i coperti
+  -- nascono a 1 e non li ha dichiarati nessuno. Alla carta è quasi innocuo;
+  -- a prezzo fisso è tutto il conto. E un tavolo da uno esiste davvero,
+  -- quindi "guest_count = 1" non distingue il non dichiarato dal reale.
+  coperti_confermati boolean not null default false,
+  -- Quanti dice di essere il tavolo, scritto dal cliente al QR. È una
+  -- proposta, non una conferma: fa vedere un totale provvisorio a chi
+  -- mangia e risparmia alla sala di contare le teste, ma chi decide sui
+  -- soldi resta il locale. Colonna a parte perché `guest_count` nasce a 1 e
+  -- un tavolo da uno che dichiara 1 sarebbe indistinguibile dal silenzio.
+  coperti_dal_tavolo boolean not null default false,
   -- Aperta al bancone: più sessioni aperte sullo stesso QR sono la norma,
   -- sono le persone in fila.
   banco boolean not null default false,
@@ -302,6 +323,10 @@ create table table_sessions (
   formula boolean not null default false,
   bambini int not null default 0 check (bambini >= 0),
   supplemento_cents int not null default 0,
+  -- Pranzo o cena deciso a mano, quando l'ora di apertura sbaglia: il tavolo
+  -- seduto alle 18:30 dove la cena parte alle 19 pagava il pranzo per tutta
+  -- la sera. Nullo = decidila dall'orario, che è il caso normale.
+  fascia text check (fascia is null or fascia in ('pranzo', 'cena')),
   opened_at timestamptz default now(),
   closed_at timestamptz
 );
@@ -502,6 +527,12 @@ create table reservations (
   cancel_token text,
   promemoria_inviato_at timestamptz,
   promemoria_errore text,
+  -- La lingua in cui scrivere a questo cliente. Non tutte le email partono
+  -- mentre lui è collegato: il promemoria lo manda un cron il giorno dopo,
+  -- quando header e cookie non ci sono più. Senza questa colonna chi prenota
+  -- in inglese riceve in italiano proprio il messaggio che contiene il link
+  -- per disdire.
+  lingua text not null default 'it' check (lingua in ('it', 'en')),
   disdetta_dal_cliente_at timestamptz
 );
 

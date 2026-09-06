@@ -1,9 +1,21 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+import { LinguaProvider } from "@repo/shared/i18n/contesto";
+import { linguaPagina } from "@/lib/lingua";
+import { tLegale } from "@/i18n/legale";
 
-export const metadata = {
-  title: "Informativa privacy",
-  robots: { index: false, follow: true },
-};
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ lang?: string }>;
+}): Promise<Metadata> {
+  const { lang } = await searchParams;
+  const t = tLegale(await linguaPagina(lang));
+  return {
+    title: t("privacy.titolo"),
+    robots: { index: false, follow: true },
+  };
+}
 
 /**
  * Informativa generica, raggiungibile solo digitando il dominio a mano.
@@ -12,55 +24,62 @@ export const metadata = {
  * singolo locale, e un documento che non lo nomina non soddisfa
  * l'art. 13.1.a. Qui si dice come arrivare a quella giusta.
  */
-export default function PrivacyPage() {
+export default async function PrivacyPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ lang?: string }>;
+}) {
+  const { lang } = await searchParams;
+  const lingua = await linguaPagina(lang);
+  const t = tLegale(lingua);
+
   return (
-    <main className="mx-auto max-w-2xl space-y-4 px-4 py-6 text-sm leading-relaxed">
-      <h1 className="text-2xl font-semibold tracking-tight">Informativa privacy</h1>
+    <LinguaProvider lingua={lingua}>
+      <main className="mx-auto max-w-2xl space-y-4 px-4 py-6 text-sm leading-relaxed">
+        <h1 className="text-2xl font-semibold tracking-tight">{t("privacy.titolo")}</h1>
 
-      <p>
-        Questa piattaforma è usata da molti ristoranti e bar, ognuno dei quali
-        è <strong>titolare autonomo</strong> del trattamento dei dati dei propri
-        clienti. Non esiste quindi un&apos;informativa unica: quella che ti
-        riguarda è del locale presso cui hai ordinato, pagato o prenotato.
-      </p>
+        {/* L'italiano è il testo che fa fede: chi legge l'inglese deve saperlo
+            prima di leggere il resto, non in fondo. */}
+        {t.lingua === "en" && (
+          <p className="text-muted">{t("legale.prevalenza")}</p>
+        )}
 
-      <h2 className="pt-3 font-semibold">Come trovare quella giusta</h2>
-      <ul className="list-disc space-y-1 pl-5">
-        <li>
-          Dalla pagina del tuo tavolo o dal menu del locale, in fondo, alla voce{" "}
-          <em>Privacy</em>.
-        </li>
-        <li>
-          Oppure all&apos;indirizzo <code>/privacy/</code> seguito dal nome del
-          locale come compare nel link del menu.
-        </li>
-      </ul>
+        <p>
+          {t("privacy.intro.a")} <strong>{t("privacy.intro.forte")}</strong>{" "}
+          {t("privacy.intro.b")}
+        </p>
 
-      <h2 className="pt-3 font-semibold">Il ruolo di chi gestisce la piattaforma</h2>
-      <p>
-        Il fornitore della piattaforma tratta i dati esclusivamente per conto
-        dei locali e secondo le loro istruzioni, in qualità di responsabile del
-        trattamento nominato ai sensi dell&apos;art. 28 GDPR. Non usa i dati dei
-        clienti dei locali per finalità proprie, non li rivende e non li impiega
-        per pubblicità o profilazione.
-      </p>
+        <h2 className="pt-3 font-semibold">{t("privacy.trovare.titolo")}</h2>
+        <ul className="list-disc space-y-1 pl-5">
+          <li>
+            {t("privacy.trovare.tavolo")} <em>{t("nav.privacy")}</em>.
+          </li>
+          <li>
+            {t("privacy.trovare.indirizzo.a")} <code>/privacy/</code>{" "}
+            {t("privacy.trovare.indirizzo.b")}
+          </li>
+        </ul>
 
-      <h2 className="pt-3 font-semibold">Cookie</h2>
-      <p>
-        Vale per tutti i locali ed è descritto nella{" "}
-        <Link href="/cookie" className="underline underline-offset-2">
-          informativa cookie
-        </Link>
-        : nessun cookie di profilazione, nessuna analitica, nessun banner.
-      </p>
+        <h2 className="pt-3 font-semibold">{t("privacy.piattaforma.titolo")}</h2>
+        <p>{t("privacy.piattaforma.testo")}</p>
 
-      <h2 className="pt-3 font-semibold">Reclami</h2>
-      <p>
-        Puoi rivolgerti al <strong>Garante per la protezione dei dati
-        personali</strong>, Piazza Venezia 11, 00187 Roma — garante@gpdp.it.
-      </p>
+        <h2 className="pt-3 font-semibold">{t("privacy.cookie.titolo")}</h2>
+        <p>
+          {t("privacy.cookie.a")}{" "}
+          <Link href="/cookie" className="underline underline-offset-2">
+            {t("cookie.link")}
+          </Link>
+          {t("privacy.cookie.b")}
+        </p>
 
-      <p className="pt-4 text-muted">Ultimo aggiornamento: settembre 2026.</p>
-    </main>
+        <h2 className="pt-3 font-semibold">{t("privacy.reclami.titolo")}</h2>
+        <p>
+          {t("privacy.reclami.a")} <strong>{t("privacy.garante")}</strong>
+          {t("privacy.reclami.b")}
+        </p>
+
+        <p className="pt-4 text-muted">{t("legale.aggiornamento")}</p>
+      </main>
+    </LinguaProvider>
   );
 }

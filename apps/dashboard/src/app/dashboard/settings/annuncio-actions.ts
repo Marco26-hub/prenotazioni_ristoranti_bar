@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { requireRole } from "@/lib/authz";
+import { linguaUtente } from "@/lib/lingua";
+import { tImpostazioni } from "@/i18n/impostazioni";
 
 export interface AnnuncioResult {
   error?: string;
@@ -43,25 +45,26 @@ function data(formData: FormData, chiave: string): Date | null {
 
 export async function salvaAnnuncio(formData: FormData): Promise<AnnuncioResult> {
   const { venue } = await requireRole(["owner", "manager"]);
+  const t = tImpostazioni(await linguaUtente());
   const sql = db();
 
   const attivo = formData.get("enabled") === "on";
   const titolo = testo(formData, "title", 80);
 
   if (attivo && !titolo) {
-    return { error: "Serve almeno un titolo per mostrare l'annuncio" };
+    return { error: t("annuncio.errore.titolo") };
   }
 
   const ctaUrlGrezzo = String(formData.get("ctaUrl") ?? "").trim();
   const ctaUrl = ctaUrlGrezzo ? urlSicuro(ctaUrlGrezzo) : null;
   if (ctaUrlGrezzo && !ctaUrl) {
-    return { error: "Il link del bottone deve iniziare per http:// o https://" };
+    return { error: t("annuncio.errore.link") };
   }
 
   const inizio = data(formData, "startsAt");
   const fine = data(formData, "endsAt");
   if (inizio && fine && fine.getTime() <= inizio.getTime()) {
-    return { error: "La data di fine deve venire dopo quella di inizio" };
+    return { error: t("annuncio.errore.date") };
   }
 
   // --- Immagine: caricamento, rimozione, oppure si tiene quella che c'è ---
@@ -73,10 +76,10 @@ export async function salvaAnnuncio(formData: FormData): Promise<AnnuncioResult>
     const file = formData.get("image");
     if (file instanceof File && file.size > 0) {
       if (!TIPI_AMMESSI.includes(file.type)) {
-        return { error: "Formato non supportato: usa JPG, PNG o WEBP" };
+        return { error: t("annuncio.errore.formato") };
       }
       if (file.size > MAX_IMMAGINE_BYTES) {
-        return { error: "Immagine troppo pesante (massimo 500 KB)" };
+        return { error: t("annuncio.errore.peso") };
       }
       const base64 = Buffer.from(await file.arrayBuffer()).toString("base64");
       immagine = `data:${file.type};base64,${base64}`;
@@ -125,12 +128,12 @@ export async function salvaAnnuncio(formData: FormData): Promise<AnnuncioResult>
 
   revalidatePath("/dashboard/settings");
 
-  if (!attivo) return { success: "Salvato. L'annuncio non è mostrato ai clienti." };
+  if (!attivo) return { success: t("annuncio.ok.spento") };
   if (fine && fine.getTime() < Date.now()) {
-    return { success: "Salvato, ma la data di fine è già passata: non comparirà." };
+    return { success: t("annuncio.ok.scaduto") };
   }
   if (inizio && inizio.getTime() > Date.now()) {
-    return { success: "Salvato. Comparirà alla data di inizio indicata." };
+    return { success: t("annuncio.ok.futuro") };
   }
-  return { success: "Salvato. I clienti lo vedono aprendo il menu." };
+  return { success: t("annuncio.ok") };
 }

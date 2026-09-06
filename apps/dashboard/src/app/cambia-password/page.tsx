@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@repo/shared/db";
+import { tGuscio } from "@/i18n/guscio";
+import { linguaUtente } from "@/lib/lingua";
 import { CambiaForm } from "./form";
 
 /**
@@ -12,6 +14,8 @@ export default async function CambiaPasswordPage() {
   const session = await auth();
   if (!session?.user.id) redirect("/login");
 
+  const t = tGuscio(await linguaUtente());
+
   const sql = db();
   const [u] = await sql<{ must_change_password: boolean }[]>`
     select must_change_password from users where id = ${session.user.id}`;
@@ -20,10 +24,9 @@ export default async function CambiaPasswordPage() {
 
   return (
     <main className="mx-auto max-w-md px-4 py-10">
-      <h1 className="text-lg font-semibold">Scegli la tua password</h1>
+      <h1 className="text-lg font-semibold">{t("primaccesso.titolo")}</h1>
       <p className="mt-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-        Quella con cui sei entrato ti è stata comunicata a voce per darti il
-        primo accesso: da quel momento non è più solo tua. Scegline una tu.
+        {t("primaccesso.spiegazione")}
       </p>
       <div className="mt-5">
         <CambiaForm />

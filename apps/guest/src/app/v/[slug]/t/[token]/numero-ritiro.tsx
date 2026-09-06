@@ -2,6 +2,8 @@
 
 import { useCallback, useState } from "react";
 import { useRitmo } from "@repo/shared/ritmo";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tTavoloExtra } from "@/i18n/tavolo-extra";
 
 interface Ordine {
   numero: number;
@@ -21,6 +23,7 @@ interface Ordine {
  * leggermente diverse.
  */
 export function NumeroRitiro({ sessionId }: { sessionId: string }) {
+  const t = tTavoloExtra(useLingua());
   const [ordini, setOrdini] = useState<Ordine[]>([]);
 
   const carica = useCallback(async () => {
@@ -57,7 +60,7 @@ export function NumeroRitiro({ sessionId }: { sessionId: string }) {
 
   return (
     <section
-      aria-label="Il tuo numero"
+      aria-label={t("ritiro.sezione")}
       className="mt-5 space-y-2"
     >
       {daRitirare.map((o) => {
@@ -84,12 +87,12 @@ export function NumeroRitiro({ sessionId }: { sessionId: string }) {
             </span>
             <div className="min-w-0">
               <p className="font-semibold" role={pronto ? "status" : undefined}>
-                {pronto ? "Pronto, vieni a ritirare" : "In preparazione"}
+                {pronto ? t("ritiro.pronto") : t("ritiro.preparazione")}
               </p>
               <p className="mt-0.5 text-sm text-muted">
                 {pronto
-                  ? `Al banco chiedi il numero ${o.numero}.`
-                  : `Il tuo numero è ${o.numero}. Ti avvisiamo qui quando è pronto.`}
+                  ? t("ritiro.pronto.dettaglio", { n: o.numero })
+                  : t("ritiro.preparazione.dettaglio", { n: o.numero })}
               </p>
             </div>
           </div>

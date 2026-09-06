@@ -29,7 +29,11 @@
     "./conto": "./conto.ts",
     "./fiscale": "./fiscale.ts",
     "./ritmo": "./ritmo.ts",
-    "./reparti": "./reparti.ts"
+    "./reparti": "./reparti.ts",
+    "./i18n": "./i18n/index.ts",
+    "./i18n/contesto": "./i18n/contesto.tsx",
+    "./i18n/comune": "./i18n/comune.ts",
+    "./i18n/email": "./i18n/email.ts"
   },
   "dependencies": {
     "postgres": "^3.4.5",

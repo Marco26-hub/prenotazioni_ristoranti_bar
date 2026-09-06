@@ -2,6 +2,9 @@
 
 import { useActionState, useId } from "react";
 import { saveDishPhoto, type PhotoResult } from "./photo-actions";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tComune } from "@repo/shared/i18n/comune";
+import { tMenuAdmin } from "@/i18n/menu";
 
 /**
  * Caricamento della foto del piatto.
@@ -17,6 +20,9 @@ export function PhotoForm({
   itemId: string;
   imageUrl: string | null;
 }) {
+  const lingua = useLingua();
+  const t = tMenuAdmin(lingua);
+  const tc = tComune(lingua);
   const inputId = useId();
   const [state, formAction, pending] = useActionState<PhotoResult | null, FormData>(
     async (_prev, formData) => saveDishPhoto(formData),
@@ -48,7 +54,7 @@ export function PhotoForm({
           htmlFor={inputId}
           className="inline-flex min-h-11 cursor-pointer items-center rounded-full border border-border px-4 text-sm"
         >
-          {imageUrl ? "Cambia foto" : "Aggiungi foto"}
+          {imageUrl ? t("foto.cambia") : t("foto.aggiungi")}
         </label>
         <input
           id={inputId}
@@ -63,7 +69,7 @@ export function PhotoForm({
         />
 
         <p className="mt-1 text-xs text-muted">
-          {pending ? "Caricamento…" : "JPG, PNG o WEBP fino a 300 KB"}
+          {pending ? t("foto.caricamento") : t("foto.limiti")}
         </p>
 
         {state?.error && <p className="mt-1 text-xs text-danger">{state.error}</p>}
@@ -77,7 +83,7 @@ export function PhotoForm({
           disabled={pending}
           className="flex min-h-11 shrink-0 items-center px-2 text-sm text-danger underline disabled:opacity-50"
         >
-          Rimuovi
+          {tc("azione.rimuovi")}
         </button>
       )}
     </form>

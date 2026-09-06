@@ -268,7 +268,22 @@ export function interpretaOrario(valore: string, timezone = "Europe/Rome"): Date
 }
 
 export function formattaOrario(d: Date, timezone = "Europe/Rome"): string {
-  return new Intl.DateTimeFormat("it-IT", {
+  return formattaOrarioLingua(d, timezone, "it");
+}
+
+/**
+ * Lo stesso, nella lingua di chi legge la prenotazione.
+ *
+ * `en-GB` e non `en-US`: giorno prima del mese e orologio a 24 ore. Una
+ * conferma che dice "7:30 PM" a chi si presenta davanti a un locale italiano
+ * dove tutto dice 19:30 è una conferma che fa esitare.
+ */
+export function formattaOrarioLingua(
+  d: Date,
+  timezone = "Europe/Rome",
+  lingua: "it" | "en" = "it"
+): string {
+  return new Intl.DateTimeFormat(lingua === "en" ? "en-GB" : "it-IT", {
     weekday: "long",
     day: "numeric",
     month: "long",

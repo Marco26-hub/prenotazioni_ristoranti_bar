@@ -6,6 +6,8 @@ import { encryptSecret } from "@repo/shared/crypto";
 import { getTilbyShop } from "@repo/shared/tilby";
 import { requireRole } from "@/lib/authz";
 import { messaggioErrore } from "@repo/shared/errori";
+import { linguaUtente } from "@/lib/lingua";
+import { tImpostazioni } from "@/i18n/impostazioni";
 
 export interface TilbyResult {
   error?: string;
@@ -15,9 +17,10 @@ export interface TilbyResult {
 
 export async function connectTilby(formData: FormData): Promise<TilbyResult> {
   const { venue } = await requireRole(["owner", "manager"]);
+  const t = tImpostazioni(await linguaUtente());
   const token = String(formData.get("token") ?? "").trim();
 
-  if (!token) return { error: "Inserisci il token Tilby" };
+  if (!token) return { error: t("tilby.errore.token") };
 
   // Verificare il token prima di salvarlo: così un token sbagliato lo si
   // scopre subito, e non al primo import fallito.
@@ -28,7 +31,7 @@ export async function connectTilby(formData: FormData): Promise<TilbyResult> {
   } catch (err) {
     console.error(`[tilby] verifica token fallita: ${messaggioErrore(err)}`);
     return {
-      error: err instanceof Error ? err.message : "Impossibile contattare Tilby",
+      error: err instanceof Error ? err.message : t("tilby.errore.contatto"),
     };
   }
 

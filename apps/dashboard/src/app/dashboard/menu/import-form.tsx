@@ -2,8 +2,11 @@
 
 import { useActionState } from "react";
 import { importMenuCsv, type ImportResult } from "./import-actions";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tMenuAdmin } from "@/i18n/menu";
 
 export function ImportForm() {
+  const t = tMenuAdmin(useLingua());
   const [state, formAction, pending] = useActionState<ImportResult | null, FormData>(
     async (_prev, formData) => importMenuCsv(formData),
     null
@@ -12,10 +15,9 @@ export function ImportForm() {
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted">
-        Carica un file <strong>Excel (.xlsx)</strong>, CSV o TSV. Sono supportati
-        piatti e bevande con categoria, tipo, formato, produttore, stile, vitigno,
-        servizio, foto, allergeni e dati fiscali. Le colonne aggiuntive sono
-        facoltative e le categorie mancanti vengono create da sole.
+        {t("importa.testo.prima")}
+        <strong>{t("importa.testo.excel")}</strong>
+        {t("importa.testo.dopo")}
       </p>
 
       <a
@@ -23,7 +25,7 @@ export function ImportForm() {
         download
         className="inline-block text-sm underline underline-offset-2"
       >
-        Scarica un file di esempio
+        {t("importa.esempio")}
       </a>
 
       <form action={formAction} className="space-y-2">
@@ -39,7 +41,7 @@ export function ImportForm() {
           disabled={pending}
           className="min-h-11 w-full rounded-full bg-accent font-medium text-accent-foreground active:scale-95 disabled:opacity-50"
         >
-          {pending ? "Importazione..." : "Importa menu"}
+          {pending ? t("importa.in.corso") : t("importa.avvia")}
         </button>
       </form>
 
@@ -48,11 +50,11 @@ export function ImportForm() {
       {state?.imported !== undefined && (
         <div className="space-y-1 text-sm">
           <p className="text-success">
-            {state.imported} piatti importati.
+            {t("importa.fatti", { n: state.imported })}
           </p>
           {state.skipped && state.skipped.length > 0 && (
             <div className="text-muted">
-              <p>Righe saltate:</p>
+              <p>{t("importa.saltate")}</p>
               <ul className="list-disc pl-5">
                 {state.skipped.map((s, i) => (
                   <li key={i}>{s}</li>

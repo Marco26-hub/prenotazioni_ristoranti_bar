@@ -5,6 +5,8 @@ import { decryptSecret, encryptSecret } from "@repo/shared/crypto";
 import { leggiEtichetta, MODELLO_PREDEFINITO, type SchedaVino } from "@repo/shared/openrouter";
 import { requireRole } from "@/lib/authz";
 import { revalidatePath } from "next/cache";
+import { linguaUtente } from "@/lib/lingua";
+import { tMenuAdmin } from "@/i18n/menu";
 
 export interface EsitoEtichetta {
   error?: string;
@@ -26,16 +28,17 @@ const TIPI = ["image/jpeg", "image/png", "image/webp"];
  */
 export async function leggiDaFoto(formData: FormData): Promise<EsitoEtichetta> {
   const { venue } = await requireRole(["owner", "manager"]);
+  const t = tMenuAdmin(await linguaUtente());
 
   const file = formData.get("etichetta");
   if (!(file instanceof File) || file.size === 0) {
-    return { error: "Nessuna foto selezionata" };
+    return { error: t("etichetta.errore.nessuna.foto") };
   }
   if (!TIPI.includes(file.type)) {
-    return { error: "Formato non supportato: usa JPG, PNG o WEBP" };
+    return { error: t("etichetta.errore.formato") };
   }
   if (file.size > MAX_BYTES) {
-    return { error: "Foto troppo pesante (massimo 800 KB)" };
+    return { error: t("etichetta.errore.peso") };
   }
 
   const sql = db();
@@ -44,17 +47,14 @@ export async function leggiDaFoto(formData: FormData): Promise<EsitoEtichetta> {
       from venues where id = ${venue.venueId}`;
 
   if (!v?.openrouter_api_key) {
-    return {
-      error:
-        "Lettura da foto non attiva: collega una chiave OpenRouter in Impostazioni.",
-    };
+    return { error: t("etichetta.errore.non.attiva") };
   }
 
   let chiave: string;
   try {
     chiave = decryptSecret(v.openrouter_api_key);
   } catch {
-    return { error: "Chiave OpenRouter illeggibile: reinseriscila in Impostazioni." };
+    return { error: t("etichetta.errore.chiave") };
   }
 
   const base64 = Buffer.from(await file.arrayBuffer()).toString("base64");
@@ -72,18 +72,15 @@ export async function leggiDaFoto(formData: FormData): Promise<EsitoEtichetta> {
   ).length;
 
   if (letti === 0) {
-    return {
-      error:
-        "Non ho letto nulla di utile dalla foto. Prova con più luce, o compila a mano.",
-    };
+    return { error: t("etichetta.errore.niente") };
   }
 
   return {
     scheda,
     avviso:
       scheda.incerti && scheda.incerti.length > 0
-        ? `Controlla a mano: ${scheda.incerti.join(", ")}.`
-        : "Rileggi i campi prima di salvare: quello che scrivi qui lo legge il cliente.",
+        ? t("etichetta.avviso.incerti", { campi: scheda.incerti.join(", ") })
+        : t("etichetta.avviso.rileggi"),
   };
 }
 
@@ -94,6 +91,7 @@ export interface EsitoChiave {
 
 export async function salvaChiaveOpenRouter(formData: FormData): Promise<EsitoChiave> {
   const { venue } = await requireRole(["owner"]);
+  const t = tMenuAdmin(await linguaUtente());
   const sql = db();
 
   if (formData.get("rimuovi") === "on") {
@@ -101,7 +99,7 @@ export async function salvaChiaveOpenRouter(formData: FormData): Promise<EsitoCh
       update venues set openrouter_api_key = null, openrouter_model = null
        where id = ${venue.venueId}`;
     revalidatePath("/dashboard/settings");
-    return { success: "Rimossa. La lettura da foto non è più disponibile." };
+    return { success: t("chiave.rimossa") };
   }
 
   const chiave = String(formData.get("apiKey") ?? "").trim();
@@ -115,16 +113,16 @@ export async function salvaChiaveOpenRouter(formData: FormData): Promise<EsitoCh
     const [attuale] = await sql<{ openrouter_api_key: string | null }[]>`
       select openrouter_api_key from venues where id = ${venue.venueId}`;
     if (!attuale?.openrouter_api_key) {
-      return { error: "Incolla la chiave OpenRouter" };
+      return { error: t("chiave.errore.incolla") };
     }
     await sql`
       update venues set openrouter_model = ${modello} where id = ${venue.venueId}`;
     revalidatePath("/dashboard/settings");
-    return { success: `Modello aggiornato: ${modello}. Chiave invariata.` };
+    return { success: t("chiave.modello.aggiornato", { modello }) };
   }
 
   if (!chiave.startsWith("sk-or-")) {
-    return { error: "La chiave OpenRouter inizia per sk-or-" };
+    return { error: t("chiave.errore.prefisso") };
   }
 
   await sql`
@@ -135,6 +133,6 @@ export async function salvaChiaveOpenRouter(formData: FormData): Promise<EsitoCh
 
   revalidatePath("/dashboard/settings");
   return {
-    success: `Collegata. Le chiamate vengono addebitate sul tuo account OpenRouter, modello ${modello}.`,
+    success: t("chiave.collegata", { modello }),
   };
 }

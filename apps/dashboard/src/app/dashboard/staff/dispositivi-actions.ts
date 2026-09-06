@@ -4,6 +4,8 @@ import { repartiDelLocale } from "@/lib/reparti-locale";
 import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { requireVenue, requireRole } from "@/lib/authz";
+import { linguaUtente } from "@/lib/lingua";
+import { tPersone } from "@/i18n/persone";
 
 
 
@@ -36,6 +38,7 @@ export async function rinominaDispositivo(
   nome: string
 ): Promise<{ ok?: string; error?: string }> {
   const { venue } = await requireRole(["owner", "manager"]);
+  const t = tPersone(await linguaUtente());
   const pulito = nome.trim().slice(0, 40);
 
   const sql = db();
@@ -44,9 +47,13 @@ export async function rinominaDispositivo(
      where id = ${id} and venue_id = ${venue.venueId}
     returning id`;
 
-  if (!row) return { error: "Dispositivo non trovato" };
+  if (!row) return { error: t("dispositivo.non_trovato") };
   revalidatePath("/dashboard/staff");
-  return { ok: pulito ? `Rinominato in "${pulito}".` : "Nome rimosso." };
+  return {
+    ok: pulito
+      ? t("dispositivo.rinominato", { nome: pulito })
+      : t("dispositivo.nome_rimosso"),
+  };
 }
 
 /**
@@ -60,12 +67,13 @@ export async function dimenticaDispositivo(
   id: string
 ): Promise<{ ok?: string; error?: string }> {
   const { venue } = await requireRole(["owner", "manager"]);
+  const t = tPersone(await linguaUtente());
   const sql = db();
   const [row] = await sql<{ id: string }[]>`
     delete from venue_devices
      where id = ${id} and venue_id = ${venue.venueId}
     returning id`;
-  if (!row) return { error: "Dispositivo non trovato" };
+  if (!row) return { error: t("dispositivo.non_trovato") };
   revalidatePath("/dashboard/staff");
-  return { ok: "Rimosso dall'elenco. Se è ancora in uso ricomparirà." };
+  return { ok: t("dispositivo.dimenticato") };
 }

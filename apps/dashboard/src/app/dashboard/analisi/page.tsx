@@ -1,9 +1,10 @@
 import { auth } from "@/auth";
 import { db } from "@repo/shared/db";
 import { StampaReport } from "./stampa-report";
-import { formatPriceCents } from "@repo/shared";
 import { moduloAttivo } from "@/lib/authz";
 import { ModuloNonAttivo } from "../modulo-non-attivo";
+import { linguaUtente } from "@/lib/lingua";
+import { tAnalisi, type VociAnalisi } from "@/i18n/analisi";
 
 /**
  * Analisi dell'attività.
@@ -22,11 +23,7 @@ import { ModuloNonAttivo } from "../modulo-non-attivo";
  */
 const MIN_SESSIONI_PER_ORARI = 20;
 
-const PERIODI = [
-  { giorni: 7, etichetta: "7 giorni" },
-  { giorni: 30, etichetta: "30 giorni" },
-  { giorni: 90, etichetta: "90 giorni" },
-];
+const PERIODI = [{ giorni: 7 }, { giorni: 30 }, { giorni: 90 }];
 
 interface Riepilogo {
   sessioni: number;
@@ -60,12 +57,14 @@ interface PerOra {
   sessioni: number;
 }
 
-const METODO_ETICHETTA: Record<string, string> = {
-  card: "Carta",
-  apple_pay: "Apple Pay",
-  google_pay: "Google Pay",
-  satispay: "Satispay",
-  cash: "Contanti / al banco",
+/* I valori a database (card, apple_pay, cash…) non si traducono: si traduce
+   l'etichetta che ci sta sopra. */
+const METODO_CHIAVE: Record<string, Extract<keyof VociAnalisi, string>> = {
+  card: "analisi.metodo.card",
+  apple_pay: "analisi.metodo.apple_pay",
+  google_pay: "analisi.metodo.google_pay",
+  satispay: "analisi.metodo.satispay",
+  cash: "analisi.metodo.cash",
 };
 
 function Scheda({
@@ -89,9 +88,10 @@ function Scheda({
 export default async function AnalisiPage({
   searchParams,
 }: PageProps<"/dashboard/analisi">) {
+  const t = tAnalisi(await linguaUtente());
   const sessione = await auth();
   const venue = sessione?.venues[0];
-  if (!venue) return <main className="p-4">Nessun locale associato.</main>;
+  if (!venue) return <main className="p-4">{t("errore.nessun_locale")}</main>;
 
   // Il modulo si verifica qui e non solo nel menu: chi digita
   // l'indirizzo la pagina la otterrebbe lo stesso.
@@ -102,9 +102,9 @@ export default async function AnalisiPage({
   if (venue.role !== "owner" && venue.role !== "manager") {
     return (
       <main className="mx-auto max-w-2xl px-4 py-5">
-        <h1 className="mb-2 text-lg font-semibold">Analisi</h1>
+        <h1 className="mb-2 text-lg font-semibold">{t("analisi.titolo")}</h1>
         <p className="rounded-xl border border-border bg-surface p-4 text-sm text-muted">
-          Solo il titolare e il responsabile vedono i dati economici.
+          {t("analisi.solo_titolare")}
         </p>
       </main>
     );
@@ -113,8 +113,7 @@ export default async function AnalisiPage({
   const sp = await searchParams;
   const richiesti = Number(Array.isArray(sp.giorni) ? sp.giorni[0] : sp.giorni);
   const giorni = PERIODI.some((p) => p.giorni === richiesti) ? richiesti : 30;
-  const etichettaPeriodo =
-    PERIODI.find((p) => p.giorni === giorni)?.etichetta ?? `${giorni} giorni`;
+  const etichettaPeriodo = t.n(giorni, "analisi.periodo.giorni");
   const venueNome = venue.venueName;
 
   const sql = db();
@@ -245,14 +244,15 @@ export default async function AnalisiPage({
     <main className="mx-auto max-w-4xl space-y-6 px-4 py-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg font-semibold">Analisi</h1>
+          <h1 className="text-lg font-semibold">{t("analisi.titolo")}</h1>
           {/* In pagina il periodo si legge dal bottone acceso, ma su carta
               i bottoni non ci sono e il foglio direbbe solo "Analisi". */}
           <p className="hidden text-sm print:block">
-            {venueNome} · {etichettaPeriodo} · stampato il{" "}
-            {new Intl.DateTimeFormat("it-IT", {
-              dateStyle: "long",
-            }).format(new Date())}
+            {t("analisi.stampa.riga", {
+              locale: venueNome,
+              periodo: etichettaPeriodo,
+              data: t.data(new Date(), "lunga"),
+            })}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 print:hidden">
@@ -269,7 +269,7 @@ export default async function AnalisiPage({
                   : "border border-border text-muted"
               }`}
             >
-              {p.etichetta}
+              {t.n(p.giorni, "analisi.periodo.giorni")}
             </a>
           ))}
         </div>
@@ -277,85 +277,84 @@ export default async function AnalisiPage({
 
       {sessioni === 0 ? (
         <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted">
-          Nessun tavolo chiuso in questo periodo. I numeri compaiono man mano
-          che si chiudono i conti.
+          {t("analisi.vuoto")}
         </p>
       ) : (
         <>
           <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Scheda
-              titolo="Incasso"
-              valore={formatPriceCents(incasso)}
-              nota={`${sessioni} tavoli serviti`}
+              titolo={t("analisi.scheda.incasso")}
+              valore={t.prezzo(incasso)}
+              nota={t.n(sessioni, "analisi.scheda.incasso.nota")}
             />
             <Scheda
-              titolo="Spesa per coperto"
-              valore={formatPriceCents(perCoperto)}
-              nota={`${coperti} coperti in totale`}
+              titolo={t("analisi.scheda.per_coperto")}
+              valore={t.prezzo(perCoperto)}
+              nota={t.n(coperti, "analisi.scheda.per_coperto.nota")}
             />
             <Scheda
-              titolo="Spesa per tavolo"
-              valore={formatPriceCents(perTavolo)}
-              nota={`${(coperti / sessioni).toFixed(1)} persone a tavolo`}
+              titolo={t("analisi.scheda.per_tavolo")}
+              valore={t.prezzo(perTavolo)}
+              nota={t("analisi.scheda.per_tavolo.nota", {
+                persone: t.numero(coperti / sessioni, 1),
+              })}
             />
             <Scheda
-              titolo="Piatti per persona"
-              valore={piattiPerCoperto.toFixed(1)}
-              nota={`${piatti} piatti in totale`}
+              titolo={t("analisi.scheda.piatti_per_persona")}
+              valore={t.numero(piattiPerCoperto, 1)}
+              nota={t.n(piatti, "analisi.scheda.piatti_per_persona.nota")}
             />
           </section>
 
           <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Scheda
-              titolo="Permanenza media"
+              titolo={t("analisi.scheda.permanenza")}
               valore={
                 durataMedia >= 60
-                  ? `${Math.floor(durataMedia / 60)}h ${String(durataMedia % 60).padStart(2, "0")}`
-                  : `${durataMedia} min`
+                  ? t("analisi.durata.ore", {
+                      ore: Math.floor(durataMedia / 60),
+                      minuti: String(durataMedia % 60).padStart(2, "0"),
+                    })
+                  : t("analisi.durata.minuti", { n: durataMedia })
               }
-              nota="Dall'apertura alla chiusura del conto"
+              nota={t("analisi.scheda.permanenza.nota")}
             />
             <Scheda
-              titolo="Rotazione tavoli"
+              titolo={t("analisi.scheda.rotazione")}
               valore={
                 giorniAggregati.size > 0
-                  ? (sessioni / giorniAggregati.size).toFixed(1)
-                  : "0"
+                  ? t.numero(sessioni / giorniAggregati.size, 1)
+                  : t.numero(0, 0)
               }
-              nota="Tavoli serviti al giorno"
+              nota={t("analisi.scheda.rotazione.nota")}
             />
             <Scheda
-              titolo="Coperti al giorno"
+              titolo={t("analisi.scheda.coperti_giorno")}
               valore={
                 giorniAggregati.size > 0
-                  ? Math.round(coperti / giorniAggregati.size).toString()
-                  : "0"
+                  ? t.numero(Math.round(coperti / giorniAggregati.size), 0)
+                  : t.numero(0, 0)
               }
             />
             <Scheda
-              titolo="Prezzo medio del piatto"
-              valore={piatti > 0 ? formatPriceCents(Math.round(incasso / piatti)) : "—"}
+              titolo={t("analisi.scheda.prezzo_medio")}
+              valore={piatti > 0 ? t.prezzo(Math.round(incasso / piatti)) : "—"}
             />
           </section>
 
           {/* --- Andamento giornaliero -------------------------------- */}
           <section className="rounded-xl border border-border bg-surface p-4">
-            <h2 className="mb-3 font-semibold">Giorno per giorno</h2>
+            <h2 className="mb-3 font-semibold">{t("analisi.giorni.titolo")}</h2>
             <ul className="space-y-2">
               {[...giorniAggregati.entries()].slice(0, 14).map(([giorno, d]) => (
                 <li key={giorno} className="text-sm">
                   <div className="flex items-baseline justify-between gap-3">
-                    <span>
-                      {new Intl.DateTimeFormat("it-IT", {
-                        weekday: "short",
-                        day: "numeric",
-                        month: "short",
-                      }).format(new Date(giorno))}
-                    </span>
+                    <span>{t.data(new Date(giorno), "media")}</span>
                     <span className="tabular-nums text-muted">
-                      {d.n} tavoli · {d.coperti} coperti ·{" "}
+                      {t.n(d.n, "analisi.giorni.tavoli")} ·{" "}
+                      {t.n(d.coperti, "analisi.giorni.coperti")} ·{" "}
                       <span className="font-medium text-foreground">
-                        {formatPriceCents(d.incasso)}
+                        {t.prezzo(d.incasso)}
                       </span>
                     </span>
                   </div>
@@ -382,19 +381,18 @@ export default async function AnalisiPage({
           <div className="grid gap-4 lg:grid-cols-2">
             {/* --- Piatti ------------------------------------------- */}
             <section className="rounded-xl border border-border bg-surface p-4">
-              <h2 className="mb-1 font-semibold">Cosa vende</h2>
+              <h2 className="mb-1 font-semibold">{t("analisi.piatti.titolo")}</h2>
               <p className="mb-3 text-xs text-muted">
-                I dodici più ordinati. Quello che non compare qui, e che è a
-                menu da mesi, probabilmente non serve.
+                {t("analisi.piatti.sottotitolo")}
               </p>
               <ul className="space-y-1.5 text-sm">
                 {perPiatto.map((p) => (
                   <li key={p.nome} className="flex items-baseline justify-between gap-3">
                     <span className="min-w-0 truncate">{p.nome}</span>
                     <span className="shrink-0 tabular-nums text-muted">
-                      {p.pezzi} {p.pezzi === 1 ? "pz" : "pz"} ·{" "}
+                      {t("analisi.piatti.pezzi", { n: p.pezzi })} ·{" "}
                       <span className="text-foreground">
-                        {formatPriceCents(Number(p.incasso))}
+                        {t.prezzo(Number(p.incasso))}
                       </span>
                     </span>
                   </li>
@@ -404,15 +402,17 @@ export default async function AnalisiPage({
 
             {/* --- Metodi di pagamento ------------------------------ */}
             <section className="rounded-xl border border-border bg-surface p-4">
-              <h2 className="mb-3 font-semibold">Come pagano</h2>
+              <h2 className="mb-3 font-semibold">{t("analisi.metodi.titolo")}</h2>
               <ul className="space-y-1.5 text-sm">
                 {perMetodo.map((m) => (
                   <li key={m.method} className="flex items-baseline justify-between gap-3">
-                    <span>{METODO_ETICHETTA[m.method] ?? m.method}</span>
+                    <span>
+                      {METODO_CHIAVE[m.method] ? t(METODO_CHIAVE[m.method]) : m.method}
+                    </span>
                     <span className="shrink-0 tabular-nums text-muted">
-                      {m.n} {m.n === 1 ? "pagamento" : "pagamenti"} ·{" "}
+                      {t.n(m.n, "analisi.metodi.pagamenti")} ·{" "}
                       <span className="text-foreground">
-                        {formatPriceCents(Number(m.totale))}
+                        {t.prezzo(Number(m.totale))}
                       </span>
                     </span>
                   </li>
@@ -423,19 +423,18 @@ export default async function AnalisiPage({
 
           {/* --- Fasce orarie ---------------------------------------- */}
           <section className="rounded-xl border border-border bg-surface p-4">
-            <h2 className="mb-1 font-semibold">A che ora si riempie</h2>
+            <h2 className="mb-1 font-semibold">{t("analisi.orari.titolo")}</h2>
             {sessioni < MIN_SESSIONI_PER_ORARI ? (
               <p className="text-sm text-muted">
-                Servono almeno {MIN_SESSIONI_PER_ORARI} tavoli chiusi perché
-                questo dato voglia dire qualcosa: al momento sono {sessioni}.
-                Con pochi servizi il grafico mostrerebbe il caso, non
-                l&apos;andamento del locale.
+                {t("analisi.orari.pochi_dati", {
+                  minimo: MIN_SESSIONI_PER_ORARI,
+                  n: sessioni,
+                })}
               </p>
             ) : (
               <>
                 <p className="mb-3 text-xs text-muted">
-                  Ora di apertura del tavolo, sull&apos;intero arco della
-                  giornata: le ore vuote restano vuote, così la forma si legge.
+                  {t("analisi.orari.sottotitolo")}
                 </p>
                 <ul className="flex items-end gap-0.5">
                   {orarioCompleto.map((o) => (
@@ -448,7 +447,10 @@ export default async function AnalisiPage({
                         style={{
                           height: `${piccoOra > 0 ? Math.max(3, (o.sessioni / piccoOra) * 70) : 3}px`,
                         }}
-                        title={`${o.ora}:00 — ${o.sessioni} tavoli`}
+                        title={t("analisi.orari.barra", {
+                          ora: o.ora,
+                          tavoli: t.n(o.sessioni, "analisi.giorni.tavoli"),
+                        })}
                       />
                       <span className="text-[10px] tabular-nums text-muted">
                         {o.ora % 2 === 0 ? o.ora : ""}
@@ -460,11 +462,7 @@ export default async function AnalisiPage({
             )}
           </section>
 
-          <p className="text-xs text-muted">
-            I coperti sono quelli indicati dallo staff sulla scheda del tavolo.
-            Dove non sono stati indicati vale 1, e la spesa per coperto risulta
-            più alta del vero.
-          </p>
+          <p className="text-xs text-muted">{t("analisi.nota.coperti")}</p>
         </>
       )}
     </main>

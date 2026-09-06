@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { db } from "@repo/shared/db";
+import { contoSessione } from "@repo/shared/conto";
 import { checkRateLimit, clientKey } from "@repo/shared/rate-limit";
 import { createSatispayPayment, getSatispayPayment } from "@repo/shared/satispay";
 import { decryptSecret } from "@repo/shared/crypto";
 import { hasModulo } from "@repo/shared";
 import { outstandingBalanceCents } from "@/lib/balance";
+import { tApi, linguaRichiesta } from "@/i18n/api";
 
 interface CreateSatispayBody {
   sessionId: string;
@@ -12,14 +14,16 @@ interface CreateSatispayBody {
 }
 
 export async function POST(request: Request) {
+  const t = tApi(linguaRichiesta(request));
+
   const { allowed } = await checkRateLimit(clientKey(request, "create-satispay"), 10, 60);
   if (!allowed) {
-    return NextResponse.json({ error: "Troppe richieste, riprova tra poco" }, { status: 429 });
+    return NextResponse.json({ error: t("errore.troppe_richieste_riprova") }, { status: 429 });
   }
 
   const body = (await request.json().catch(() => null)) as CreateSatispayBody | null;
   if (!body?.sessionId) {
-    return NextResponse.json({ error: "sessionId mancante" }, { status: 400 });
+    return NextResponse.json({ error: t("errore.sessione_id_mancante") }, { status: 400 });
   }
   const tipCents = Number.isInteger(body.tipCents) ? Math.max(body.tipCents!, 0) : 0;
 
@@ -35,7 +39,23 @@ export async function POST(request: Request) {
     where ts.id = ${body.sessionId}`;
 
   if (!session || session.status !== "open") {
-    return NextResponse.json({ error: "Sessione tavolo non valida" }, { status: 404 });
+    return NextResponse.json({ error: t("errore.sessione_tavolo_non_valida") }, { status: 404 });
+  }
+
+  /*
+   * A prezzo fisso non si incassa finché la sala non dice in quanti sono.
+   *
+   * Il bottone a schermo è già sparito, ma questa rotta è un POST pubblico
+   * come tutte le altre: chi la chiama a mano pagherebbe il conto di una
+   * persona sola per un tavolo da sei, e la differenza non tornerebbe più.
+   * Il controllo dev'essere qui, non solo in pagina.
+   */
+  const contoAdesso = await contoSessione(sql, session.id);
+  if (contoAdesso.copertiDaConfermare) {
+    return NextResponse.json(
+      { error: t("pagamento.errore.coperti_da_confermare") },
+      { status: 409 }
+    );
   }
 
   const [venue] = await sql<
@@ -62,14 +82,14 @@ export async function POST(request: Request) {
     )
   ) {
     return NextResponse.json(
-      { error: "Pagamento dal tavolo non attivo per questo locale — chiedi al personale" },
+      { error: t("pagamento.errore.non_attivo") },
       { status: 402 }
     );
   }
 
   if (!venue?.satispay_key_id || !venue.satispay_private_key) {
     return NextResponse.json(
-      { error: "Locale non ancora abilitato a Satispay" },
+      { error: t("pagamento.errore.satispay_non_abilitato") },
       { status: 409 }
     );
   }
@@ -86,7 +106,7 @@ export async function POST(request: Request) {
   if (existingPending) {
     if (existingPending.provider !== "satispay") {
       return NextResponse.json(
-        { error: "Un pagamento con un altro metodo è già in corso" },
+        { error: t("pagamento.errore.altro_metodo") },
         { status: 409 }
       );
     }
@@ -101,7 +121,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ redirectUrl: status.redirect_url });
     }
     if (status.status === "ACCEPTED") {
-      return NextResponse.json({ error: "Conto già pagato" }, { status: 409 });
+      return NextResponse.json({ error: t("pagamento.errore.gia_pagato") }, { status: 409 });
     }
     await sql`update payments set status = 'failed' where id = ${existingPending.id}`;
   }
@@ -109,7 +129,7 @@ export async function POST(request: Request) {
   const balanceCents = await outstandingBalanceCents(session.id);
   const amountCents = balanceCents + tipCents;
   if (amountCents <= 0) {
-    return NextResponse.json({ error: "Nessun importo da pagare" }, { status: 409 });
+    return NextResponse.json({ error: t("pagamento.errore.nessun_importo") }, { status: 409 });
   }
 
   const payment = await createSatispayPayment({

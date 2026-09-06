@@ -10,6 +10,7 @@ export const DPA_VERSION = "2026-09-2";
 
 export interface SottoResponsabile {
   nome: string;
+  /** Chiave di dizionario: la riga la legge anche chi non parla italiano. */
   attivita: string;
   dove: string;
 }
@@ -20,28 +21,29 @@ export interface SottoResponsabile {
  *
  * Va aggiornato *prima* di introdurre un nuovo fornitore, non dopo: il
  * preavviso di 5 giorni promesso nell'accordo decorre dalla pubblicazione.
+ *
+ * Il nome resta scritto qui perché è una ragione sociale e non si traduce;
+ * attività e collocazione sono chiavi, e il testo sta nel dizionario.
  */
 export const SOTTO_RESPONSABILI: SottoResponsabile[] = [
   {
     nome: "Neon, gruppo Databricks (banca dati PostgreSQL)",
-    attivita: "Conservazione di tutti i dati del servizio",
-    dove: "Dati a Francoforte; capogruppo negli Stati Uniti",
+    attivita: "dpa.art7.neon.attivita",
+    dove: "dpa.art7.neon.dove",
   },
   {
     nome: "Vercel (hosting applicativo)",
-    attivita: "Esecuzione dell'applicazione e consegna delle pagine",
-    dove: "Rete globale; capogruppo negli Stati Uniti",
+    attivita: "dpa.art7.vercel.attivita",
+    dove: "dpa.art7.vercel.dove",
   },
   {
     nome: "Invoicetronic o intermediario SDI equivalente",
-    attivita:
-      "Trasmissione delle fatture elettroniche al Sistema di Interscambio, solo se attivato dal locale",
-    dove: "Unione Europea",
+    attivita: "dpa.art7.sdi.attivita",
+    dove: "dpa.art7.sdi.dove",
   },
   {
     nome: "Tilby (Zucchetti)",
-    attivita:
-      "Lettura del listino dalla cassa per importare il menu, solo se il collegamento è attivato dal locale. Nessun dato dei clienti gli viene inviato",
-    dove: "Unione Europea",
+    attivita: "dpa.art7.tilby.attivita",
+    dove: "dpa.art7.tilby.dove",
   },
 ];

@@ -3,6 +3,9 @@
 import { useActionState, useState } from "react";
 import { MODELLO_PREDEFINITO } from "@repo/shared/openrouter-tipi";
 import { salvaChiaveOpenRouter, type EsitoChiave } from "../menu/etichetta-actions";
+import { useLingua } from "@repo/shared/i18n/contesto";
+import { tImpostazioni } from "@/i18n/impostazioni";
+import { tComune } from "@repo/shared/i18n/comune";
 
 const CAMPO = "min-h-11 w-full rounded-lg border border-border bg-background px-3 text-sm";
 
@@ -13,6 +16,8 @@ export function OpenRouterForm({
   collegata: boolean;
   modello: string | null;
 }) {
+  const t = tImpostazioni(useLingua());
+  const c = tComune(useLingua());
   const [aperto, setAperto] = useState(false);
   const [state, formAction, pending] = useActionState<EsitoChiave | null, FormData>(
     async (_prev, formData) => salvaChiaveOpenRouter(formData),
@@ -24,12 +29,12 @@ export function OpenRouterForm({
       <p className="text-sm text-muted">
         {collegata ? (
           <>
-            Attiva, modello <strong>{modello ?? MODELLO_PREDEFINITO}</strong>. Nel
-            menu, sui vini, compare il bottone per compilare la scheda da una
-            foto dell&apos;etichetta.
+            {t("openrouter.attiva.prima")}{" "}
+            <strong>{modello ?? MODELLO_PREDEFINITO}</strong>
+            {t("openrouter.attiva.dopo")}
           </>
         ) : (
-          "Non attiva. Le schede dei vini si compilano a mano."
+          t("openrouter.non_attiva")
         )}
       </p>
 
@@ -39,21 +44,20 @@ export function OpenRouterForm({
           onClick={() => setAperto(true)}
           className="flex min-h-11 items-center px-1 text-sm underline"
         >
-          {collegata ? "Cambia o rimuovi" : "Collega OpenRouter"}
+          {collegata ? t("openrouter.cambia") : t("openrouter.collega")}
         </button>
       )}
 
       {aperto && (
         <form action={formAction} className="space-y-3 rounded-lg border border-border p-3">
           <p className="text-sm text-muted">
-            Serve un account su <strong>openrouter.ai</strong>. Le chiamate
-            vengono addebitate sul tuo account, non sul nostro: leggere
-            un&apos;etichetta costa una frazione di centesimo.
+            {t("openrouter.serve.prima")} <strong>openrouter.ai</strong>
+            {t("openrouter.serve.dopo")}
           </p>
 
           <div>
             <label className="mb-1 block text-sm" htmlFor="or-key">
-              Chiave API
+              {t("openrouter.chiave")}
             </label>
             <input
               id="or-key"
@@ -63,12 +67,12 @@ export function OpenRouterForm({
               placeholder="sk-or-..."
               className={CAMPO}
             />
-            <p className="mt-1 text-xs text-muted">Salvata cifrata.</p>
+            <p className="mt-1 text-xs text-muted">{t("openrouter.chiave.nota")}</p>
           </div>
 
           <div>
             <label className="mb-1 block text-sm" htmlFor="or-model">
-              Modello
+              {t("openrouter.modello")}
             </label>
             <input
               id="or-model"
@@ -77,23 +81,18 @@ export function OpenRouterForm({
               className={CAMPO}
             />
             <p className="mt-1 text-xs text-muted">
-              Deve saper leggere le immagini. Il catalogo di OpenRouter cambia
-              spesso: se il modello non esiste più, l&apos;errore te lo dice
-              testualmente e ne basta un altro.
+              {t("openrouter.modello.nota")}
             </p>
           </div>
 
           <p className="rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
-            La foto dell&apos;etichetta viene inviata a OpenRouter e al
-            fornitore del modello. Non contiene dati dei tuoi clienti, ma è
-            un trattamento in più nella catena: se tieni un registro, va
-            annotato.
+            {t("openrouter.privacy")}
           </p>
 
           {collegata && (
             <label className="flex min-h-11 items-center gap-2 text-sm">
               <input type="checkbox" name="rimuovi" className="h-5 w-5" />
-              Rimuovi la chiave
+              {t("openrouter.rimuovi_chiave")}
             </label>
           )}
 
@@ -106,14 +105,14 @@ export function OpenRouterForm({
               disabled={pending}
               className="min-h-11 flex-1 rounded-full bg-accent px-4 text-sm font-medium text-accent-foreground disabled:opacity-50"
             >
-              {pending ? "Salvo…" : "Salva"}
+              {pending ? t("stato.salvo") : c("azione.salva")}
             </button>
             <button
               type="button"
               onClick={() => setAperto(false)}
               className="flex min-h-11 items-center px-3 text-sm underline"
             >
-              Chiudi
+              {c("azione.chiudi")}
             </button>
           </div>
         </form>
