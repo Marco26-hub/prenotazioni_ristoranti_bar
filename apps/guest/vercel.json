@@ -1,8 +1,10 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
     {
       "path": "/api/cron/promemoria",
       "schedule": "0 * * * *"
     }
-  ]
+  ],
+  "regions": ["fra1"]
 }

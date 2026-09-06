@@ -73,6 +73,32 @@ export async function formulaCents(sessionId: string): Promise<Formula> {
   };
 }
 
+/**
+ * La formula per il cliente, ricavata da un conto già calcolato.
+ *
+ * Il tipo di ritorno è `Formula`, e questo è il punto: la rotta del conto
+ * ricopiava i campi a mano dentro `NextResponse.json`, che accetta qualunque
+ * oggetto — un campo nuovo spariva in silenzio, ed è successo davvero con
+ * `copertiDaConfermare`. Qui il compilatore se ne accorge.
+ */
+export function formulaDaConto(
+  conto: Awaited<ReturnType<typeof contoSessione>>
+): Formula | null {
+  if (!conto.aFormula) return null;
+  return {
+    attiva: true,
+    fascia: conto.fascia,
+    prezzoUnitarioCents: conto.formulaUnitarioCents,
+    adulti: conto.adulti,
+    bambini: conto.bambini,
+    prezzoBambinoCents: conto.formulaBambinoCents,
+    supplementoCents: conto.supplementoCents,
+    totaleCents: conto.formulaTotaleCents,
+    copertiDaConfermare: conto.copertiDaConfermare,
+    copertiDalTavolo: conto.copertiDalTavolo,
+  };
+}
+
 export async function supplementiCents(sessionId: string): Promise<Supplementi> {
   const c = await contoSessione(db(), sessionId);
   return {
@@ -99,8 +125,23 @@ export async function outstandingBalanceCents(sessionId: string): Promise<number
  */
 export async function unpaidItems(sessionId: string): Promise<UnpaidItem[]> {
   const sql = db();
-  const conto = await contoSessione(sql, sessionId);
+  return vociDaPagare(sql, sessionId, await contoSessione(sql, sessionId));
+}
 
+/**
+ * Le stesse voci, ma partendo da un conto già calcolato.
+ *
+ * Esiste per chi il conto ce l'ha già in mano. La rotta `/api/bill` chiamava
+ * quattro funzioni di questo file, e ognuna rifaceva `contoSessione` da capo:
+ * dodici query dove ne bastano tre, per una pagina che ogni telefono al
+ * tavolo richiede ogni cinque secondi. Con venti telefoni aperti erano
+ * migliaia di query al minuto per un numero che non era cambiato.
+ */
+export async function vociDaPagare(
+  sql: ReturnType<typeof db>,
+  sessionId: string,
+  conto: Awaited<ReturnType<typeof contoSessione>>
+): Promise<UnpaidItem[]> {
   const impegnati = await sql<{ order_item_id: string }[]>`
     select poi.order_item_id
       from payment_order_items poi

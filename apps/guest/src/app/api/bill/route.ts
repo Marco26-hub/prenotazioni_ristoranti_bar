@@ -1,12 +1,8 @@
 import { NextResponse } from "next/server";
 import { db } from "@repo/shared/db";
 import { checkRateLimit, clientKey } from "@repo/shared/rate-limit";
-import {
-  outstandingBalanceCents,
-  unpaidItems,
-  supplementiCents,
-  formulaCents,
-} from "@/lib/balance";
+import { vociDaPagare, formulaDaConto } from "@/lib/balance";
+import { contoSessione } from "@repo/shared/conto";
 import { tApi, linguaRichiesta } from "@/i18n/api";
 
 export async function GET(request: Request) {
@@ -57,11 +53,19 @@ export async function GET(request: Request) {
            tips_enabled, tip_percents, google_review_url
     from venues where id = ${session.venue_id}`;
 
-  const [balanceCents, items, extra, formula, incassato] = await Promise.all([
-    outstandingBalanceCents(session.id),
-    unpaidItems(session.id),
-    supplementiCents(session.id),
-    formulaCents(session.id),
+  /*
+   * Il conto si calcola UNA volta.
+   *
+   * Qui c'erano quattro funzioni di `balance.ts`, e ognuna rifaceva
+   * `contoSessione` da capo: dodici query dove ne bastano tre. Questa pagina
+   * la richiede ogni telefono seduto al tavolo, ogni cinque secondi — con
+   * venti telefoni aperti erano migliaia di query al minuto per un numero
+   * che nel frattempo non era cambiato.
+   */
+  const conto = await contoSessione(sql, session.id);
+
+  const [items, incassato] = await Promise.all([
+    vociDaPagare(sql, session.id, conto),
     // Quanto e' gia entrato. Senza questo il cliente non puo distinguere un
     // tavolo saldato da un tavolo che non ha ancora ordinato niente: hanno
     // entrambi saldo zero.
@@ -73,7 +77,7 @@ export async function GET(request: Request) {
   const paidCents = Number(incassato[0]?.tot ?? 0);
 
   return NextResponse.json({
-    balanceCents,
+    balanceCents: conto.residuoCents,
     paidCents,
     currency: venue?.currency ?? "EUR",
     stripeAccountId: venue?.stripe_account_id ?? null,
@@ -86,17 +90,17 @@ export async function GET(request: Request) {
     // Il cliente deve vedere da dove viene il totale: un conto che non torna
     // con la somma dei piatti è il primo motivo per chiamare il cameriere.
     coperto:
-      extra.copertoTotaleCents > 0
+      conto.copertoTotaleCents > 0
         ? {
-            etichetta: extra.etichettaCoperto,
-            coperti: extra.coperti,
-            unitarioCents: extra.copertoUnitarioCents,
-            totaleCents: extra.copertoTotaleCents,
+            etichetta: conto.etichettaCoperto,
+            coperti: conto.coperti,
+            unitarioCents: conto.copertoUnitarioCents,
+            totaleCents: conto.copertoTotaleCents,
           }
         : null,
     servizio:
-      extra.servizioCents > 0
-        ? { percent: extra.servizioPercent, totaleCents: extra.servizioCents }
+      conto.servizioCents > 0
+        ? { percent: conto.servizioPercent, totaleCents: conto.servizioCents }
         : null,
     /*
      * A formula il totale non torna con la somma dei piatti, ed è giusto
@@ -113,6 +117,6 @@ export async function GET(request: Request) {
      * `Formula` non contiene nulla che il tavolo non debba vedere: sono gli
      * stessi numeri che gli stiamo scrivendo sullo schermo.
      */
-    formula: formula.attiva ? formula : null,
+    formula: formulaDaConto(conto),
   });
 }

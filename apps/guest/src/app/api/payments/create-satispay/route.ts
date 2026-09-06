@@ -5,7 +5,6 @@ import { checkRateLimit, clientKey } from "@repo/shared/rate-limit";
 import { createSatispayPayment, getSatispayPayment } from "@repo/shared/satispay";
 import { decryptSecret } from "@repo/shared/crypto";
 import { hasModulo } from "@repo/shared";
-import { outstandingBalanceCents } from "@/lib/balance";
 import { tApi, linguaRichiesta } from "@/i18n/api";
 
 interface CreateSatispayBody {
@@ -126,7 +125,10 @@ export async function POST(request: Request) {
     await sql`update payments set status = 'failed' where id = ${existingPending.id}`;
   }
 
-  const balanceCents = await outstandingBalanceCents(session.id);
+  // Dal conto già letto poco sopra per il controllo sui coperti: ricalcolarlo
+  // sarebbe una seconda tornata di query sugli stessi dati, sulla via del
+  // pagamento, che è quella dove l'attesa si vede di più.
+  const balanceCents = contoAdesso.residuoCents;
   const amountCents = balanceCents + tipCents;
   if (amountCents <= 0) {
     return NextResponse.json({ error: t("pagamento.errore.nessun_importo") }, { status: 409 });
