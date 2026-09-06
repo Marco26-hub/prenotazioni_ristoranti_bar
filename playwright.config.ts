@@ -15,6 +15,20 @@ export default defineConfig({
   fullyParallel: false,
   timeout: 60_000,
   reporter: [["list"]],
+  /*
+   * Quindici secondi, non i cinque di partenza.
+   *
+   * Le asserzioni di questa suite non guardano dei calcoli: aspettano un
+   * giro di rete più un ciclo di aggiornamento della pagina. Contro i server
+   * locali cinque secondi bastano; contro la produzione, da un portatile,
+   * no — e i test che cadevano erano sempre gli stessi due, quelli che
+   * aspettano una comanda sulla board e la risposta di una Server Action.
+   *
+   * Falliva il collaudo, non il codice: rifatti da soli passavano. Un rosso
+   * che dipende da dove lo si lancia insegna a rilanciare invece che a
+   * guardare, ed è il modo più rapido di rendere inutile una suite.
+   */
+  expect: { timeout: 15_000 },
   use: {
     trace: "retain-on-failure",
     /*

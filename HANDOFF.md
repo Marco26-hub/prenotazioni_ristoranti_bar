@@ -1137,6 +1137,49 @@ frasi sono le stesse della pagina del tavolo, prese dallo stesso dizionario:
 applica né coperto né servizio non deve vedersi comparire una riga che dice
 zero.
 
+### I quarantadue reperti mai verificati, chiusi
+
+Il controllo sul profilo all you can eat aveva sollevato cinquantadue reperti
+e ne aveva verificati solo due: gli altri erano rimasti lì, senza che nessuno
+sapesse se fossero veri. Ora sono stati letti tutti contro il codice.
+
+**Trentuno confermati, undici scartati.** Gli scartati erano letture
+affrettate — comportamenti che il codice documenta come voluti, numeri di
+riga sfasati di una versione, e cose corrette nel frattempo. Uno per tutti:
+«la board non toglie mai i piatti serviti» è scartato perché il commento
+nella query spiega la scelta e i conti non tornavano, seicento righe con
+l'indice al posto giusto non sono un carico.
+
+I sette che fermavano una vendita:
+
+| Difetto | Cosa costava |
+|---|---|
+| L'import CSV non porta reparto né fuori formula | Le bevande importate risultavano **comprese nel prezzo fisso**: il cliente le vedeva incluse e a fine serata non erano nel conto |
+| Ogni conto chiuso in sala certificato contante | Anche col bancomat, cento volte al giorno — è lo scostamento che l'Agenzia incrocia con i dati dell'acquirer da gennaio 2026 |
+| Il modello sushi senza listino di partenza | Centoventi voci a mano il primo giorno, unico grande formato senza |
+| Bevande e dolci caricati dopo il formato | Restavano dentro il prezzo fisso e non lo diceva nessuno |
+| Cinque tentativi in quindici secondi | Finita la carta, ogni documento in coda si bruciava i tentativi e **non tornava più** |
+| La coda ignorava la giornata di servizio | Computer spento sabato: domenica uscivano cento scontrini di sabato dentro la giornata di domenica |
+| Il riepilogo senza divisione per aliquota | Chi batte a mano non aveva i numeri: 10% e 22% non separati da nessuna parte |
+
+Il listino sushi ha richiesto una cosa che i reperti non chiedevano.
+`PiattoModello` non aveva un campo per la conservazione, quindi un listino
+regalato sarebbe nato **«fresco» sul pesce crudo** — cioè un menu che a un
+controllo è sbagliato, perché il crudo va abbattuto a −20 °C e dichiarato
+(Reg. CE 853/2004). Il campo si aggiunge insieme al listino: trenta voci,
+dieci dichiarate abbattute, birre e sake al 22% in categorie loro.
+**Un regalo che nasce sbagliato è peggio di nessun regalo**, perché chi lo
+riceve si fida e non ricontrolla. Collaudo in `e2e/listino-sushi.spec.ts`.
+
+Le altre ventiquattro sono più piccole ma della stessa famiglia: il limite
+anti-abuso che sul wifi del locale valeva per tutta la sala insieme, il conto
+alla rovescia che si fermava a schermo bloccato, due pillole identiche sulla
+board dove una è irreversibile, il cronometro che misurava la serata invece
+dell'ondata, le foto che non rispondevano mai 304, e le analisi che a prezzo
+fisso mostravano come incasso delle righe che nessuno paga.
+
+**88 test, tutti verdi contro la produzione.**
+
 ### Una trappola per chi scriverà i prossimi test
 
 `playwright.config.ts` ora dichiara `locale: "it-IT"`, e non è un dettaglio.
@@ -1148,6 +1191,14 @@ accusavano il codice di qualcosa che non aveva fatto.
 
 Chi scrive una prova sulla lingua si apre il suo contesto
 (`browser.newContext({ locale: "en-GB" })`), come fa `e2e/lingue.spec.ts`.
+
+E una seconda, della stessa famiglia: `expect` ha ora quindici secondi, non i
+cinque di partenza. Le asserzioni di questa suite non guardano dei calcoli:
+aspettano un giro di rete più un ciclo di aggiornamento della pagina. Contro
+i server locali cinque bastano, contro la produzione no — e cadevano sempre
+gli stessi due, che rifatti da soli passavano. **Un rosso che dipende da dove
+lo si lancia insegna a rilanciare invece che a guardare**, ed è il modo più
+rapido di rendere inutile una suite.
 
 ### Uno strumento nuovo: `node db/confronta.mjs`
 
