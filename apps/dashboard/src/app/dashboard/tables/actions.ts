@@ -11,6 +11,18 @@ export async function addTable(formData: FormData) {
   if (!code || !Number.isFinite(seats) || seats < 1) return;
 
   const sql = db();
+
+  // `tables` ha unique(venue_id, code): l'insert nudo su un codice già battuto
+  // lanciava 23505 fin dentro la Server Action, e senza error.tsx l'addetto si
+  // ritrovava la pagina di errore di Next al posto del tavolo. Chi ribatte
+  // "12" ha già il tavolo 12: non c'è niente da fare, si torna alla lista.
+  const [esiste] = await sql<{ id: string }[]>`
+    select id from tables where venue_id = ${venue.venueId} and code = ${code}`;
+  if (esiste) {
+    revalidatePath("/dashboard/tables");
+    return;
+  }
+
   await sql`insert into tables (venue_id, code, seats) values (${venue.venueId}, ${code}, ${seats})`;
   revalidatePath("/dashboard/tables");
 }
@@ -30,6 +42,18 @@ export async function updateTable(formData: FormData) {
   if (!tableId || !code || !Number.isFinite(seats) || seats < 1) return;
 
   const sql = db();
+
+  // Stesso vincolo dell'inserimento. Il tavolo che si sta modificando è
+  // escluso: rinominarlo con il codice che ha già è una modifica dei soli
+  // posti, non un doppione.
+  const [esiste] = await sql<{ id: string }[]>`
+    select id from tables
+     where venue_id = ${venue.venueId} and code = ${code} and id <> ${tableId}`;
+  if (esiste) {
+    revalidatePath("/dashboard/tables");
+    return;
+  }
+
   await sql`
     update tables set code = ${code}, seats = ${seats}
     where id = ${tableId} and venue_id = ${venue.venueId}`;

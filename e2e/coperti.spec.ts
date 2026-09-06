@@ -71,6 +71,29 @@ async function statoSessione(sessionId: string) {
 test("il tavolo dichiara i coperti dal QR, e resta una proposta", async ({ page }) => {
   const t = await tavoloAFormula();
 
+  /*
+   * Un piatto ordinato, perché il conto a formula parte da lì.
+   *
+   * Il prezzo fisso si deve solo da quando il tavolo ha ordinato: prima è un
+   * QR inquadrato, e un QR non deve venticinque euro. Qui serve un ordine
+   * per arrivare a vedere il totale provvisorio, che è quello che il test
+   * verifica.
+   */
+  const sqlOrdine = db();
+  try {
+    const [piatto] = await sqlOrdine<{ id: string; price_cents: number }[]>`
+      select id, price_cents from menu_items
+       where venue_id = ${venue.venueId} and name = ${venue.menuItemName}`;
+    const [o] = await sqlOrdine<{ id: string }[]>`
+      insert into orders (venue_id, table_session_id, status)
+      values (${venue.venueId}, ${t.sessionId}, 'confirmed') returning id`;
+    await sqlOrdine`
+      insert into order_items (order_id, menu_item_id, quantity, unit_price_cents, status)
+      values (${o.id}, ${piatto.id}, 1, ${piatto.price_cents}, 'sent_to_kitchen')`;
+  } finally {
+    await sqlOrdine.end();
+  }
+
   await page.goto(`${GUEST_URL}/v/${venue.slug}/t/${t.qrToken}`);
 
   // La domanda sta in pagina, non in una finestra sopra: al tavolo un

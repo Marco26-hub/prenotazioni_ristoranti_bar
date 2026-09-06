@@ -152,6 +152,18 @@ const IT = {
   "fiscale.oggi.vuoto": "Nessun conto chiuso oggi.",
   "fiscale.totale": "Totale",
 
+  "fiscale.oggi.aliquote": "Oggi, per aliquota IVA",
+  "fiscale.oggi.aliquote.nota":
+    "Sul registratore si batte per reparto IVA e poi si sceglie il pagamento: questi sono gli imponibili lordi per aliquota, sommati sulle righe dei documenti di oggi.",
+  "fiscale.aliquota": "IVA {aliquota}%",
+
+  "fiscale.arretrati.uno": "{n} documento di una giornata già chiusa",
+  "fiscale.arretrati.molti": "{n} documenti di giornate già chiuse",
+  "fiscale.arretrati.testo":
+    "Non vengono più mandati al registratore: uscirebbero dentro la giornata di oggi, gonfiandola, dopo che la loro giornata è già stata chiusa. Vanno regolarizzati con il commercialista e poi segnati qui sotto come battuti in cassa.",
+  "fiscale.arretrati.doc.uno": "{n} documento",
+  "fiscale.arretrati.doc.molti": "{n} documenti",
+
   "fiscale.metodo.card": "Carta",
   "fiscale.metodo.cash": "Contanti",
   "fiscale.metodo.satispay": "Satispay",
@@ -231,6 +243,7 @@ const IT = {
     "Salvato. Genera il codice per il programma sulla cassa, qui sotto.",
   "fiscale.ok.codice": "Copialo adesso: non si può rivedere. Il precedente non vale più.",
   "fiscale.ok.battuto": "Segnato come battuto in cassa.",
+  "fiscale.ok.rimesso": "Rimesso in coda: la cassa lo riprende al prossimo giro.",
   "fiscale.errore.matricola":
     "Serve la matricola del registratore: è quella che hai comunicato all'Agenzia.",
   "fiscale.errore.stacco": "Ora di chiusura giornata non valida (0-12)",
@@ -239,6 +252,8 @@ const IT = {
   "fiscale.errore.reparti":
     "Indica almeno un reparto: senza, ogni riga finirebbe sul reparto 1 e verrebbe dichiarata con l'aliquota di quel reparto.",
   "fiscale.errore.documento": "Documento non trovato, o già emesso dal registratore",
+  "fiscale.errore.rimetti":
+    "Si rimettono in coda solo i documenti non riusciti o rimasti in corso.",
 
   // --- Riga documento ---------------------------------------------------
   "documento.stato.da_emettere": "Da emettere",
@@ -255,6 +270,13 @@ const IT = {
   // stampante, e si mostra com'è: non è nostro e non sappiamo tradurlo.
   "documento.errore.senza_numero":
     "Emesso, ma la stampante non ha restituito il numero: recuperalo dal registratore.",
+  // Scritta noi quando la connessione con la stampante cade a comando già
+  // partito: nessuno può dire se lo scontrino sia uscito.
+  "documento.da_verificare":
+    "Il collegamento è caduto mentre stampava: lo scontrino potrebbe essere uscito lo stesso. Guarda il registratore prima di decidere.",
+  "documento.rimetti": "Rimettilo in coda",
+  "documento.battuto.avviso.in_corso":
+    "Questo documento è ancora in carico alla cassa: potrebbe averlo già stampato. Controlla il registratore prima di confermare.",
 };
 
 const EN: Speculare<typeof IT> = {
@@ -388,6 +410,18 @@ const EN: Speculare<typeof IT> = {
   "fiscale.oggi.vuoto": "No bills closed today.",
   "fiscale.totale": "Total",
 
+  "fiscale.oggi.aliquote": "Today, by aliquota IVA (VAT rate)",
+  "fiscale.oggi.aliquote.nota":
+    "On the Registratore Telematico you ring up by reparto IVA (VAT department) and then choose the payment: these are the gross amounts per aliquota, summed over the lines of today's documents.",
+  "fiscale.aliquota": "IVA {aliquota}%",
+
+  "fiscale.arretrati.uno": "{n} document from a service day already closed",
+  "fiscale.arretrati.molti": "{n} documents from service days already closed",
+  "fiscale.arretrati.testo":
+    "They are no longer sent to the Registratore Telematico: they would come out inside today's service day and inflate it, after their own day was closed. Sort them out with your accountant, then mark them below as rung up on the till.",
+  "fiscale.arretrati.doc.uno": "{n} document",
+  "fiscale.arretrati.doc.molti": "{n} documents",
+
   "fiscale.metodo.card": "Card",
   "fiscale.metodo.cash": "Cash",
   "fiscale.metodo.satispay": "Satispay",
@@ -466,6 +500,7 @@ const EN: Speculare<typeof IT> = {
   "fiscale.ok.codice":
     "Copy it now: it cannot be shown again. The previous one no longer works.",
   "fiscale.ok.battuto": "Marked as rung up on the till.",
+  "fiscale.ok.rimesso": "Back in the queue: the till picks it up on its next round.",
   "fiscale.errore.matricola":
     "The Registratore Telematico serial number (matricola) is required: it is the one you reported to the Agenzia delle Entrate.",
   "fiscale.errore.stacco": "Service day closing time is not valid (0-12)",
@@ -475,6 +510,8 @@ const EN: Speculare<typeof IT> = {
     "Set at least one reparto: without it every line would land on reparto 1 and be declared at that reparto's rate.",
   "fiscale.errore.documento":
     "Document not found, or already issued by the Registratore Telematico",
+  "fiscale.errore.rimetti":
+    "Only failed documents, or ones left in progress, can go back in the queue.",
 
   "documento.stato.da_emettere": "To issue",
   "documento.stato.in_corso": "In progress",
@@ -487,6 +524,11 @@ const EN: Speculare<typeof IT> = {
   "documento.numero.aria": "Number of the document rung up on the till",
   "documento.errore.senza_numero":
     "Issued, but the printer didn't give back the number: pick it up from the till roll.",
+  "documento.da_verificare":
+    "The connection dropped while it was printing: the receipt may have come out anyway. Check the Registratore Telematico before deciding.",
+  "documento.rimetti": "Put it back in the queue",
+  "documento.battuto.avviso.in_corso":
+    "This document is still with the till: it may already have printed it. Check the Registratore Telematico before confirming.",
 };
 
 export const tSoldi = dizionario(IT, EN);

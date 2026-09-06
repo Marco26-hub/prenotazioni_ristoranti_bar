@@ -72,6 +72,47 @@ export function FormulaTavolo({
   const [fasciaScelta, setFasciaScelta] = useState(fascia);
   const [pending, start] = useTransition();
 
+  /*
+   * Quando il server cambia idea, vince lui.
+   *
+   * La card non si rimonta mai: la sala si ricarica da sola con
+   * router.refresh() e la key resta l'id del tavolo, quindi questi quattro
+   * controlli restavano fermi all'ultimo valore toccato su questo telefono.
+   * Il caso che fa danno è il taglio dei bambini: portando i coperti da sei a
+   * due il database fa least(bambini, coperti) e scende a due, ma il select
+   * restava a quattro — un valore senza opzione, cioè un campo vuoto su un
+   * tavolo che i bambini ce li ha. Chi lo trovava vuoto sceglieva zero, e
+   * quei due bambini finivano nel conto a tariffa piena. Stesso schema con
+   * due telefoni sullo stesso tavolo.
+   *
+   * L'allineamento si fa in render confrontando l'ultimo valore arrivato dal
+   * server, non in un effect: un effect ridipinge la card due volte e
+   * mostrerebbe per un istante il valore vecchio — che qui è proprio il
+   * numero sbagliato che stiamo togliendo di mezzo.
+   */
+  const [ultimoDalServer, setUltimoDalServer] = useState({
+    formula,
+    bambini,
+    supplementoCents,
+    fascia,
+  });
+  if (ultimoDalServer.formula !== formula) {
+    setUltimoDalServer((v) => ({ ...v, formula }));
+    setAFormula(formula);
+  }
+  if (ultimoDalServer.bambini !== bambini) {
+    setUltimoDalServer((v) => ({ ...v, bambini }));
+    setQuantiBambini(bambini);
+  }
+  if (ultimoDalServer.supplementoCents !== supplementoCents) {
+    setUltimoDalServer((v) => ({ ...v, supplementoCents }));
+    setSupplemento(supplementoCents > 0);
+  }
+  if (ultimoDalServer.fascia !== fascia) {
+    setUltimoDalServer((v) => ({ ...v, fascia }));
+    setFasciaScelta(fascia);
+  }
+
   return (
     <div className="mt-2 space-y-2 border-t border-border/60 pt-2">
       <div className="flex flex-wrap items-center gap-1.5">
@@ -85,7 +126,7 @@ export function FormulaTavolo({
               start(async () => {
                 setAFormula(valore as boolean);
                 const r = await impostaFormula(sessionId, valore as boolean);
-                onAvviso(r.error ?? null);
+                onAvviso(r.error ?? r.ok ?? null);
                 if (r.error) setAFormula(formula);
               })
             }
@@ -121,7 +162,7 @@ export function FormulaTavolo({
                 onClick={() =>
                   start(async () => {
                     const r = await accettaCopertiDelTavolo(sessionId);
-                    onAvviso(r.error ?? null);
+                    onAvviso(r.error ?? r.ok ?? null);
                   })
                 }
                 className="min-h-9 rounded-full bg-accent px-3 font-medium text-accent-foreground disabled:opacity-60"
@@ -157,7 +198,7 @@ export function FormulaTavolo({
                     const prima = fasciaScelta;
                     setFasciaScelta(valore);
                     const r = await impostaFascia(sessionId, valore);
-                    onAvviso(r.error ?? null);
+                    onAvviso(r.error ?? r.ok ?? null);
                     if (r.error) setFasciaScelta(prima);
                   })
                 }
@@ -174,8 +215,12 @@ export function FormulaTavolo({
 
           <label className="flex items-center gap-2 text-xs text-muted">
             {t("formula.bambini")}
+            {/* Il valore si tiene dentro le opzioni anche nell'attimo fra la
+                scrittura e il refresh della sala: fuori intervallo il select
+                non mostrerebbe niente, e un campo vuoto si legge come "zero
+                bambini". */}
             <select
-              value={quantiBambini}
+              value={Math.min(quantiBambini, coperti)}
               aria-label={t("formula.bambini.aria", { codice })}
               disabled={pending}
               onChange={(e) => {
@@ -183,7 +228,11 @@ export function FormulaTavolo({
                 setQuantiBambini(n);
                 start(async () => {
                   const r = await impostaBambini(sessionId, n);
-                  onAvviso(r.error ?? null);
+                  // L'ok non è una cortesia: quando il database taglia i
+                  // bambini ai coperti è l'unico posto dove il taglio viene
+                  // detto a chi sta guardando il tavolo.
+                  onAvviso(r.error ?? r.ok ?? null);
+                  if (r.error) setQuantiBambini(bambini);
                 });
               }}
               className="min-h-9 rounded-lg border border-border bg-background px-2 text-sm text-foreground"
@@ -207,7 +256,7 @@ export function FormulaTavolo({
                   setSupplemento(on);
                   start(async () => {
                     const r = await applicaSupplemento(sessionId, on);
-                    onAvviso(r.error ?? null);
+                    onAvviso(r.error ?? r.ok ?? null);
                     if (r.error) setSupplemento(!on);
                   });
                 }}

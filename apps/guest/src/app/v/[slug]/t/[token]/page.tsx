@@ -154,12 +154,6 @@ export default async function TablePage({
     sessioneAFormula && !statoFormula?.coperti_confermati;
   const annuncio = await annuncioAttivo(venue.id);
 
-  // Varianti e aggiunte, caricate in blocco per tutti i piatti del menu.
-  const varianti = await gruppiPerPiatti(
-    sql,
-    venue.id,
-    items.map((i) => i.id)
-  );
   const nota = notaConservazioneTradotta(
     items.map((i) => i.conservation),
     lingua
@@ -192,6 +186,22 @@ export default async function TablePage({
     traduci(c, c.translations, linguaMenu)
   );
   const itemsTradotti = items.map((i) => traduci(i, i.translations, linguaMenu));
+
+  /*
+   * Varianti e aggiunte, caricate in blocco per tutti i piatti del menu — e
+   * nella stessa lingua dei piatti.
+   *
+   * Sta dopo `linguaMenu` apposta: senza passargliela i gruppi tornavano in
+   * italiano sotto un piatto tradotto, cioè "Cottura" e "Al sangue" dentro
+   * una scheda inglese. Le scelte obbligatorie sono proprio quelle che il
+   * cliente deve capire per ordinare.
+   */
+  const varianti = await gruppiPerPiatti(
+    sql,
+    venue.id,
+    items.map((i) => i.id),
+    linguaMenu
+  );
 
   const itemsConVarianti = itemsTradotti.map((i) => ({
     ...i,

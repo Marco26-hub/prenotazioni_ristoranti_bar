@@ -1,25 +1,25 @@
-categoria,nome,prezzo,descrizione,iva,tipo,ingredienti,allergeni,etichette,foto,produttore,annata,denominazione,origine,gradazione,nota_servizio,sottocategoria,stile,formato,vitigno,servizio
-Antipasti,Bruschetta al pomodoro,6.00,"Pane casereccio, pomodoro e basilico",10
-Antipasti,Tagliere di salumi e formaggi,14.00,Selezione del territorio con confetture,10
-Antipasti,Burrata e alici,11.00,Burrata pugliese con alici del Cantabrico,10
-Primi,Carbonara,13.00,"Guanciale, uovo e pecorino romano",10
-Primi,Cacio e pepe,12.00,Tonnarelli mantecati al pecorino,10
-Primi,Amatriciana,12.50,"Guanciale, pomodoro e pecorino",10
-Primi,Risotto ai funghi porcini,15.00,,10
-Secondi,Tagliata di manzo,22.00,Con rucola e scaglie di grana,10
-Secondi,Saltimbocca alla romana,18.00,"Vitello, prosciutto crudo e salvia",10
-Secondi,Baccalà in guazzetto,19.00,Con pomodorini e olive taggiasche,10
-Contorni,Patate al forno,5.00,,10
-Contorni,Cicoria ripassata,6.00,Aglio e peperoncino,10
-Contorni,Insalata mista,5.00,,10
-Dolci,Tiramisù,6.50,Fatto in casa,10
-Dolci,Panna cotta ai frutti di bosco,6.00,,10
-Dolci,Cannolo siciliano,6.00,,10
-Bevande,Acqua naturale,2.50,,10,drink,,,,,,,0,,Naturale,,0.75 L,,Bottiglia
-Bevande,Acqua frizzante,2.50,,10,drink,,,,,,,0,,Frizzante,,0.75 L,,Bottiglia
-Bevande,Coca-Cola,3.50,,10,drink,,,,,,,0,,Bibita,,0.33 L,,Lattina
-Bevande,Birra artigianale,6.00,Bionda del birrificio locale,10,beer,,,,,Birrificio Locale,,,Italia,5.2,,Artigianale,Lager,0.33 L,,Bottiglia
-Bevande,Caffè,1.50,,10,drink,,,,,,,0,,Caffetteria,,,Espresso
-Vini,Vino della casa rosso,8.00,,22,wine,,,,,Cantina Locale,,,Italia,12.5,,Rosso,,0.5 L,,Bottiglia
-Vini,Vino della casa bianco,8.00,,22,wine,,,,,Cantina Locale,,,Italia,12,,Bianco,,0.5 L,,Bottiglia
-Vini,Chianti DOCG,24.00,,22,wine,,,,,Cantina Toscana,2023,DOCG,Toscana,13,,Rosso,,0.75 L,Sangiovese,Bottiglia
+categoria,nome,prezzo,descrizione,iva,tipo,ingredienti,allergeni,etichette,foto,produttore,annata,denominazione,origine,gradazione,nota_servizio,sottocategoria,stile,formato,vitigno,servizio,reparto,fuori_formula
+Antipasti,Bruschetta al pomodoro,6.00,"Pane casereccio, pomodoro e basilico",10,,,,,,,,,,,,,,,,,cucina,no
+Antipasti,Tagliere di salumi e formaggi,14.00,Selezione del territorio con confetture,10,,,,,,,,,,,,,,,,,cucina,no
+Antipasti,Burrata e alici,11.00,Burrata pugliese con alici del Cantabrico,10,,,,,,,,,,,,,,,,,cucina,no
+Primi,Carbonara,13.00,"Guanciale, uovo e pecorino romano",10,,,,,,,,,,,,,,,,,cucina,no
+Primi,Cacio e pepe,12.00,Tonnarelli mantecati al pecorino,10,,,,,,,,,,,,,,,,,cucina,no
+Primi,Amatriciana,12.50,"Guanciale, pomodoro e pecorino",10,,,,,,,,,,,,,,,,,cucina,no
+Primi,Risotto ai funghi porcini,15.00,,10,,,,,,,,,,,,,,,,,cucina,no
+Secondi,Tagliata di manzo,22.00,Con rucola e scaglie di grana,10,,,,,,,,,,,,,,,,,cucina,no
+Secondi,Saltimbocca alla romana,18.00,"Vitello, prosciutto crudo e salvia",10,,,,,,,,,,,,,,,,,cucina,no
+Secondi,Baccalà in guazzetto,19.00,Con pomodorini e olive taggiasche,10,,,,,,,,,,,,,,,,,cucina,no
+Contorni,Patate al forno,5.00,,10,,,,,,,,,,,,,,,,,cucina,no
+Contorni,Cicoria ripassata,6.00,Aglio e peperoncino,10,,,,,,,,,,,,,,,,,cucina,no
+Contorni,Insalata mista,5.00,,10,,,,,,,,,,,,,,,,,cucina,no
+Dolci,Tiramisù,6.50,Fatto in casa,10,,,,,,,,,,,,,,,,,pasticceria,si
+Dolci,Panna cotta ai frutti di bosco,6.00,,10,,,,,,,,,,,,,,,,,pasticceria,si
+Dolci,Cannolo siciliano,6.00,,10,,,,,,,,,,,,,,,,,pasticceria,si
+Bevande,Acqua naturale,2.50,,10,drink,,,,,,,0,,Naturale,,0.75 L,,Bottiglia,,,bar,si
+Bevande,Acqua frizzante,2.50,,10,drink,,,,,,,0,,Frizzante,,0.75 L,,Bottiglia,,,bar,si
+Bevande,Coca-Cola,3.50,,10,drink,,,,,,,0,,Bibita,,0.33 L,,Lattina,,,bar,si
+Bevande,Birra artigianale,6.00,Bionda del birrificio locale,10,beer,,,,,Birrificio Locale,,,Italia,5.2,,Artigianale,Lager,0.33 L,,Bottiglia,bar,si
+Bevande,Caffè,1.50,,10,drink,,,,,,,0,,Caffetteria,,,Espresso,,,,bar,si
+Vini,Vino della casa rosso,8.00,,22,wine,,,,,Cantina Locale,,,Italia,12.5,,Rosso,,0.5 L,,Bottiglia,bar,si
+Vini,Vino della casa bianco,8.00,,22,wine,,,,,Cantina Locale,,,Italia,12,,Bianco,,0.5 L,,Bottiglia,bar,si
+Vini,Chianti DOCG,24.00,,22,wine,,,,,Cantina Toscana,2023,DOCG,Toscana,13,,Rosso,,0.75 L,Sangiovese,Bottiglia,bar,si

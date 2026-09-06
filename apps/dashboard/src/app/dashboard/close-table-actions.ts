@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@repo/shared/db";
 import { requireVenue } from "@/lib/authz";
 import { contoSessione } from "@repo/shared/conto";
-import { accodaDocumento } from "@repo/shared/fiscale";
+import { accodaDocumento, metodoIncasso, type MetodoIncasso } from "@repo/shared/fiscale";
 import { messaggioErrore } from "@repo/shared/errori";
 import { tSala } from "@/i18n/sala";
 import { linguaUtente } from "@/lib/lingua";
@@ -18,9 +18,17 @@ import { linguaUtente } from "@/lib/lingua";
  * Registra comunque una riga in payments, altrimenti l'incasso di giornata
  * mostrerebbe solo i pagamenti con carta e i conti chiusi a mano
  * sparirebbero dai totali.
+ *
+ * Il mezzo lo dichiara chi incassa. Prima era fisso a contanti, e in un all
+ * you can eat dove metà sala paga col bancomat al banco ogni documento
+ * commerciale dichiarava contante un incasso che l'acquirer registra come
+ * elettronico: è proprio quello scostamento che viene incrociato con i
+ * corrispettivi. Resta facoltativo perché su un conto già saldato dall'app
+ * non si incassa niente e non c'è nessun mezzo da dichiarare.
  */
 export async function closeTableInPerson(
-  sessionId: string
+  sessionId: string,
+  metodo?: MetodoIncasso
 ): Promise<{ ok?: string; error?: string }> {
   const { venue, userId } = await requireVenue();
   const t = tSala(await linguaUtente());
@@ -102,12 +110,21 @@ export async function closeTableInPerson(
     }
 
     if (remaining > 0) {
+      // Il mezzo si esige solo qui: è la riga di incasso a finire nel
+      // documento commerciale, e senza un mezzo dichiarato l'unica cosa che
+      // si può scrivere è un'ipotesi.
+      const mezzo = metodoIncasso(metodo);
+      if (!mezzo) {
+        esito = { error: t("chiusura.mezzo_mancante") };
+        return;
+      }
+
       await tx`
         insert into payments (
           venue_id, table_session_id, amount_cents, method, provider,
           split_type, status, paid_by_label
         ) values (
-          ${session.venue_id}, ${session.id}, ${remaining}, 'cash', 'manual',
+          ${session.venue_id}, ${session.id}, ${remaining}, ${mezzo}, 'manual',
           'full', 'succeeded', 'Incassato al banco'
         )`;
     }

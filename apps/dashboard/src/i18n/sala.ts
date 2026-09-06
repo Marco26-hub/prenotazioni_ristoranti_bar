@@ -40,6 +40,17 @@ const IT = {
   "tavolo.da_incassare": "Da incassare",
   "tavolo.incassa_chiudi": "Incassa e chiudi",
   "tavolo.chiudi_conto": "Chiudi conto",
+  // Il mezzo va dichiarato sul documento commerciale, quindi si chiede
+  // mentre si incassa e non dopo: a fine turno nessuno si ricorda chi ha
+  // pagato col bancomat.
+  "tavolo.come_ha_pagato": "Come ha pagato?",
+  "tavolo.mezzo.cash": "Contanti",
+  "tavolo.mezzo.card": "Carta",
+  "tavolo.mezzo.satispay": "Satispay",
+  // Il testo del bottone è una parola sola perché si legge di corsa: il
+  // gesto per intero lo dice l'etichetta accessibile.
+  "tavolo.incassa_chiudi.aria": "Incassa e chiudi il tavolo {codice} — {mezzo}",
+  "tavolo.annulla": "Annulla",
 
   // Durata di permanenza, calcolata nel browser
   "durata.minuti": "{n} min",
@@ -314,6 +325,10 @@ const IT = {
     "C'è un pagamento con carta in corso su questo tavolo. Aspetta l'esito prima di incassare al banco: rischi di far pagare due volte.",
   "chiusura.eccedenza":
     "Conto chiuso, ma il tavolo ha pagato {importo} in più: verifica se serve un rimborso.",
+  // Capita quando fra il tocco e la scrittura è arrivata un'altra comanda:
+  // a schermo non restava niente da incassare, sul conto sì.
+  "chiusura.mezzo_mancante":
+    "C'è ancora un residuo da incassare: scegli come ha pagato il tavolo — contanti, carta o Satispay.",
   "chiusura.fatto": "Conto chiuso.",
 };
 
@@ -337,6 +352,12 @@ const EN: Speculare<typeof IT> = {
   "tavolo.da_incassare": "Left to collect",
   "tavolo.incassa_chiudi": "Take payment and close",
   "tavolo.chiudi_conto": "Close the bill",
+  "tavolo.come_ha_pagato": "How did they pay?",
+  "tavolo.mezzo.cash": "Cash",
+  "tavolo.mezzo.card": "Card",
+  "tavolo.mezzo.satispay": "Satispay",
+  "tavolo.incassa_chiudi.aria": "Take payment and close table {codice} — {mezzo}",
+  "tavolo.annulla": "Cancel",
 
   "durata.minuti": "{n} min",
   "durata.ore": "{ore}h {minuti}",
@@ -579,6 +600,8 @@ const EN: Speculare<typeof IT> = {
     "A card payment is going through on this table. Wait for the outcome before taking payment at the till: you risk charging twice.",
   "chiusura.eccedenza":
     "Bill closed, but the table paid {importo} too much: check whether a refund is due.",
+  "chiusura.mezzo_mancante":
+    "There is still a balance to collect: pick how the table paid — cash, card or Satispay.",
   "chiusura.fatto": "Bill closed.",
 };
 

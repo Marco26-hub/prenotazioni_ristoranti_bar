@@ -7,6 +7,7 @@ import { requireRole } from "@/lib/authz";
 import { messaggioErrore } from "@repo/shared/errori";
 import { linguaUtente } from "@/lib/lingua";
 import { tMenuAdmin } from "@/i18n/menu";
+import { REPARTI, etichettaReparto } from "@repo/shared/reparti";
 
 export interface ImportResult {
   error?: string;
@@ -16,6 +17,41 @@ export interface ImportResult {
 
 const MAX_FILE_BYTES = 1024 * 1024;
 const MAX_ROWS = 500;
+
+/*
+ * La postazione, non l'etichetta: il vincolo della colonna accetta solo
+ * chiavi minuscole senza spazi. Chi esporta da un altro gestionale scrive
+ * però "Banco sushi" e non "sushi", quindi l'etichetta nota si riporta alla
+ * sua chiave invece di finire in "cucina" in silenzio.
+ */
+const REPARTO_VALIDO = /^[a-z0-9_-]{1,32}$/;
+const REPARTO_PER_ETICHETTA = new Map(
+  REPARTI.map((r): [string, string] => [r.etichetta.toLowerCase(), r.chiave])
+);
+
+function normalizzaReparto(raw: string): string | null {
+  const v = raw.trim().toLowerCase();
+  if (!v) return null;
+  return REPARTO_PER_ETICHETTA.get(v) ?? (REPARTO_VALIDO.test(v) ? v : null);
+}
+
+/*
+ * "Fuori formula" è un sì o un no, e ognuno lo scrive a modo suo: Excel in
+ * italiano esporta VERO, chi lavora in inglese true, chi compila a mano una
+ * x. Tutto il resto — vuoto compreso — vale no, che è il valore di partenza
+ * della colonna.
+ */
+const VERO = new Set([
+  "1",
+  "s",
+  "si",
+  "sì",
+  "x",
+  "y",
+  "yes",
+  "true",
+  "vero",
+]);
 
 /**
  * Parser CSV/TSV minimo ma corretto sui casi che capitano davvero in un menu:
@@ -156,11 +192,22 @@ export async function importMenuCsv(formData: FormData): Promise<ImportResult> {
   let imported = 0;
   // Righe senza colonna IVA: al 10% per default, ma va detto.
   let ivaAssunta = 0;
+  /* Una categoria nata dall'import va sullo schermo di una postazione
+     precisa, e se il file non lo dice va in cucina. Chi ha il banco del
+     crudo separato deve saperlo subito: dalla pagina Menu la cambia in un
+     tocco, ma solo se sa che è successo. */
+  const categorieNuove: { nome: string; reparto: string }[] = [];
 
   const col = (cols: string[], name: string, fallback: number) => {
     const index = headers?.get(name);
     return (cols[index ?? fallback] ?? "").trim();
   };
+
+  /* Chi esporta da un altro gestionale non chiama la colonna come la
+     chiamiamo noi: i sinonimi che si vedono davvero costano una riga e
+     valgono un menu importato bene. */
+  const colUno = (cols: string[], nomi: string[], fallback: number) =>
+    col(cols, nomi.find((n) => headers?.has(n)) ?? nomi[0], fallback);
 
   for (const [index, cols] of dataRows.entries()) {
     const lineNo = index + (hasHeader ? 2 : 1);
@@ -182,6 +229,19 @@ export async function importMenuCsv(formData: FormData): Promise<ImportResult> {
     if (!vatRaw) ivaAssunta++;
     const kindRaw = col(cols, "tipo", 5).toLowerCase();
     const kind = ["food", "wine", "beer", "drink"].includes(kindRaw) ? kindRaw : "food";
+    /*
+     * Reparto e fuori formula arrivano dal file o non arrivano affatto.
+     *
+     * Senza reparto le comande del crudo finivano sullo schermo della
+     * cucina, e chi ha il permesso solo sul banco sushi non poteva
+     * toccarle. Senza fuori formula, in un locale a prezzo fisso birre e
+     * dolci nascevano compresi: il cliente li vedeva marcati "compreso" e a
+     * fine serata non erano sul conto.
+     */
+    const reparto = normalizzaReparto(colUno(cols, ["reparto", "postazione"], 21));
+    const fuoriFormula = VERO.has(
+      colUno(cols, ["fuori_formula", "fuori formula"], 22).toLowerCase()
+    );
     const number = (column: string, fallback: number, min: number, max: number) => {
       const raw = col(cols, column, fallback).replace(",", ".");
       if (!raw) return null;
@@ -212,11 +272,13 @@ export async function importMenuCsv(formData: FormData): Promise<ImportResult> {
       categoryId = categoryByName.get(key) ?? null;
       if (!categoryId) {
         const [created] = await sql<{ id: string }[]>`
-          insert into menu_categories (venue_id, name, sort_order)
-          values (${venue.venueId}, ${categoryName}, ${categoryByName.size + 1})
+          insert into menu_categories (venue_id, name, sort_order, reparto)
+          values (${venue.venueId}, ${categoryName}, ${categoryByName.size + 1},
+                  ${reparto ?? "cucina"})
           returning id`;
         categoryId = created.id;
         categoryByName.set(key, categoryId);
+        categorieNuove.push({ nome: categoryName, reparto: reparto ?? "cucina" });
       }
     }
 
@@ -225,7 +287,7 @@ export async function importMenuCsv(formData: FormData): Promise<ImportResult> {
         venue_id, category_id, name, description, price_cents, vat_rate, sort_order,
         kind, ingredients, allergens, dietary_tags, image_url, producer, vintage,
         denomination, origin, abv, serving_note, subcategory, product_style,
-        format, grape_variety, service_type
+        format, grape_variety, service_type, fuori_formula
       ) values (
         ${venue.venueId}, ${categoryId}, ${name}, ${description}, ${priceCents}, ${vatRate}, ${index + 1},
         ${kind}, ${col(cols, "ingredienti", 6) || null}, ${list("allergeni", 7)},
@@ -234,7 +296,8 @@ export async function importMenuCsv(formData: FormData): Promise<ImportResult> {
         ${col(cols, "origine", 13) || null}, ${number("gradazione", 14, 0, 80)},
         ${col(cols, "nota_servizio", 15) || null}, ${col(cols, "sottocategoria", 16) || null},
         ${col(cols, "stile", 17) || null}, ${col(cols, "formato", 18) || null},
-        ${col(cols, "vitigno", 19) || null}, ${col(cols, "servizio", 20) || null}
+        ${col(cols, "vitigno", 19) || null}, ${col(cols, "servizio", 20) || null},
+        ${fuoriFormula}
       )`;
     imported++;
   }
@@ -242,6 +305,17 @@ export async function importMenuCsv(formData: FormData): Promise<ImportResult> {
   revalidatePath("/dashboard/menu");
   if (ivaAssunta > 0) {
     skipped.push(t.n(ivaAssunta, "importa.iva.assunta"));
+  }
+  if (categorieNuove.length > 0) {
+    skipped.push(
+      t.n(categorieNuove.length, "importa.categorie.nuove", {
+        elenco: t.elenco(
+          categorieNuove.map(
+            (c) => `${c.nome} → ${etichettaReparto(c.reparto)}`
+          )
+        ),
+      })
+    );
   }
 
   return { imported, skipped };

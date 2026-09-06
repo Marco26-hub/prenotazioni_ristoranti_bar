@@ -1,5 +1,6 @@
 import "server-only";
 import type { Sql } from "postgres";
+import { traduci, LINGUA_BASE, type Traduzioni } from "./lingue";
 
 /**
  * Varianti e aggiunte di un piatto.
@@ -36,6 +37,7 @@ interface RigaGruppo {
   required: boolean;
   min_choices: number;
   max_choices: number;
+  translations: Traduzioni | null;
 }
 
 interface RigaOpzione {
@@ -44,19 +46,30 @@ interface RigaOpzione {
   name: string;
   price_delta_cents: number;
   available: boolean;
+  translations: Traduzioni | null;
 }
 
-/** Gruppi e opzioni di più piatti in due query invece di due per piatto. */
+/**
+ * Gruppi e opzioni di più piatti in due query invece di due per piatto.
+ *
+ * `lingua` è la lingua contenuto già scelta per il cliente: i nomi escono di
+ * qui tradotti, e chi chiama continua a leggere `name`. Le traduzioni non
+ * risalgono nel risultato apposta — sarebbero dieci lingue spedite al browser
+ * per mostrarne una sola. Senza `lingua` resta tutto in italiano, che è la
+ * lingua base ed è quella che serve al gestionale.
+ */
 export async function gruppiPerPiatti(
   sql: Sql,
   venueId: string,
-  itemIds: string[]
+  itemIds: string[],
+  lingua: string = LINGUA_BASE
 ): Promise<Map<string, GruppoOpzioni[]>> {
   const perPiatto = new Map<string, GruppoOpzioni[]>();
   if (itemIds.length === 0) return perPiatto;
 
   const gruppi = await sql<RigaGruppo[]>`
-    select id, menu_item_id, name, kind, required, min_choices, max_choices
+    select id, menu_item_id, name, kind, required, min_choices, max_choices,
+           translations
       from menu_option_groups
      where venue_id = ${venueId} and menu_item_id in ${sql(itemIds)}
      order by sort_order, name`;
@@ -64,7 +77,7 @@ export async function gruppiPerPiatti(
   if (gruppi.length === 0) return perPiatto;
 
   const opzioni = await sql<RigaOpzione[]>`
-    select id, group_id, name, price_delta_cents, available
+    select id, group_id, name, price_delta_cents, available, translations
       from menu_options
      where group_id in ${sql(gruppi.map((g) => g.id))}
      order by sort_order, name`;
@@ -72,21 +85,38 @@ export async function gruppiPerPiatti(
   const perGruppo = new Map<string, Opzione[]>();
   for (const o of opzioni) {
     const lista = perGruppo.get(o.group_id) ?? [];
-    lista.push(o);
+    lista.push(
+      traduci(
+        {
+          id: o.id,
+          name: o.name,
+          price_delta_cents: o.price_delta_cents,
+          available: o.available,
+        },
+        o.translations,
+        lingua
+      )
+    );
     perGruppo.set(o.group_id, lista);
   }
 
   for (const g of gruppi) {
     const lista = perPiatto.get(g.menu_item_id) ?? [];
-    lista.push({
-      id: g.id,
-      name: g.name,
-      kind: g.kind,
-      required: g.required,
-      min_choices: g.min_choices,
-      max_choices: g.max_choices,
-      opzioni: perGruppo.get(g.id) ?? [],
-    });
+    lista.push(
+      traduci(
+        {
+          id: g.id,
+          name: g.name,
+          kind: g.kind,
+          required: g.required,
+          min_choices: g.min_choices,
+          max_choices: g.max_choices,
+          opzioni: perGruppo.get(g.id) ?? [],
+        },
+        g.translations,
+        lingua
+      )
+    );
     perPiatto.set(g.menu_item_id, lista);
   }
 

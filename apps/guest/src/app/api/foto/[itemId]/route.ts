@@ -2,6 +2,15 @@ import { createHash } from "node:crypto";
 import { db } from "@repo/shared/db";
 
 /**
+ * Un giorno in cache diretta, una settimana riusabile mentre si rinfresca.
+ *
+ * Tenerla a un minuto non serviva a mostrare prima le foto nuove: l'ETag
+ * viene dal contenuto, quindi una foto cambiata si vede comunque al primo
+ * controllo. Serviva solo a far ricontrollare ogni foto ogni minuto.
+ */
+const CACHE_CONTROL = "public, max-age=86400, stale-while-revalidate=604800";
+
+/**
  * Foto di un piatto.
  *
  * Le immagini sono salvate come data URL in colonna. Metterle direttamente
@@ -14,7 +23,7 @@ import { db } from "@repo/shared/db";
  * se le tiene: alla seconda apertura del menu non si scarica nulla.
  */
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ itemId: string }> }
 ) {
   const { itemId } = await params;
@@ -38,15 +47,24 @@ export async function GET(
   // dover invalidare niente a mano.
   const etag = `"${createHash("sha1").update(dati).digest("hex").slice(0, 16)}"`;
 
+  // La cache dell'header più lunga di un minuto vale poco se poi ogni
+  // revalidazione rispedisce l'immagine intera: su una carta sushi con foto
+  // su duecento voci, un cliente che riscorre il menu fra un'ondata e
+  // l'altra si riscaricava decine di MB a passata, sulla stessa rete su cui
+  // gira l'ordinazione. Qui la revalidazione costa una riga di header.
+  if (request.headers.get("if-none-match") === etag) {
+    return new Response(null, {
+      status: 304,
+      headers: { ETag: etag, "Cache-Control": CACHE_CONTROL },
+    });
+  }
+
   return new Response(new Uint8Array(dati), {
     headers: {
       "Content-Type": tipo,
       "Content-Length": String(dati.length),
       ETag: etag,
-      // Poco in cache diretta ma riusabile a lungo mentre si rinfresca:
-      // un ristoratore che cambia foto la vede aggiornata in fretta, e chi
-      // è al tavolo non aspetta comunque.
-      "Cache-Control": "public, max-age=60, stale-while-revalidate=604800",
+      "Cache-Control": CACHE_CONTROL,
     },
   });
 }

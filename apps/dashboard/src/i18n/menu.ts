@@ -283,6 +283,10 @@ const IT = {
     " {n} voce di esempio creata, spenta: prezzo e allergeni vanno controllati prima di accenderla — nessun cliente la vede finché non lo fai.",
   "applica.nota.listino.molti":
     " {n} voci di esempio create, tutte spente: prezzi e allergeni vanno controllati prima di accenderle — nessun cliente le vede finché non lo fai.",
+  // Le categorie che restano a pagamento sono vuote al primo giorno: quello
+  // che si carica dopo nasce dentro il prezzo fisso, e nessuno lo dice.
+  "applica.nota.riapplica":
+    " Le categorie che restano a pagamento anche dentro la formula ({elenco}) sono ancora vuote: quando le hai caricate, riapplica il formato. Le voci aggiunte dopo nascono dentro il prezzo fisso, e con la formula attiva il conto non le addebita.",
 
   "formato.categorie": "Categorie",
   "formato.scelte": "Scelte proposte",
@@ -348,7 +352,7 @@ const IT = {
   "importa.testo.prima": "Carica un file ",
   "importa.testo.excel": "Excel (.xlsx)",
   "importa.testo.dopo":
-    ", CSV o TSV. Sono supportati piatti e bevande con categoria, tipo, formato, produttore, stile, vitigno, servizio, foto, allergeni e dati fiscali. Le colonne aggiuntive sono facoltative e le categorie mancanti vengono create da sole.",
+    ", CSV o TSV. Sono supportati piatti e bevande con categoria, tipo, formato, produttore, stile, vitigno, servizio, foto, allergeni, postazione, fuori formula e dati fiscali. Le colonne aggiuntive sono facoltative e le categorie mancanti vengono create da sole, sulla postazione indicata nel file.",
   "importa.esempio": "Scarica un file di esempio",
   "importa.in.corso": "Importazione...",
   "importa.avvia": "Importa menu",
@@ -367,6 +371,13 @@ const IT = {
     "{n} riga senza IVA nel file: importate al 10%, l'aliquota della somministrazione. Se ci sono vini o alcolici correggili a 22% prima di emettere fatture.",
   "importa.iva.assunta.molti":
     "{n} righe senza IVA nel file: importate al 10%, l'aliquota della somministrazione. Se ci sono vini o alcolici correggili a 22% prima di emettere fatture.",
+  // La postazione decide su quale schermo esce la comanda e chi la può
+  // muovere: una categoria nata dall'import senza reparto va in cucina, e
+  // chi ha il banco del crudo separato deve accorgersene subito.
+  "importa.categorie.nuove.uno":
+    "{n} categoria nuova creata dall'import: {elenco}. Se la postazione non è quella giusta, cambiala qui sotto sulla categoria.",
+  "importa.categorie.nuove.molti":
+    "{n} categorie nuove create dall'import: {elenco}. Se la postazione non è quella giusta, cambiala qui sotto sulla categoria.",
 
   // Importazione dalla cassa
   "tilby.non.collegato.prima": "Collega il tuo gestionale di cassa in ",
@@ -688,6 +699,8 @@ const EN: Speculare<typeof IT> = {
     " {n} sample item created, switched off: its price and allergens need checking before you switch it on — no guest sees it until you do.",
   "applica.nota.listino.molti":
     " {n} sample items created, all switched off: prices and allergens need checking before you switch them on — no guest sees them until you do.",
+  "applica.nota.riapplica":
+    " The categories that stay chargeable inside the set-price deal ({elenco}) are still empty: once you have loaded them, apply the format again. Items added afterwards are born inside the fixed price, and with the deal on, the bill never charges for them.",
 
   "formato.categorie": "Categories",
   "formato.scelte": "Suggested choices",
@@ -751,7 +764,7 @@ const EN: Speculare<typeof IT> = {
   "importa.testo.prima": "Upload an ",
   "importa.testo.excel": "Excel (.xlsx)",
   "importa.testo.dopo":
-    ", CSV or TSV file. Dishes and drinks are supported, with category, type, size, producer, style, grape, service, photo, allergens and tax details. The extra columns are optional, and missing categories are created on their own.",
+    ", CSV or TSV file. Dishes and drinks are supported, with category, type, size, producer, style, grape, service, photo, allergens, station, out-of-formula and tax details. The extra columns are optional, and missing categories are created on their own, on the station the file names.",
   "importa.esempio": "Download a sample file",
   "importa.in.corso": "Importing...",
   "importa.avvia": "Import menu",
@@ -770,6 +783,10 @@ const EN: Speculare<typeof IT> = {
     "{n} row with no VAT (IVA) in the file: imported at 10%, the food-service rate. If there are wines or spirits, set them to 22% before you issue any invoices.",
   "importa.iva.assunta.molti":
     "{n} rows with no VAT (IVA) in the file: imported at 10%, the food-service rate. If there are wines or spirits, set them to 22% before you issue any invoices.",
+  "importa.categorie.nuove.uno":
+    "{n} new category created by the import: {elenco}. If that is not the right station, change it on the category below.",
+  "importa.categorie.nuove.molti":
+    "{n} new categories created by the import: {elenco}. If those are not the right stations, change them on the categories below.",
 
   "tilby.non.collegato.prima": "Connect your till system under ",
   "tilby.impostazioni": "Settings",

@@ -3,6 +3,7 @@ import { db } from "@repo/shared/db";
 import { localeDalToken } from "@/lib/rt-auth";
 import { messaggioErrore } from "@repo/shared/errori";
 import { RT_SENZA_NUMERO } from "@/lib/rt-errori";
+import { RT_DA_VERIFICARE } from "@/app/dashboard/fiscale/rt-incerto";
 
 /**
  * L'agente racconta com'è andata.
@@ -10,10 +11,15 @@ import { RT_SENZA_NUMERO } from "@/lib/rt-errori";
  * Un documento emesso porta con sé il numero che la stampante gli ha dato:
  * senza, non si può più ricollegare un incasso al suo scontrino, che è
  * esattamente quello che serve quando arriva un controllo.
+ *
+ * "incerto" è il terzo esito, e non è una sfumatura: quando la connessione
+ * con la stampante cade a comando già partito, dichiarare "errore" farebbe
+ * ristampare uno scontrino forse già uscito. Meglio non dire niente di
+ * definitivo e lasciare che sia una persona a guardare il registratore.
  */
 interface Corpo {
   id?: string;
-  esito?: "emesso" | "errore";
+  esito?: "emesso" | "errore" | "incerto";
   numeroDocumento?: string;
   matricola?: string;
   errore?: string;
@@ -26,8 +32,41 @@ export async function POST(request: Request) {
   }
 
   const corpo = (await request.json().catch(() => null)) as Corpo | null;
-  if (!corpo?.id || (corpo.esito !== "emesso" && corpo.esito !== "errore")) {
+  const esiti = ["emesso", "errore", "incerto"];
+  if (!corpo?.id || !corpo.esito || !esiti.includes(corpo.esito)) {
     return NextResponse.json({ error: "Richiesta non valida" }, { status: 400 });
+  }
+
+  const sql = db();
+
+  /*
+   * Esito incerto: il documento resta preso in carico e si ferma lì.
+   *
+   * Non 'errore', che lo rimetterebbe in coda e lo farebbe uscire una
+   * seconda volta; non 'emesso', che dichiarerebbe certificato un incasso
+   * che forse non lo è. Resta 'in_corso' con la sentinella nella colonna
+   * errore: la coda smette di riconsegnarlo e Corrispettivi lo mostra fra
+   * quelli da verificare sul registratore, dove la persona decide se
+   * rimetterlo in coda o segnarlo battuto.
+   */
+  if (corpo.esito === "incerto") {
+    const fermate = await sql`
+      update fiscal_documents
+         set stato = 'in_corso', preso_at = now(),
+             errore = ${`${RT_DA_VERIFICARE} ${corpo.errore ?? ""}`.trim().slice(0, 500)}
+       where id = ${corpo.id} and venue_id = ${locale.venueId}
+         and stato in ('in_corso', 'da_emettere', 'errore')
+      returning id`;
+
+    if (fermate.length === 0) {
+      return NextResponse.json({ ok: true, gia: "chiuso" });
+    }
+
+    console.error(
+      `[rt] documento ${corpo.id} da verificare sul registratore: ` +
+        messaggioErrore(corpo.errore)
+    );
+    return NextResponse.json({ ok: true });
   }
 
   /*
@@ -40,8 +79,6 @@ export async function POST(request: Request) {
    */
   const senzaNumero =
     corpo.esito === "emesso" && !corpo.numeroDocumento?.trim();
-
-  const sql = db();
 
   /*
    * Si chiude solo quello che è ancora aperto.

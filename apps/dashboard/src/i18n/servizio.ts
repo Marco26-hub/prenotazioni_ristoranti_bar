@@ -131,6 +131,17 @@ const IT = {
     "Schermo non aggiornato: nessuna risposta dal server. Quello che vedi potrebbe non essere più vero.",
   "avviso.non_riuscito": "Non ha funzionato: controlla la connessione e riprova.",
 
+  // La cassa ferma si vede da qui perché lo schermo delle comande è l'unico
+  // che qualcuno guarda durante il servizio. I termini fiscali restano in
+  // italiano anche in inglese: è così che si chiamano, e chi deve telefonare
+  // al tecnico deve saperli ripetere.
+  "avviso.cassa.fermo":
+    "Registratore Telematico muto da più di dieci minuti: i conti si chiudono, ma il documento commerciale non esce.",
+  "avviso.cassa.errori.uno":
+    "Registratore Telematico: {n} documento commerciale non emesso. Avvisa chi tiene la cassa.",
+  "avviso.cassa.errori.molti":
+    "Registratore Telematico: {n} documenti commerciali non emessi. Avvisa chi tiene la cassa.",
+
   // --- Errori delle azioni ------------------------------------------------
   "errore.ruolo": "Il tuo ruolo non può fare questa modifica.",
   "errore.ruolo.ready": "Solo la cucina può segnare un piatto pronto.",
@@ -296,6 +307,13 @@ const EN: Speculare<typeof IT> = {
   "avviso.scollegato":
     "Screen not updating: no answer from the server. What you see may no longer be true.",
   "avviso.non_riuscito": "That didn't work: check the connection and try again.",
+
+  "avviso.cassa.fermo":
+    "Registratore Telematico silent for over ten minutes: bills still close, but no documento commerciale comes out.",
+  "avviso.cassa.errori.uno":
+    "Registratore Telematico: {n} documento commerciale not issued. Tell whoever runs the till.",
+  "avviso.cassa.errori.molti":
+    "Registratore Telematico: {n} documenti commerciali not issued. Tell whoever runs the till.",
 
   "errore.ruolo": "Your role cannot make this change.",
   "errore.ruolo.ready": "Only the kitchen can mark a dish ready.",

@@ -10,6 +10,8 @@
  * una sanzione o perde un cliente, raccolte per formato.
  */
 
+import type { Conservazione } from "./bevande";
+
 export type TipoLocale =
   | "ristorante"
   | "pizzeria"
@@ -98,6 +100,14 @@ export interface PiattoModello {
   /** Chiavi dell'Allegato II, quelle che quel piatto ha quasi sempre. */
   allergeni?: string[];
   descrizione?: string;
+  /*
+   * Il pesce servito crudo va abbattuto a −20 °C e dichiarato (Reg. CE
+   * 853/2004): un listino di partenza che nasce "fresco" sul crudo è un menu
+   * che a un controllo è sbagliato, e nessuno riapre trenta schede per
+   * correggerlo una a una. Assente vale "fresco", com'è il valore di
+   * partenza della colonna.
+   */
+  conservazione?: Conservazione;
 }
 
 export interface ModelloLocale {
@@ -430,6 +440,15 @@ export const MODELLI: ModelloLocale[] = [
       { nome: "Wok e riso" },
       { nome: "Dolci", reparto: "pasticceria", fuoriFormula: true },
       { nome: "Bevande", reparto: "bar", genere: "drink", fuoriFormula: true },
+      /*
+       * Gli alcolici stanno a parte perché l'aliquota è un'altra: 22 e non
+       * 10. Con una sola "Bevande" al valore di partenza, Asahi, sake e vino
+       * nascevano al 10% e l'errore usciva da corrispettivi e fatture senza
+       * dare nessun avviso — su un all you can eat è il bevuto di cento
+       * coperti al giorno.
+       */
+      { nome: "Birre", reparto: "bar", iva: 22, genere: "beer", fuoriFormula: true },
+      { nome: "Sake e vini", reparto: "bar", iva: 22, genere: "wine", fuoriFormula: true },
     ],
     gruppi: [
       {
@@ -471,6 +490,61 @@ export const MODELLI: ModelloLocale[] = [
           ["Cipollotto", 0],
         ],
       },
+    ],
+    /*
+     * Una carta di un all you can eat sono cento-centocinquanta voci, e su
+     * quasi ognuna c'è un allergene dell'Allegato II: batterle a mano
+     * significa compilare gli allergeni cento volte, cioè non compilarli.
+     *
+     * Il crudo nasce `abbattuto` e non `fresco`: il pesce servito crudo va
+     * congelato a −20 °C per 24 ore e la cosa va dichiarata in menù (Reg. CE
+     * 853/2004). Il cotto — tempura, gyoza, teriyaki, surimi — resta fresco.
+     */
+    piatti: [
+      { nome: "Edamame al sale", categoria: "Antipasti", prezzo: 450, allergeni: ["soia"] },
+      { nome: "Zuppa di miso", categoria: "Antipasti", prezzo: 400, allergeni: ["soia", "pesce"] },
+      { nome: "Insalata di alghe wakame", categoria: "Antipasti", prezzo: 500, allergeni: ["soia", "glutine", "sesamo"] },
+
+      { nome: "Nigiri salmone", categoria: "Nigiri", prezzo: 250, allergeni: ["pesce"], conservazione: "abbattuto" },
+      { nome: "Nigiri tonno", categoria: "Nigiri", prezzo: 300, allergeni: ["pesce"], conservazione: "abbattuto" },
+      { nome: "Nigiri salmone flambé", categoria: "Nigiri", prezzo: 300, allergeni: ["pesce", "uova"], conservazione: "abbattuto" },
+      // Il gambero del nigiri è lessato: qui l'abbattimento non c'entra.
+      { nome: "Nigiri gambero cotto", categoria: "Nigiri", prezzo: 260, allergeni: ["crostacei"] },
+
+      { nome: "Sashimi salmone", categoria: "Sashimi", prezzo: 800, allergeni: ["pesce"], conservazione: "abbattuto" },
+      { nome: "Sashimi misto", categoria: "Sashimi", prezzo: 1200, allergeni: ["pesce", "molluschi"], conservazione: "abbattuto" },
+
+      { nome: "Uramaki salmone e avocado", categoria: "Uramaki", prezzo: 600, allergeni: ["pesce", "sesamo"], conservazione: "abbattuto" },
+      { nome: "Uramaki Philadelphia", categoria: "Uramaki", prezzo: 600, allergeni: ["pesce", "latte", "sesamo"], conservazione: "abbattuto" },
+      { nome: "Uramaki spicy tuna", categoria: "Uramaki", prezzo: 650, allergeni: ["pesce", "uova", "soia", "glutine", "sesamo"], conservazione: "abbattuto" },
+      // Il surimi della California è cotto, e contiene pesce e glutine.
+      { nome: "Uramaki California", categoria: "Uramaki", prezzo: 550, allergeni: ["crostacei", "pesce", "uova", "glutine", "sesamo"] },
+
+      { nome: "Hosomaki salmone", categoria: "Hosomaki", prezzo: 400, allergeni: ["pesce"], conservazione: "abbattuto" },
+      { nome: "Hosomaki cetriolo", categoria: "Hosomaki", prezzo: 350, allergeni: [] },
+
+      { nome: "Temaki salmone e avocado", categoria: "Temaki", prezzo: 600, allergeni: ["pesce", "sesamo"], conservazione: "abbattuto" },
+      { nome: "Temaki California", categoria: "Temaki", prezzo: 600, allergeni: ["crostacei", "pesce", "uova", "glutine", "sesamo"] },
+
+      { nome: "Gyoza di maiale", categoria: "Fritti", prezzo: 600, allergeni: ["glutine", "soia", "sesamo"] },
+      { nome: "Gamberi in tempura", categoria: "Fritti", prezzo: 750, allergeni: ["crostacei", "glutine", "uova"] },
+
+      { nome: "Yakisoba di manzo", categoria: "Wok e riso", prezzo: 800, allergeni: ["glutine", "soia", "uova", "sesamo"] },
+      { nome: "Pollo teriyaki", categoria: "Wok e riso", prezzo: 750, allergeni: ["soia", "glutine", "sesamo"] },
+
+      { nome: "Mochi gelato", categoria: "Dolci", prezzo: 400, allergeni: ["latte"] },
+      { nome: "Gelato fritto", categoria: "Dolci", prezzo: 500, allergeni: ["glutine", "uova", "latte"] },
+
+      { nome: "Acqua naturale 0,75", categoria: "Bevande", prezzo: 250, allergeni: [] },
+      { nome: "Coca-Cola 0,33", categoria: "Bevande", prezzo: 300, allergeni: [] },
+      { nome: "Tè verde caldo", categoria: "Bevande", prezzo: 250, allergeni: [] },
+
+      // La birra si fa con l'orzo: il glutine c'è, anche in quelle di riso.
+      { nome: "Asahi Super Dry 0,33", categoria: "Birre", prezzo: 450, allergeni: ["glutine"] },
+      { nome: "Kirin Ichiban 0,33", categoria: "Birre", prezzo: 450, allergeni: ["glutine"] },
+
+      { nome: "Sake caldo 0,18", categoria: "Sake e vini", prezzo: 600, allergeni: [] },
+      { nome: "Vino bianco della casa 0,5", categoria: "Sake e vini", prezzo: 800, allergeni: ["solfiti"] },
     ],
     promemoria: [
       "Il pesce servito crudo va abbattuto a -20 \u00b0C per 24 ore: \u00e8 obbligatorio (Reg. CE 853/2004), e in men\u00f9 va dichiarato che il prodotto \u00e8 stato sottoposto a bonifica preventiva.",

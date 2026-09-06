@@ -356,7 +356,12 @@ export function DishSheet({
                             </span>
                           )}
                         </span>
-                        {o.price_delta_cents !== 0 && (
+                        {/* Su un piatto compreso nella formula il supplemento
+                            dell'opzione non si paga (il conto esclude le voci
+                            non fuori formula): mostrarlo qui, sotto la scritta
+                            "compreso", chiede al cliente due euro che nessuno
+                            gli addebiterà. Stessa guardia del totale in fondo. */}
+                        {!aFormula && o.price_delta_cents !== 0 && (
                           <span className="shrink-0 text-sm tabular-nums text-muted">
                             {o.price_delta_cents > 0 ? "+" : "−"}
                             {t.prezzo(Math.abs(o.price_delta_cents), currency)}

@@ -36,6 +36,14 @@ interface LiveItem {
    * aveva modo di sapere quale piadina era di chi.
    */
   pickup_number: number | null;
+  /**
+   * L'ondata: tutte le righe partite con lo stesso invio.
+   *
+   * Serve a misurare l'attesa su quello che è appena stato ordinato invece
+   * che sull'intera sessione del tavolo, che in un all you can eat dura il
+   * turno.
+   */
+  order_id?: string;
   item_name: string;
   quantity: number;
   status: OrderItemStatus;
@@ -195,6 +203,12 @@ export function LiveBoard({
   // a schermo non arriva più dal server.
   const [scollegato, setScollegato] = useState(false);
   const [soglia, setSoglia] = useState(SOGLIA_PREDEFINITA);
+  // Lo stato della cassa: quanti documenti commerciali sono rimasti indietro
+  // oggi e se il Registratore Telematico si fa ancora sentire.
+  const [fiscale, setFiscale] = useState<{ errori: number; agenteFermo: boolean }>({
+    errori: 0,
+    agenteFermo: false,
+  });
   // Letto dal dispositivo, non dallo stato: il server non sa cosa c'è nel
   // localStorage e leggerlo durante il render darebbe due HTML diversi. Con
   // useSyncExternalStore il primo render combacia col server e il valore vero
@@ -286,6 +300,12 @@ export function LiveBoard({
     setItems(data.items);
     setScollegato(false);
     if (typeof data.soglia === "number") setSoglia(data.soglia);
+    if (data.fiscale) {
+      setFiscale({
+        errori: Number(data.fiscale.errori) || 0,
+        agenteFermo: Boolean(data.fiscale.agenteFermo),
+      });
+    }
 
     // Ci si presenta insieme ai dati, non con un timer proprio: uno schermo
     // che non carica comande non è in servizio, e non deve risultare acceso.
@@ -555,6 +575,25 @@ export function LiveBoard({
 
   return (
     <>
+      {/*
+        La cassa ferma si scopre in cucina, non nei Corrispettivi.
+
+        Quella pagina la aprono solo titolare e responsabile, e nessuno la
+        apre durante il servizio: una stampante muta dalle 19:30 si scopriva
+        a mezzanotte, con ottanta clienti già usciti senza documento
+        commerciale. Qui sta in cima allo schermo che tutti guardano, e ci
+        resta finché la cassa non riparte.
+      */}
+      {(fiscale.agenteFermo || fiscale.errori > 0) && (
+        <div
+          role="alert"
+          className="mt-3 space-y-1 rounded-lg border-2 border-danger bg-danger/10 p-3 text-sm font-semibold text-danger"
+        >
+          {fiscale.agenteFermo && <p>{t("avviso.cassa.fermo")}</p>}
+          {fiscale.errori > 0 && <p>{t.n(fiscale.errori, "avviso.cassa.errori")}</p>}
+        </div>
+      )}
+
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <button
           type="button"
@@ -749,13 +788,28 @@ export function LiveBoard({
             // Tutto arrivato: al tavolo non manca niente, e si vede da lontano.
             const tuttoServito = righe.every((r) => r.status === "served");
 
-            const piuVecchia = righe.reduce<number | null>((acc, r) => {
-              // Un piatto già portato non è più un'attesa.
-              if (r.status === "served" || r.held_at) return acc;
-              if (!r.created_at) return acc;
-              const t = new Date(r.created_at).getTime();
-              return acc === null || t < acc ? t : acc;
-            }, null);
+            /*
+             * L'attesa è dell'ondata, non della sessione.
+             *
+             * In un all you can eat il tavolo resta aperto tutto il turno e
+             * ci passano cinque ordini: misurando dal primo, a metà serata
+             * ogni card era oltre soglia e il rosso non distingueva più
+             * niente. Conta solo l'ondata più vecchia che ha ancora qualcosa
+             * da preparare — un piatto già al passe o portato non è la
+             * cucina che tarda, ed era proprio la riga dimenticata a 'ready'
+             * a tenere accesa la card fino a fine serata.
+             */
+            const ondate = new Map<string, number>();
+            for (const r of righe) {
+              if (r.status === "ready" || r.status === "served" || r.held_at) continue;
+              if (!r.created_at) continue;
+              const nato = new Date(r.created_at).getTime();
+              const chiave = r.order_id ?? r.created_at;
+              const gia = ondate.get(chiave);
+              if (gia === undefined || nato < gia) ondate.set(chiave, nato);
+            }
+            const piuVecchia =
+              ondate.size === 0 ? null : Math.min(...ondate.values());
             const attesaMin =
               piuVecchia === null ? null : Math.floor((adesso - piuVecchia) / 60000);
             // Zero spegne l'allarme: chi non lo vuole addosso tutta la sera
@@ -881,49 +935,63 @@ export function LiveBoard({
                 </ul>
 
                 {/* Un tocco per tutto il tavolo: è così che escono i piatti. */}
-                <div className="mt-3 flex flex-wrap gap-2 border-t border-border pt-3">
-                  {daPreparare > 0 && consentiti.includes("preparing") && (
-                    <button
-                      type="button"
-                      onClick={() => avanzaTavolo(codice, "sent_to_kitchen", "preparing")}
-                      className="min-h-11 flex-1 rounded-full border border-border px-4 text-sm"
-                    >
-                      {t("tavolo.tutti_preparazione", { n: daPreparare })}
-                    </button>
-                  )}
-                  {inCorso > 0 && consentiti.includes("ready") && (
-                    <button
-                      type="button"
-                      onClick={() => avanzaTavolo(codice, "preparing", "ready")}
-                      className="min-h-11 flex-1 rounded-full bg-accent px-4 text-sm font-medium text-accent-foreground"
-                    >
-                      {t("tavolo.tutti_pronti", { n: inCorso })}
-                    </button>
-                  )}
-                  {trattenuti > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => trattieniIlTavolo(codice, false)}
-                      className="min-h-11 flex-1 rounded-full border border-amber-500 px-4 text-sm font-medium"
-                    >
-                      {t("tavolo.manda_trattenuti", { n: trattenuti })}
-                    </button>
-                  )}
-                  {daPreparare + inCorso - trattenuti > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => trattieniIlTavolo(codice, true)}
-                      className="min-h-11 flex-1 rounded-full border border-border px-4 text-sm"
-                    >
-                      {t("tavolo.trattieni")}
-                    </button>
-                  )}
+                <div className="mt-3 space-y-2 border-t border-border pt-3">
+                  <div className="flex flex-wrap gap-2">
+                    {daPreparare > 0 && consentiti.includes("preparing") && (
+                      <button
+                        type="button"
+                        onClick={() => avanzaTavolo(codice, "sent_to_kitchen", "preparing")}
+                        className="min-h-11 flex-1 rounded-full border border-border px-4 text-sm"
+                      >
+                        {t("tavolo.tutti_preparazione", { n: daPreparare })}
+                      </button>
+                    )}
+                    {inCorso > 0 && consentiti.includes("ready") && (
+                      <button
+                        type="button"
+                        onClick={() => avanzaTavolo(codice, "preparing", "ready")}
+                        className="min-h-11 flex-1 rounded-full bg-accent px-4 text-sm font-medium text-accent-foreground"
+                      >
+                        {t("tavolo.tutti_pronti", { n: inCorso })}
+                      </button>
+                    )}
+                    {trattenuti > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => trattieniIlTavolo(codice, false)}
+                        className="min-h-11 flex-1 rounded-full border border-amber-500 px-4 text-sm font-medium"
+                      >
+                        {t("tavolo.manda_trattenuti", { n: trattenuti })}
+                      </button>
+                    )}
+                    {daPreparare + inCorso - trattenuti > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => trattieniIlTavolo(codice, true)}
+                        className="min-h-11 flex-1 rounded-full border border-border px-4 text-sm"
+                      >
+                        {t("tavolo.trattieni")}
+                      </button>
+                    )}
+                  </div>
+
+                  {/*
+                    «Tutto servito» non torna indietro: nessun gesto della
+                    board rimette un piatto da 'served' a 'ready'. Accanto a
+                    «Tutto pronto», stessa pillola accento e stessa larghezza,
+                    bastava un dito bagnato di lato per far sparire dal passe
+                    cinque piatti che nessuno aveva portato. Quindi riga sua,
+                    verde con la spunta invece che accento pieno: si distingue
+                    anche di sfuggita e non si tocca per sbaglio mirando
+                    all'altra.
+                  */}
                   {pronti > 0 && consentiti.includes("served") && (
                     <button
                       type="button"
                       onClick={() => avanzaTavolo(codice, "ready", "served")}
-                      className="min-h-11 flex-1 rounded-full bg-accent px-4 text-sm font-medium text-accent-foreground"
+                      className="flex min-h-11 w-full items-center justify-center gap-2 rounded-full border-2 border-success bg-success/15 px-4 text-sm font-semibold text-success"
                     >
+                      <span aria-hidden>✓</span>
                       {t("tavolo.tutti_serviti", { n: pronti })}
                     </button>
                   )}

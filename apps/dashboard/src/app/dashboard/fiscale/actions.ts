@@ -176,3 +176,35 @@ export async function segnaBattuto(
   revalidatePath("/dashboard/fiscale");
   return { ok: t("fiscale.ok.battuto") };
 }
+
+/**
+ * Rimette in coda un documento che non è uscito.
+ *
+ * Dopo cinque tentativi andati male la coda smette di riconsegnare: è giusto,
+ * perché a quel punto è un guasto e va guardato. Ma finita la carta e rimessa,
+ * senza questo non restava nessuna via d'uscita che non fosse dichiarare
+ * battuto in cassa un documento che nessuno ha battuto — cioè scrivere il
+ * falso nel registro dei corrispettivi per far sparire una riga rossa.
+ *
+ * I tentativi tornano a zero: è un guasto risolto, non il sesto tentativo di
+ * quello di prima.
+ */
+export async function rimettiInCoda(id: string): Promise<EsitoFiscale> {
+  const { venue } = await requireRole(["owner", "manager"]);
+  const t = tSoldi(await linguaUtente());
+  const sql = db();
+
+  const righe = await sql`
+    update fiscal_documents
+       set stato = 'da_emettere', tentativi = 0, errore = null, preso_at = null
+     where id = ${id} and venue_id = ${venue.venueId}
+       and stato in ('errore', 'in_corso')
+    returning id`;
+
+  if (righe.length === 0) {
+    return { error: t("fiscale.errore.rimetti") };
+  }
+
+  revalidatePath("/dashboard/fiscale");
+  return { ok: t("fiscale.ok.rimesso") };
+}

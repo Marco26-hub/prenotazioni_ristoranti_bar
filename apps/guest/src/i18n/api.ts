@@ -41,8 +41,14 @@ const IT = {
   "ordine.errore.piatto_non_disponibile": "Piatto non disponibile",
   // Intervallo fra un'ordinazione e la successiva: al singolare la frase
   // italiana non contiene il numero, ed è giusto che non lo contenga.
-  "ordine.attesa.uno": "Ancora un minuto e puoi ordinare di nuovo.",
-  "ordine.attesa.molti": "Puoi ordinare di nuovo fra {n} minuti.",
+  //
+  // L'attesa è del tavolo, non del telefono: al tavolo da sei ordina uno e
+  // la leggono tutti e sei. Dire «di nuovo» a chi non ha toccato niente
+  // sembrava un guasto dell'app; nominare il tavolo lo spiega da sé.
+  "ordine.attesa_tavolo.uno":
+    "Il tavolo ha appena ordinato: ancora un minuto e si può ordinare di nuovo.",
+  "ordine.attesa_tavolo.molti":
+    "Il tavolo ha appena ordinato: ancora {n} minuti e si può ordinare di nuovo.",
 
   // Prenotazione
   "prenotazione.errore.campi_mancanti": "Compila nome, data e ora",
@@ -140,8 +146,10 @@ const EN: Speculare<typeof IT> = {
     "Ordering from the table is not enabled at this restaurant — please ask a member of staff",
   "ordine.errore.piatto_non_trovato": "Dish not found",
   "ordine.errore.piatto_non_disponibile": "Dish not available",
-  "ordine.attesa.uno": "One more minute and you can order again.",
-  "ordine.attesa.molti": "You can order again in {n} minutes.",
+  "ordine.attesa_tavolo.uno":
+    "Your table has just ordered: one more minute and you can order again.",
+  "ordine.attesa_tavolo.molti":
+    "Your table has just ordered: {n} more minutes and you can order again.",
 
   "prenotazione.errore.campi_mancanti": "Please fill in your name, the date and the time",
   "prenotazione.errore.troppe":

@@ -106,17 +106,22 @@ export default async function AvvioPage() {
       dove: t("avvio.dove.tavoli"),
       href: "/dashboard/tables",
     },
+  ];
+
+  /* --- Servono presto, non il primo giorno --------------------------- */
+  const poi: Passo[] = [
     {
+      // Senza pagamento dal telefono il servizio parte lo stesso: si incassa
+      // al banco, come dice il testo della voce. Lasciata fra le cose "per
+      // aprire" un locale che incassa in cassa non vedeva mai "Tutto pronto",
+      // e smetteva di guardare l'elenco — perdendo di vista allergeni e dati
+      // fiscali, che invece una multa la fanno prendere.
       fatto: Boolean(v?.stripe_account_id || v?.satispay_key_id),
       titolo: t("avvio.passo.incassi.titolo"),
       perche: t("avvio.passo.incassi.perche"),
       dove: t("avvio.dove.impostazioni"),
       href: "/dashboard/settings",
     },
-  ];
-
-  /* --- Servono presto, non il primo giorno --------------------------- */
-  const poi: Passo[] = [
     {
       fatto: conteggi.personale > 1,
       titolo: t("avvio.passo.personale.titolo"),

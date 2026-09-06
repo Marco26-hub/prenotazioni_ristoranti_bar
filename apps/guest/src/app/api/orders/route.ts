@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import type { Sql, TransactionSql } from "postgres";
 import { db } from "@repo/shared/db";
-import { checkRateLimit, clientKey } from "@repo/shared/rate-limit";
+import { checkRateLimit } from "@repo/shared/rate-limit";
 import { hasModulo } from "@repo/shared";
 import { gruppiPerPiatti, calcolaPrezzo } from "@repo/shared/varianti";
 import { tApi, linguaRichiesta } from "@/i18n/api";
@@ -16,16 +17,23 @@ interface CreateOrderBody {
   }>;
 }
 
+/** Le stesse query servono sulla connessione e dentro la transazione. */
+type QuerySql = Sql | TransactionSql;
+
+/** O l'ordine è stato scritto, o il tavolo deve ancora aspettare. */
+type EsitoOrdine =
+  | { attesa: number }
+  | { id: string; numero: number | null };
+
 /** Le note finiscono stampate in comanda: tagliate, non rifiutate. */
 const MAX_NOTE_LENGTH = 140;
 
+/** Invii per finestra e ampiezza della finestra del limite anti-abuso. */
+const INVII_PER_FINESTRA = 20;
+const FINESTRA_SECONDI = 60;
+
 export async function POST(request: Request) {
   const t = tApi(linguaRichiesta(request));
-
-  const { allowed } = await checkRateLimit(clientKey(request, "orders"), 20, 60);
-  if (!allowed) {
-    return NextResponse.json({ error: t("errore.troppe_richieste_riprova") }, { status: 429 });
-  }
 
   const body = (await request.json().catch(() => null)) as CreateOrderBody | null;
 
@@ -45,6 +53,35 @@ export async function POST(request: Request) {
 
   if (!session || session.status !== "open") {
     return NextResponse.json({ error: t("errore.sessione_tavolo_non_valida") }, { status: 404 });
+  }
+
+  /*
+   * Il limite anti-abuso è per sessione tavolo, non per indirizzo IP.
+   *
+   * Sul wifi del locale l'indirizzo è uno solo per l'intera sala: otto
+   * tavoli che ordinano insieme all'inizio del turno si bruciavano il
+   * budget a vicenda, e il minuto peggiore della serata era proprio quello.
+   * La sessione è il tavolo, ed è quello che va protetto da sé stesso.
+   *
+   * Sta qui e non in cima perché prima serve sapere di che sessione si
+   * tratta: una richiesta senza sessione valida non arriva comunque a
+   * scrivere niente.
+   */
+  const { allowed } = await checkRateLimit(
+    `orders:${session.id}`,
+    INVII_PER_FINESTRA,
+    FINESTRA_SECONDI
+  );
+  if (!allowed) {
+    return NextResponse.json(
+      {
+        error: t("errore.troppe_richieste_riprova"),
+        // Senza questo il bottone restava acceso e invitava a ripremere,
+        // consumando altro budget: la finestra è l'attesa massima.
+        attesaSecondi: FINESTRA_SECONDI,
+      },
+      { status: 429 }
+    );
   }
 
   // Il servizio è a canone: se il locale non ha un abbonamento valido i suoi
@@ -92,22 +129,11 @@ export async function POST(request: Request) {
   const attesaMin = venueSub?.ordine_intervallo_min ?? 0;
 
   if (attesaMin > 0) {
-    const [ultimo] = await sql<{ mancano: number }[]>`
-      select ceil(extract(epoch from (
-               max(created_at) + make_interval(mins => ${attesaMin}) - now()
-             )))::int as mancano
-        from orders
-       where table_session_id = ${session.id} and status <> 'cancelled'`;
-
-    const mancano = ultimo?.mancano ?? 0;
+    const mancano = await secondiDiAttesa(sql, session.id, attesaMin);
 
     if (mancano > 0) {
-      const minuti = Math.ceil(mancano / 60);
       return NextResponse.json(
-        {
-          error: t.n(minuti, "ordine.attesa"),
-          attesaSecondi: mancano,
-        },
+        { error: testoAttesa(t, mancano), attesaSecondi: mancano },
         { status: 429 }
       );
     }
@@ -171,7 +197,22 @@ export async function POST(request: Request) {
     });
   }
 
-  const esitoOrdine = await sql.begin(async (tx) => {
+  const esitoOrdine = await sql.begin(async (tx): Promise<EsitoOrdine> => {
+    /*
+     * Fra il controllo dell'attesa e la scrittura ci sono altre due query.
+     * In quella finestra due telefoni dello stesso tavolo che premevano
+     * insieme passavano tutti e due, e in cucina arrivavano due comande
+     * complete invece di una. Il lock sulla sessione mette in fila i due
+     * invii, e il secondo ricontrolla l'attesa quando il primo ha già
+     * scritto: esce senza aver scritto niente.
+     */
+    await tx`select id from table_sessions where id = ${session.id} for update`;
+
+    if (attesaMin > 0) {
+      const mancano = await secondiDiAttesa(tx, session.id, attesaMin);
+      if (mancano > 0) return { attesa: mancano };
+    }
+
     /*
      * Numero di ritiro, dove si serve al banco.
      *
@@ -220,8 +261,49 @@ export async function POST(request: Request) {
     return { id: order.id, numero: conta?.numero ?? null };
   });
 
+  if ("attesa" in esitoOrdine) {
+    return NextResponse.json(
+      { error: testoAttesa(t, esitoOrdine.attesa), attesaSecondi: esitoOrdine.attesa },
+      { status: 429 }
+    );
+  }
+
   return NextResponse.json(
     { orderId: esitoOrdine.id, numeroRitiro: esitoOrdine.numero },
     { status: 201 }
   );
+}
+
+/**
+ * Secondi che mancano al tavolo prima di poter ordinare di nuovo.
+ *
+ * Si conta dal database e non dall'orologio del telefono, che il cliente
+ * può spostare. Serve identica fuori e dentro la transazione, dove il
+ * secondo invio la ripete dopo il lock.
+ */
+async function secondiDiAttesa(
+  sql: QuerySql,
+  sessionId: string,
+  attesaMin: number
+): Promise<number> {
+  const [ultimo] = await sql<{ mancano: number }[]>`
+    select ceil(extract(epoch from (
+             max(created_at) + make_interval(mins => ${attesaMin}) - now()
+           )))::int as mancano
+      from orders
+     where table_session_id = ${sessionId} and status <> 'cancelled'`;
+
+  return ultimo?.mancano ?? 0;
+}
+
+/**
+ * Il messaggio dell'attesa nomina il tavolo, non chi legge.
+ *
+ * L'intervallo si conta per sessione, cioè per tavolo: al tavolo da sei,
+ * gli altri cinque non hanno ordinato niente e si sentivano dire che
+ * possono ordinare «di nuovo». Sembrava un'app rotta, e finiva in una
+ * chiamata al cameriere.
+ */
+function testoAttesa(t: ReturnType<typeof tApi>, mancano: number): string {
+  return t.n(Math.ceil(mancano / 60), "ordine.attesa_tavolo");
 }

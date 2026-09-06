@@ -126,6 +126,19 @@ export async function applicaFormato(
     const id = perNome.get(cat.nome.toLowerCase());
     if (!id) continue;
 
+    /*
+     * Il reparto si scriveva solo alla creazione, e una categoria arrivata
+     * prima — dall'import CSV, o battuta a mano — restava in cucina per
+     * sempre: riapplicare il formato non la spostava. Come per l'aliquota,
+     * si tocca solo dove è rimasto il valore di partenza: chi ha già
+     * assegnato Nigiri a una postazione sua non se la ritrova cambiata.
+     */
+    if (cat.reparto) {
+      await sql`
+        update menu_categories set reparto = ${cat.reparto}
+         where venue_id = ${venueId} and id = ${id} and reparto = 'cucina'`;
+    }
+
     if (cat.iva) {
       const r = await sql`
         update menu_items set vat_rate = ${cat.iva}
@@ -149,13 +162,44 @@ export async function applicaFormato(
     }
   }
 
+  /*
+   * Un locale appena registrato ha quelle categorie vuote, quindi l'update
+   * qui sopra non tocca niente: le bevande e i dolci caricati DOPO nascono
+   * dentro il prezzo fisso, e con la formula attiva il conto non li addebita
+   * — quaranta coperti a due turni che bevono gratis, senza nessun errore da
+   * nessuna parte. L'update è già scritto `where fuori_formula = false`,
+   * quindi riapplicare il formato sistema tutto: l'unica cosa che manca è
+   * dirlo, e questo è il momento in cui il ristoratore sta guardando.
+   */
+  let avvisaRiapplica = false;
+  const catFuoriFormula = modello.categorie.filter((c) => c.fuoriFormula);
+  const idFuoriFormula = catFuoriFormula
+    .map((c) => perNome.get(c.nome.toLowerCase()))
+    .filter((id): id is string => Boolean(id));
+
+  if (idFuoriFormula.length > 0) {
+    const [conteggio] = await sql<{ n: number }[]>`
+      select count(*)::int as n from menu_items
+       where venue_id = ${venueId} and category_id in ${sql(idFuoriFormula)}`;
+    avvisaRiapplica = (conteggio?.n ?? 0) === 0;
+  }
+
+  /* Le categorie si nominano invece di dire genericamente "le bevande": in
+     una gintoneria a restare a pagamento sono Gin tonic e Distillati, e un
+     avviso che parla d'altro non lo legge nessuno. */
+  const notaRiapplica = avvisaRiapplica
+    ? t("applica.nota.riapplica", {
+        elenco: t.elenco(catFuoriFormula.map((c) => c.nome)),
+      })
+    : "";
+
   if (soloCategorie) {
     revalidatePath("/dashboard/menu");
     return {
       success:
-        categorieCreate > 0
+        (categorieCreate > 0
           ? t.n(categorieCreate, "applica.solo_categorie")
-          : t("applica.solo_categorie.nessuna"),
+          : t("applica.solo_categorie.nessuna")) + notaRiapplica,
     };
   }
 
@@ -175,10 +219,18 @@ export async function applicaFormato(
    * finto pubblicato per sbaglio è peggio di un menu vuoto.
    */
   let piattiCreati = 0;
+  /* Il giro di aliquota, genere e fuori formula qui sopra è già passato: le
+     voci del listino nascono dopo, quindi i loro valori vanno scritti
+     nell'insert. Senza, il sake del listino nascerebbe al 10% e dentro il
+     prezzo fisso. */
+  const perCategoria = new Map(
+    modello.categorie.map((c) => [c.nome.toLowerCase(), c])
+  );
   if (conListino && modello.piatti?.length) {
     for (const [i, piatto] of modello.piatti.entries()) {
       const catId = perNome.get(piatto.categoria.toLowerCase());
       if (!catId) continue;
+      const cat = perCategoria.get(piatto.categoria.toLowerCase());
 
       // Non si duplica quello che c'è già: chi riapplica il formato non deve
       // ritrovarsi il menu doppio.
@@ -190,10 +242,13 @@ export async function applicaFormato(
       await sql`
         insert into menu_items
           (venue_id, category_id, name, description, price_cents, allergens,
-           available, sort_order)
+           available, sort_order, vat_rate, kind, fuori_formula, conservation)
         values (${venueId}, ${catId}, ${piatto.nome},
                 ${piatto.descrizione ?? null}, ${piatto.prezzo},
-                ${piatto.allergeni ?? []}, false, ${i})`;
+                ${piatto.allergeni ?? []}, false, ${i},
+                ${cat?.iva ?? 10}, ${cat?.genere ?? "food"},
+                ${cat?.fuoriFormula ?? false},
+                ${piatto.conservazione ?? "fresco"})`;
       piattiCreati += 1;
     }
   }
@@ -252,7 +307,10 @@ export async function applicaFormato(
   const nota = modo?.alBanco ? t("applica.nota.banco") : "";
 
   if (categorieCreate === 0 && gruppiCreati === 0) {
-    return { success: t("applica.nulla") + nota + notaIva + notaListino };
+    return {
+      success:
+        t("applica.nulla") + nota + notaIva + notaListino + notaRiapplica,
+    };
   }
 
   return {
@@ -263,7 +321,8 @@ export async function applicaFormato(
       }) +
       nota +
       notaIva +
-      notaListino,
+      notaListino +
+      notaRiapplica,
   };
 }
 

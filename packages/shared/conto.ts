@@ -236,11 +236,22 @@ function componiConto(t: any, righeGrezze: any[], pagato: number): Conto {
       : Number(t.formula_bambino_cents);
   const supplemento = aFormula ? Number(t.supplemento_cents ?? 0) : 0;
 
-  const formulaTotale = aFormula
-    ? adulti * unitario + bambini * (prezzoBambino ?? unitario) + supplemento
-    : 0;
-
   const haOrdinato = righeGrezze.length > 0;
+
+  /*
+   * Anche il prezzo fisso vuole un ordine, come coperto e servizio.
+   *
+   * La sessione la apre chi inquadra il QR e nasce già a formula: senza
+   * questa condizione un tavolo dove non si è ancora seduto nessuno doveva
+   * venticinque euro — pagabili con carta, perché la guardia sui coperti
+   * richiede a sua volta un ordine. Il webhook trovava residuo zero,
+   * chiudeva la sessione e accodava il documento commerciale, e i clienti
+   * veri arrivavano su un tavolo già chiuso.
+   */
+  const formulaTotale =
+    aFormula && haOrdinato
+      ? adulti * unitario + bambini * (prezzoBambino ?? unitario) + supplemento
+      : 0;
 
   /*
    * A formula si pagano solo le voci fuori formula.

@@ -26,6 +26,31 @@ export interface RigaFiscale {
 }
 
 /**
+ * I mezzi con cui la sala può incassare un conto.
+ *
+ * Sono esattamente le stringhe che l'app cliente già scrive in
+ * `payments.method`: il documento si raggruppa per quella colonna (più
+ * sotto) e l'agente di cassa traduce `cash` in CONTANTE e ogni altro valore
+ * in ELETTRONICO. Inventarne uno nuovo qui vorrebbe dire un mezzo che il
+ * registratore non sa certificare — oltre che una riga rifiutata dal
+ * vincolo su `payments.method`.
+ */
+export const METODI_INCASSO = ["cash", "card", "satispay"] as const;
+
+export type MetodoIncasso = (typeof METODI_INCASSO)[number];
+
+/**
+ * Il mezzo arriva da un bottone della sala, cioè da fuori: si verifica.
+ *
+ * Senza il controllo un valore sconosciuto farebbe fallire l'insert sul
+ * vincolo, la transazione abortirebbe e il tavolo resterebbe aperto in
+ * mezzo al servizio.
+ */
+export function metodoIncasso(v: unknown): MetodoIncasso | null {
+  return METODI_INCASSO.find((m) => m === v) ?? null;
+}
+
+/**
  * Mette in coda il documento di questa sessione.
  *
  * Idempotente: l'indice unico sulla sessione fa sì che chiudere due volte

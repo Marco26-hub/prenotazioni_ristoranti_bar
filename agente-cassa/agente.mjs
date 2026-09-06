@@ -234,6 +234,35 @@ const DIALETTI = {
   },
 };
 
+/**
+ * Un errore che dice con certezza che lo scontrino NON e' uscito.
+ *
+ * La distinzione non e' pignoleria: su un errore certo il documento torna in
+ * coda e si riprova, su uno ambiguo no. Se la connessione non e' mai stata
+ * aperta — stampante spenta, indirizzo sbagliato, rete che non la trova — il
+ * comando non e' arrivato e non c'e' niente di stampato. Se invece la
+ * stampante ha risposto rifiutando (carta finita, documento non accettato),
+ * lo scontrino non e' uscito e lo dice lei.
+ *
+ * Tutto il resto — un timeout, un socket caduto a comando gia' partito — e'
+ * ambiguo, e li' non si riprova.
+ */
+class ErroreCerto extends Error {}
+
+// Codici di rete che valgono "la stampante non ha nemmeno ricevuto il
+// comando". Un ECONNRESET o un timeout non stanno qui apposta: la' il
+// comando puo' essere gia' arrivato.
+const MAI_ARRIVATO = new Set([
+  "ECONNREFUSED",
+  "ENOTFOUND",
+  "EHOSTUNREACH",
+  "ENETUNREACH",
+  "EADDRNOTAVAIL",
+  "EAI_AGAIN",
+]);
+
+const codiceRete = (e) => e?.code ?? e?.cause?.code ?? null;
+
 async function stampa(doc, conf) {
   const dialetto = DIALETTI[conf.marca] ?? DIALETTI.epson;
   const corpo = dialetto.componi(doc, conf);
@@ -245,19 +274,38 @@ async function stampa(doc, conf) {
   }
 
   const percorso = conf.percorso || dialetto.percorso;
-  const risposta = await fetch(`http://${STAMPANTE}${percorso}`, {
-    method: "POST",
-    headers: { "Content-Type": dialetto.contentType },
-    body: corpo,
-    signal: AbortSignal.timeout(20_000),
-  });
 
+  let risposta;
+  try {
+    risposta = await fetch(`http://${STAMPANTE}${percorso}`, {
+      method: "POST",
+      headers: { "Content-Type": dialetto.contentType },
+      body: corpo,
+      signal: AbortSignal.timeout(20_000),
+    });
+  } catch (e) {
+    const codice = codiceRete(e);
+    if (MAI_ARRIVATO.has(codice)) {
+      throw new ErroreCerto(`stampante non raggiungibile (${codice})`);
+    }
+    // Timeout, socket interrotto: il comando puo' essere gia' passato e lo
+    // scontrino puo' essere gia' uscito. Resta ambiguo e sale com'e'.
+    throw e;
+  }
+
+  // Se cade qui, la richiesta era gia' partita: ambiguo anche questo.
   const testo = await risposta.text();
+
   // Un HTTP 200 da solo non vuol dire che lo scontrino sia uscito: la
   // stampante risponde comunque, e dentro dice se ha accettato.
-  if (!risposta.ok) throw new Error(`stampante HTTP ${risposta.status}`);
+  if (!risposta.ok) throw new ErroreCerto(`stampante HTTP ${risposta.status}`);
 
-  return dialetto.leggiEsito(testo);
+  try {
+    return dialetto.leggiEsito(testo);
+  } catch (e) {
+    // La stampante ha risposto e ha detto di no: niente scontrino, di sicuro.
+    throw new ErroreCerto(e instanceof Error ? e.message : String(e));
+  }
 }
 
 /*
@@ -265,7 +313,9 @@ async function stampa(doc, conf) {
  *
  * Se la linea cade fra la stampa e la comunicazione, lo scontrino e' gia'
  * uscito: l'esito va riprovato, non trasformato in un errore che farebbe
- * ristampare.
+ * ristampare. Vale anche per l'esito incerto: finche' il gestionale non sa
+ * che il documento e' da verificare, lo riconsegna alla cassa dopo cinque
+ * minuti e lo fa stampare di nuovo.
  */
 const daRiportare = new Map();
 
@@ -338,8 +388,28 @@ async function giro() {
       stampato = await stampa(doc, conf);
     } catch (e) {
       const messaggio = e instanceof Error ? e.message : "errore sconosciuto";
-      await riporta(doc.id, { esito: "errore", errore: messaggio });
-      console.error(`NON stampato ${doc.id}: ${messaggio}`);
+
+      if (e instanceof ErroreCerto) {
+        await riporta(doc.id, { esito: "errore", errore: messaggio });
+        console.error(`NON stampato ${doc.id}: ${messaggio}`);
+        continue;
+      }
+
+      /*
+       * Ambiguo: su una stampante lenta o che si sta inceppando lo scontrino
+       * puo' essere gia' uscito quando la connessione cade. Dichiararlo
+       * "errore" lo rimetterebbe in coda e al giro dopo uscirebbe una seconda
+       * volta: stesso incasso certificato due volte, imposta pagata su soldi
+       * mai presi, e in sala nessuno se ne accorge perche' i due scontrini
+       * escono a minuti di distanza. Si lascia in carico e lo si dice: decide
+       * una persona, guardando il registratore.
+       */
+      const sospeso = { esito: "incerto", errore: messaggio };
+      if (!(await riporta(doc.id, sospeso))) daRiportare.set(doc.id, sospeso);
+      console.error(
+        `DA VERIFICARE ${doc.id}: ${messaggio} — lo scontrino potrebbe essere ` +
+          "uscito lo stesso. Guarda il registratore e chiudilo in Corrispettivi."
+      );
       continue;
     }
 

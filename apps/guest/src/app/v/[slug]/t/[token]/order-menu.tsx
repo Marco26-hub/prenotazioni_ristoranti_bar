@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useLingua } from "@repo/shared/i18n/contesto";
 import { tComune } from "@repo/shared/i18n/comune";
 import { tTavolo } from "@/i18n/tavolo";
@@ -40,6 +40,174 @@ function chiaveRiga(itemId: string, optionIds: string[]): string {
     : `${itemId}::${[...optionIds].sort().join(",")}`;
 }
 
+/**
+ * Una riga della carta.
+ *
+ * È un componente memoizzato e non una funzione chiamata da `.map`: prima
+ * leggeva il carrello del genitore, quindi ogni tocco sul «+» ridisegnava
+ * tutte e duecento le righe — foto, prezzo, note e bottoni — per cambiare
+ * un numero su una sola. Qui arrivano solo la propria quantità e la propria
+ * nota, e i callback sono stabili: si ridisegna la riga toccata e basta.
+ */
+const RigaPiatto = React.memo(function RigaPiatto({
+  item,
+  quantita,
+  nota,
+  notaChiesta,
+  currency,
+  aFormula,
+  t,
+  onApri,
+  onAggiungi,
+  onTogli,
+  onChiediNota,
+  onScriviNota,
+}: {
+  item: MenuItem;
+  /** Quante ne ha nel carrello senza varianti. 0 = non c'è. */
+  quantita: number;
+  nota: string | undefined;
+  /** Il cliente ha chiesto di scrivere una nota su questo piatto. */
+  notaChiesta: boolean;
+  currency: string;
+  aFormula: boolean;
+  t: ReturnType<typeof tTavolo>;
+  onApri: (item: MenuItem) => void;
+  onAggiungi: (item: MenuItem) => void;
+  onTogli: (chiave: string) => void;
+  onChiediNota: (itemId: string) => void;
+  onScriviNota: (chiave: string, testo: string) => void;
+}) {
+  const chiaveSemplice = chiaveRiga(item.id, []);
+  const haVarianti = (item.gruppi?.length ?? 0) > 0;
+
+  return (
+    <li className="rounded-xl border border-border bg-surface p-4">
+    <div className="flex items-start gap-3">
+      {item.ha_foto && (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          src={`/api/foto/${item.id}`}
+          alt=""
+          loading="lazy"
+          onClick={() => onApri(item)}
+          className="h-20 w-20 shrink-0 cursor-pointer rounded-lg object-cover"
+        />
+      )}
+      <button
+        type="button"
+        onClick={() => onApri(item)}
+        className="min-w-0 flex-1 text-left"
+        aria-label={t("piatto.dettagli.aria", { nome: item.name })}
+      >
+        <p className="font-medium leading-snug">
+          {item.name}
+          {/* L'asterisco di legge anche qui, non solo nella scheda: un
+              piatto senza varianti si aggiunge col "+" senza mai aprirla,
+              e senza questo la nota in fondo alla pagina — "* prodotto
+              surgelato…" — non si riferisce a niente. È l'omissione che il
+              D.Lgs. 109/1992 sanziona. */}
+          {item.conservation && item.conservation !== "fresco" && (
+            <span aria-hidden className="ml-0.5 align-super text-xs text-muted">
+              *
+            </span>
+          )}
+        </p>
+        {item.description && (
+          <p className="mt-0.5 line-clamp-2 text-sm leading-snug text-muted">
+            {item.description}
+          </p>
+        )}
+        {/*
+          A formula il prezzo di una voce compresa non vuol dire niente —
+          mostrarlo fa credere che si paghi. Le voci fuori formula, invece,
+          il prezzo ce l'hanno eccome, e va detto qui: un caffè che spunta
+          sul conto senza che il menu l'avesse segnalato è la discussione
+          che il cameriere si fa al momento di pagare.
+        */}
+        {aFormula && !item.fuori_formula ? (
+          <p className="mt-1.5 text-sm font-medium text-success">
+            {t("formula.compreso")}
+          </p>
+        ) : (
+          <p className="mt-1.5 font-semibold tabular-nums">
+            {t.prezzo(item.price_cents, currency)}
+            {aFormula && (
+              <span className="ml-1.5 rounded-full bg-amber-100 px-2 py-0.5 align-middle text-xs font-medium text-amber-900">
+                {t("formula.fuori")}
+              </span>
+            )}
+          </p>
+        )}
+        {haVarianti && (
+          <p className="mt-1 text-xs text-accent underline underline-offset-2">
+            {item.gruppi!.some((g) => g.required)
+              ? t("varianti.dascegliere")
+              : t("varianti.titolo")}
+          </p>
+        )}
+        {(item.dietary_tags?.length || item.allergens?.length) && (
+          <p className="mt-1 text-xs text-muted underline underline-offset-2">
+            {t("allergeni.dettagli")}
+          </p>
+        )}
+      </button>
+
+      <div className="flex shrink-0 items-center gap-2">
+        {quantita > 0 && (
+          <>
+            <button
+              type="button"
+              onClick={() => onTogli(chiaveSemplice)}
+              aria-label={t("piatto.togli.aria", { nome: item.name })}
+              className="h-11 w-11 rounded-full border border-border text-xl leading-none active:scale-95"
+            >
+              −
+            </button>
+            <span className="w-5 text-center font-semibold tabular-nums">
+              {quantita}
+            </span>
+          </>
+        )}
+        <button
+          type="button"
+          // Con varianti da scegliere il "+" non può decidere al posto del
+          // cliente quale: apre la scheda, dove sceglie lui.
+          onClick={() => (haVarianti ? onApri(item) : onAggiungi(item))}
+          aria-label={t("piatto.aggiungi.aria", { nome: item.name })}
+          className="h-11 w-11 rounded-full bg-accent text-xl leading-none text-accent-foreground active:scale-95"
+        >
+          +
+        </button>
+      </div>
+    </div>
+
+    {quantita > 0 && (
+      <div className="mt-3 border-t border-border pt-3">
+        {notaChiesta || nota ? (
+          <input
+            value={nota ?? ""}
+            onChange={(e) => onScriviNota(chiaveSemplice, e.target.value)}
+            placeholder={t("nota.esempio")}
+            maxLength={140}
+            autoFocus={notaChiesta && !nota}
+            className="min-h-11 w-full rounded-lg border border-border bg-background px-3 text-sm"
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => onChiediNota(item.id)}
+            className="text-sm text-muted underline underline-offset-2"
+          >
+            {t("nota.aggiungi")}
+          </button>
+        )}
+      </div>
+    )}
+    </li>
+  );
+});
+
 export function OrderMenu({
   sessionId,
   currency,
@@ -58,7 +226,14 @@ export function OrderMenu({
   aFormula: boolean;
 }) {
   const lingua = useLingua();
-  const t = tTavolo(lingua);
+  /*
+   * Il traduttore memoizzato, non ricostruito a ogni render.
+   *
+   * Arriva come prop a duecento righe memoizzate: un oggetto nuovo a ogni
+   * render le farebbe ridisegnare tutte, che è esattamente quello che la
+   * memoizzazione serve a evitare.
+   */
+  const t = useMemo(() => tTavolo(lingua), [lingua]);
   const tc = tComune(lingua);
   const [cart, setCart] = useState<Record<string, CartLine>>({});
   const [noteFor, setNoteFor] = useState<string | null>(null);
@@ -72,15 +247,22 @@ export function OrderMenu({
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   /*
-   * Secondi che mancano prima di poter ordinare di nuovo, se il locale ha
-   * impostato un'attesa fra un'ordinazione e l'altra (il metodo degli
+   * Attesa prima di poter ordinare di nuovo, se il locale ha impostato un
+   * intervallo fra un'ordinazione e l'altra (il metodo degli
    * all-you-can-eat).
    *
-   * Il numero arriva dal server e da lì scala. Non si calcola da un istante
-   * letto sul telefono: l'orologio del telefono si può spostare, e
-   * l'attesa vera la decide comunque il database — questa serve solo a non
-   * far scoprire l'attesa premendo.
+   * La durata arriva dal server, e l'attesa vera la decide comunque il
+   * database: questa serve solo a non far scoprire l'attesa premendo.
+   *
+   * Ma la durata va ancorata a un istante, non scalata di uno al secondo.
+   * A telefono bloccato o a scheda in secondo piano i timer della pagina
+   * sono sospesi: il contatore restava indietro e teneva spento il bottone
+   * per minuti in cui il server avrebbe già lasciato passare l'ordine — il
+   * cliente doveva aspettare col telefono acceso in mano o chiamare il
+   * cameriere. L'orologio del telefono si può spostare, ma qui misura solo
+   * un intervallo di pochi minuti, non un istante assoluto.
    */
+  const [attesa, setAttesa] = useState<{ secondi: number } | null>(null);
   const [mancanoSecondi, setMancanoSecondi] = useState(0);
 
   const itemsByCategory = useMemo(() => {
@@ -93,7 +275,14 @@ export function OrderMenu({
     return map;
   }, [items]);
 
-  const addItem = (
+  /*
+   * I callback delle righe sono stabili apposta.
+   *
+   * Ricreati a ogni render sarebbero prop nuove per ognuna delle duecento
+   * righe memoizzate, e la memoizzazione non servirebbe a niente. Nessuno
+   * legge `cart` qui dentro: si aggiorna sempre in forma funzionale.
+   */
+  const addItem = useCallback((
     item: { id: string; name: string; price_cents: number },
     optionIds: string[] = [],
     unitPriceCents?: number,
@@ -116,9 +305,9 @@ export function OrderMenu({
         },
       };
     });
-  };
+  }, []);
 
-  const removeItem = (chiave: string) => {
+  const removeItem = useCallback((chiave: string) => {
     setCart((prev) => {
       const existing = prev[chiave];
       if (!existing) return prev;
@@ -129,7 +318,7 @@ export function OrderMenu({
       }
       return { ...prev, [chiave]: { ...existing, quantity: existing.quantity - 1 } };
     });
-  };
+  }, []);
 
   // La chiave viaggia con la riga: il pannello deve poter togliere e
   // annotare proprio quella combinazione, non il piatto in generale.
@@ -163,13 +352,28 @@ export function OrderMenu({
   }, [submitted]);
 
   useEffect(() => {
-    if (mancanoSecondi <= 0) return;
-    const t = setInterval(
-      () => setMancanoSecondi((s) => (s > 0 ? s - 1 : 0)),
-      1000
-    );
-    return () => clearInterval(t);
-  }, [mancanoSecondi]);
+    if (!attesa) return;
+
+    // L'istante di scadenza si fissa qui, una volta: da lì in poi ogni
+    // battito è una sottrazione, non un decremento che si può perdere.
+    const scadenza = Date.now() + attesa.secondi * 1000;
+
+    const aggiorna = () => {
+      const restano = Math.max(0, Math.ceil((scadenza - Date.now()) / 1000));
+      setMancanoSecondi(restano);
+      if (restano === 0) setAttesa(null);
+    };
+
+    const battito = setInterval(aggiorna, 1000);
+    // Al ritorno da schermo bloccato il conteggio si rifà sull'orologio,
+    // non sui battiti persi: è il caso normale fra un'ondata e l'altra.
+    document.addEventListener("visibilitychange", aggiorna);
+
+    return () => {
+      clearInterval(battito);
+      document.removeEventListener("visibilitychange", aggiorna);
+    };
+  }, [attesa]);
 
   const inAttesa = mancanoSecondi > 0;
 
@@ -177,6 +381,14 @@ export function OrderMenu({
     mancanoSecondi >= 60
       ? t("attesa.minuti", { n: Math.ceil(mancanoSecondi / 60) })
       : t("attesa.secondi", { n: mancanoSecondi });
+
+  /** Fa partire (o azzera, con 0) l'attesa fra un'ondata e la successiva. */
+  const avviaAttesa = (secondi: number) => {
+    // Oggetto nuovo anche a parità di durata: due ondate di cinque minuti
+    // devono far ripartire il conteggio, non lasciarlo dov'era.
+    setAttesa(secondi > 0 ? { secondi } : null);
+    setMancanoSecondi(secondi);
+  };
 
   const submitOrder = async () => {
     if (lines.length === 0) return;
@@ -202,16 +414,16 @@ export function OrderMenu({
         // Attesa fra un'ordinazione e l'altra: il carrello non si svuota,
         // così fra due minuti basta premere di nuovo.
         if (res.status === 429 && typeof body.attesaSecondi === "number") {
-          setMancanoSecondi(body.attesaSecondi);
+          avviaAttesa(body.attesaSecondi);
         }
         throw new Error(body.error ?? t("errore.invio"));
       }
-      setMancanoSecondi(0);
+      avviaAttesa(0);
       setCart({});
       setNoteFor(null);
       // L'attesa parte da qui: il server la conta dall'ultimo ordine, e il
       // bottone deve dirlo prima che qualcuno ci provi.
-      if (intervalloMin > 0) setMancanoSecondi(intervalloMin * 60);
+      if (intervalloMin > 0) avviaAttesa(intervalloMin * 60);
       setSubmitted(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("errore.invio"));
@@ -220,143 +432,29 @@ export function OrderMenu({
     }
   };
 
-  const setNote = (itemId: string, notes: string) => {
+  const setNote = useCallback((itemId: string, notes: string) => {
     setCart((prev) => (prev[itemId] ? { ...prev, [itemId]: { ...prev[itemId], notes } } : prev));
-  };
+  }, []);
+
 
   const renderItem = (item: MenuItem) => {
-    const chiaveSemplice = chiaveRiga(item.id, []);
-    const inCart = cart[chiaveSemplice];
-    const haVarianti = (item.gruppi?.length ?? 0) > 0;
-
-
+    const inCart = cart[chiaveRiga(item.id, [])];
     return (
-      <li
+      <RigaPiatto
         key={item.id}
-        className="rounded-xl border border-border bg-surface p-4"
-      >
-      <div className="flex items-start gap-3">
-        {item.ha_foto && (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
-            src={`/api/foto/${item.id}`}
-            alt=""
-            loading="lazy"
-            onClick={() => setOpenDish(item)}
-            className="h-20 w-20 shrink-0 cursor-pointer rounded-lg object-cover"
-          />
-        )}
-        <button
-          type="button"
-          onClick={() => setOpenDish(item)}
-          className="min-w-0 flex-1 text-left"
-          aria-label={t("piatto.dettagli.aria", { nome: item.name })}
-        >
-          <p className="font-medium leading-snug">
-            {item.name}
-            {/* L'asterisco di legge anche qui, non solo nella scheda: un
-                piatto senza varianti si aggiunge col "+" senza mai aprirla,
-                e senza questo la nota in fondo alla pagina — "* prodotto
-                surgelato…" — non si riferisce a niente. È l'omissione che il
-                D.Lgs. 109/1992 sanziona. */}
-            {item.conservation && item.conservation !== "fresco" && (
-              <span aria-hidden className="ml-0.5 align-super text-xs text-muted">
-                *
-              </span>
-            )}
-          </p>
-          {item.description && (
-            <p className="mt-0.5 line-clamp-2 text-sm leading-snug text-muted">
-              {item.description}
-            </p>
-          )}
-          {/*
-            A formula il prezzo di una voce compresa non vuol dire niente —
-            mostrarlo fa credere che si paghi. Le voci fuori formula, invece,
-            il prezzo ce l'hanno eccome, e va detto qui: un caffè che spunta
-            sul conto senza che il menu l'avesse segnalato è la discussione
-            che il cameriere si fa al momento di pagare.
-          */}
-          {aFormula && !item.fuori_formula ? (
-            <p className="mt-1.5 text-sm font-medium text-success">
-              {t("formula.compreso")}
-            </p>
-          ) : (
-            <p className="mt-1.5 font-semibold tabular-nums">
-              {t.prezzo(item.price_cents, currency)}
-              {aFormula && (
-                <span className="ml-1.5 rounded-full bg-amber-100 px-2 py-0.5 align-middle text-xs font-medium text-amber-900">
-                  {t("formula.fuori")}
-                </span>
-              )}
-            </p>
-          )}
-          {haVarianti && (
-            <p className="mt-1 text-xs text-accent underline underline-offset-2">
-              {item.gruppi!.some((g) => g.required)
-                ? t("varianti.dascegliere")
-                : t("varianti.titolo")}
-            </p>
-          )}
-          {(item.dietary_tags?.length || item.allergens?.length) && (
-            <p className="mt-1 text-xs text-muted underline underline-offset-2">
-              {t("allergeni.dettagli")}
-            </p>
-          )}
-        </button>
-
-        <div className="flex shrink-0 items-center gap-2">
-          {inCart && (
-            <>
-              <button
-                type="button"
-                onClick={() => removeItem(chiaveSemplice)}
-                aria-label={t("piatto.togli.aria", { nome: item.name })}
-                className="h-11 w-11 rounded-full border border-border text-xl leading-none active:scale-95"
-              >
-                −
-              </button>
-              <span className="w-5 text-center font-semibold tabular-nums">
-                {inCart.quantity}
-              </span>
-            </>
-          )}
-          <button
-            type="button"
-            // Con varianti da scegliere il "+" non può decidere al posto del
-            // cliente quale: apre la scheda, dove sceglie lui.
-            onClick={() => (haVarianti ? setOpenDish(item) : addItem(item))}
-            aria-label={t("piatto.aggiungi.aria", { nome: item.name })}
-            className="h-11 w-11 rounded-full bg-accent text-xl leading-none text-accent-foreground active:scale-95"
-          >
-            +
-          </button>
-        </div>
-      </div>
-
-      {inCart && (
-        <div className="mt-3 border-t border-border pt-3">
-          {noteFor === item.id || inCart.notes ? (
-            <input
-              value={inCart.notes ?? ""}
-              onChange={(e) => setNote(chiaveSemplice, e.target.value)}
-              placeholder={t("nota.esempio")}
-              maxLength={140}
-              autoFocus={noteFor === item.id && !inCart.notes}
-              className="min-h-11 w-full rounded-lg border border-border bg-background px-3 text-sm"
-            />
-          ) : (
-            <button
-              type="button"
-              onClick={() => setNoteFor(item.id)}
-              className="text-sm text-muted underline underline-offset-2"
-            >
-              {t("nota.aggiungi")}
-            </button>
-          )}
-        </div>
-      )}
-      </li>
+        item={item}
+        quantita={inCart?.quantity ?? 0}
+        nota={inCart?.notes}
+        notaChiesta={noteFor === item.id}
+        currency={currency}
+        aFormula={aFormula}
+        t={t}
+        onApri={setOpenDish}
+        onAggiungi={addItem}
+        onTogli={removeItem}
+        onChiediNota={setNoteFor}
+        onScriviNota={setNote}
+      />
     );
   };
 

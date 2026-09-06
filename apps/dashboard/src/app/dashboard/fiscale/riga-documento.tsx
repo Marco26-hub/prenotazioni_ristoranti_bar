@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { segnaBattuto } from "./actions";
+import { segnaBattuto, rimettiInCoda } from "./actions";
 import { useLingua } from "@repo/shared/i18n/contesto";
 import { tComune } from "@repo/shared/i18n/comune";
 import { tSoldi } from "@/i18n/soldi";
 import { RT_SENZA_NUMERO, RT_SENZA_NUMERO_LEGACY } from "@/lib/rt-errori";
+import { RT_DA_VERIFICARE } from "./rt-incerto";
 
 const COLORE: Record<string, string> = {
   da_emettere: "border-amber-300 bg-amber-50 text-amber-900",
@@ -30,6 +31,8 @@ export function RigaDocumento({
   errore,
   quando,
   pagamenti,
+  aliquote,
+  riprovabile,
 }: {
   id: string;
   totale: string;
@@ -38,6 +41,10 @@ export function RigaDocumento({
   errore: string | null;
   quando: string;
   pagamenti: string;
+  /** Diviso per aliquota: è così che si batte su un registratore. */
+  aliquote: string;
+  /** Falso per le giornate già chiuse: rimetterlo in coda non lo farebbe uscire. */
+  riprovabile: boolean;
 }) {
   const lingua = useLingua();
   const t = tSoldi(lingua);
@@ -56,7 +63,20 @@ export function RigaDocumento({
     battuto_a_mano: t("documento.stato.battuto_a_mano"),
   };
 
-  const daChiudere = stato === "da_emettere" || stato === "errore";
+  /*
+   * Anche 'in_corso' si chiude a mano.
+   *
+   * Il computer della cassa spento subito dopo che la coda gli ha consegnato
+   * venti documenti li lascia lì: contano fra quelli da certificare e, se
+   * l'agente non riparte più — registratore guasto, passaggio a manuale —
+   * non c'è nessun modo di toglierli dall'elenco. L'azione dietro li accetta
+   * già; mancava solo il bottone, con l'avviso che la cassa potrebbe averlo
+   * stampato davvero.
+   */
+  const daChiudere =
+    stato === "da_emettere" || stato === "errore" || stato === "in_corso";
+  const daRimettere = riprovabile && (stato === "errore" || stato === "in_corso");
+  const daVerificare = Boolean(errore?.startsWith(RT_DA_VERIFICARE));
 
   return (
     <li className="rounded-xl border border-border bg-surface p-3">
@@ -68,6 +88,8 @@ export function RigaDocumento({
             {pagamenti && ` · ${pagamenti}`}
             {numero && ` · ${t("documento.numero_breve", { numero })}`}
           </p>
+          {/* Per aliquota: è il numero che serve a chi batte a mano. */}
+          {aliquote && <p className="text-xs text-muted">{aliquote}</p>}
         </div>
         <span
           className={`rounded-full border px-2.5 py-1 text-xs ${COLORE[stato] ?? "border-border"}`}
@@ -80,18 +102,45 @@ export function RigaDocumento({
         <p className="mt-1 text-xs text-danger">
           {errore === RT_SENZA_NUMERO || errore === RT_SENZA_NUMERO_LEGACY
             ? t("documento.errore.senza_numero")
-            : errore}
+            : daVerificare
+              ? t("documento.da_verificare")
+              : errore}
         </p>
       )}
 
-      {daChiudere && !aperto && (
-        <button
-          type="button"
-          onClick={() => setAperto(true)}
-          className="mt-2 min-h-10 text-sm underline underline-offset-4"
-        >
-          {t("documento.battuto")}
-        </button>
+      {!aperto && (daChiudere || daRimettere) && (
+        <div className="mt-2 flex flex-wrap items-center gap-4">
+          {daChiudere && (
+            <button
+              type="button"
+              onClick={() => setAperto(true)}
+              className="min-h-10 text-sm underline underline-offset-4"
+            >
+              {t("documento.battuto")}
+            </button>
+          )}
+          {daRimettere && (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() =>
+                start(async () => {
+                  const r = await rimettiInCoda(id);
+                  setAvviso(r.error ?? r.ok ?? null);
+                })
+              }
+              className="min-h-10 text-sm underline underline-offset-4 disabled:opacity-60"
+            >
+              {t("documento.rimetti")}
+            </button>
+          )}
+        </div>
+      )}
+
+      {daChiudere && aperto && stato === "in_corso" && (
+        <p className="mt-2 text-xs text-danger">
+          {t("documento.battuto.avviso.in_corso")}
+        </p>
       )}
 
       {daChiudere && aperto && (

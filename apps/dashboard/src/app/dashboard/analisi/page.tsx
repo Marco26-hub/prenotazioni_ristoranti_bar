@@ -119,6 +119,14 @@ export default async function AnalisiPage({
   const sql = db();
   const da = sql`now() - (${giorni} || ' days')::interval`;
 
+  // A prezzo fisso le righe di comanda non si pagano una per una: il conto le
+  // esclude apposta (conto.ts). Mostrarne il valore in euro accanto ai pezzi
+  // farebbe leggere al titolare un incasso che nessuno ha mai versato, in
+  // contraddizione con la scheda «Incasso» due centimetri più su.
+  const [impostazioni] = await sql<{ formula_attiva: boolean }[]>`
+    select formula_attiva from venues where id = ${venue.venueId}`;
+  const aFormula = impostazioni?.formula_attiva ?? false;
+
   // Solo sessioni chiuse: un tavolo ancora seduto falserebbe sia la durata
   // media sia lo scontrino medio, perché non ha finito di ordinare.
   const [riepilogo] = await sql<Riepilogo[]>`
@@ -194,10 +202,18 @@ export default async function AnalisiPage({
      order by pezzi desc
      limit 12`;
 
+  // Stesso insieme di sessioni delle altre tre query: senza, il grafico
+  // contava anche i QR inquadrati e mai usati e i tavoli ancora seduti, e
+  // sommava a più della scheda «N tavoli serviti» in cima alla stessa pagina.
+  // Il periodo si taglia su closed_at come nelle sorelle: è l'ora di apertura
+  // che si raggruppa, non la finestra su cui si sceglie il servizio.
   const perOra = await sql<PerOra[]>`
     select extract(hour from ts.opened_at)::int as ora, count(*)::int as sessioni
       from table_sessions ts
-     where ts.venue_id = ${venue.venueId} and ts.opened_at >= ${da}
+     where ts.venue_id = ${venue.venueId} and ts.status = 'closed'
+       and exists (select 1 from orders o
+                    where o.table_session_id = ts.id and o.status <> 'cancelled')
+       and ts.closed_at >= ${da}
      group by 1 order by 1`;
 
   const coperti = riepilogo?.coperti ?? 0;
@@ -336,10 +352,15 @@ export default async function AnalisiPage({
                   : t.numero(0, 0)
               }
             />
-            <Scheda
-              titolo={t("analisi.scheda.prezzo_medio")}
-              valore={piatti > 0 ? t.prezzo(Math.round(incasso / piatti)) : "—"}
-            />
+            {/* A formula il divisore sono tutti i piatti e il dividendo è il
+                solo prezzo fisso: verrebbero fuori pochi centesimi a piatto,
+                che non è il prezzo di niente. */}
+            {!aFormula && (
+              <Scheda
+                titolo={t("analisi.scheda.prezzo_medio")}
+                valore={piatti > 0 ? t.prezzo(Math.round(incasso / piatti)) : "—"}
+              />
+            )}
           </section>
 
           {/* --- Andamento giornaliero -------------------------------- */}
@@ -383,17 +404,30 @@ export default async function AnalisiPage({
             <section className="rounded-xl border border-border bg-surface p-4">
               <h2 className="mb-1 font-semibold">{t("analisi.piatti.titolo")}</h2>
               <p className="mb-3 text-xs text-muted">
-                {t("analisi.piatti.sottotitolo")}
+                {aFormula
+                  ? t("analisi.piatti.sottotitolo_formula")
+                  : t("analisi.piatti.sottotitolo")}
               </p>
               <ul className="space-y-1.5 text-sm">
                 {perPiatto.map((p) => (
                   <li key={p.nome} className="flex items-baseline justify-between gap-3">
                     <span className="min-w-0 truncate">{p.nome}</span>
                     <span className="shrink-0 tabular-nums text-muted">
-                      {t("analisi.piatti.pezzi", { n: p.pezzi })} ·{" "}
-                      <span className="text-foreground">
-                        {t.prezzo(Number(p.incasso))}
-                      </span>
+                      {/* I pezzi restano il dato utile: dicono cosa esce dalla
+                          cucina. La cifra in euro no — a formula quella riga
+                          non l'ha pagata nessuno. */}
+                      {aFormula ? (
+                        <span className="text-foreground">
+                          {t("analisi.piatti.pezzi", { n: p.pezzi })}
+                        </span>
+                      ) : (
+                        <>
+                          {t("analisi.piatti.pezzi", { n: p.pezzi })} ·{" "}
+                          <span className="text-foreground">
+                            {t.prezzo(Number(p.incasso))}
+                          </span>
+                        </>
+                      )}
                     </span>
                   </li>
                 ))}

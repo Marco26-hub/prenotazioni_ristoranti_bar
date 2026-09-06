@@ -50,12 +50,18 @@ export default async function FiscalePage() {
       rt_percorso: string | null;
       rt_reparti: Record<string, number>;
       giornata_stacco_ora: number;
+      giornata_corrente: string;
     }[]
   >`select rt_attivo, rt_modalita, rt_matricola, rt_agente_hash,
            rt_agente_visto_at, rt_marca, rt_operatore, rt_percorso,
            rt_reparti, giornata_stacco_ora,
            (rt_agente_visto_at is null
-            or rt_agente_visto_at < now() - interval '10 minutes') as agente_fermo
+            or rt_agente_visto_at < now() - interval '10 minutes') as agente_fermo,
+           -- La stessa espressione che usa la coda: qui serve per sapere
+           -- quali documenti ha ancora senso mandare al registratore.
+           (((now() at time zone coalesce(timezone, 'Europe/Rome'))
+              - make_interval(hours => giornata_stacco_ora))::date)::text
+             as giornata_corrente
       from venues where id = ${venue.venueId}`;
 
   // Le aliquote che compaiono davvero nel menu: chiedere il reparto per
@@ -97,6 +103,67 @@ export default async function FiscalePage() {
      order by 2 desc`;
 
   /*
+   * Il riepilogo per aliquota.
+   *
+   * Su un registratore si batte per reparto IVA e poi si sceglie il
+   * pagamento: senza questa divisione chi lavora in manuale aveva solo
+   * "contanti X, carta Y" e doveva o battere tutto su un reparto solo —
+   * l'errore fiscale silenzioso — o riaprire a mano ogni tavolo. L'aliquota
+   * di ogni riga è già congelata nel jsonb del documento, quindi è una query
+   * in più e non un dato nuovo.
+   */
+  const perAliquota = await sql<{ aliquota: string; totale: string }[]>`
+    select (r->>'ivaPercent') as aliquota,
+           round(sum((r->>'quantita')::numeric
+                     * (r->>'prezzoUnitarioCents')::numeric))::text as totale
+      from fiscal_documents fd
+      join venues v on v.id = fd.venue_id,
+           lateral jsonb_array_elements(fd.righe) as r
+     where fd.venue_id = ${venue.venueId}
+       and fd.service_date =
+           ((now() at time zone coalesce(v.timezone, 'Europe/Rome'))
+             - make_interval(hours => v.giornata_stacco_ora))::date
+     group by (r->>'ivaPercent')
+     order by (r->>'ivaPercent')::numeric`;
+
+  // La stessa divisione documento per documento: chi ne riapre uno solo — un
+  // tavolo battuto in ritardo — deve poterlo battere senza rifare i conti.
+  const righeAliquota = documenti.length
+    ? await sql<{ id: string; aliquota: string; totale: string }[]>`
+        select fd.id, (r->>'ivaPercent') as aliquota,
+               round(sum((r->>'quantita')::numeric
+                         * (r->>'prezzoUnitarioCents')::numeric))::text as totale
+          from fiscal_documents fd,
+               lateral jsonb_array_elements(fd.righe) as r
+         where fd.id = any(${documenti.map((d) => d.id)})
+         group by fd.id, (r->>'ivaPercent')
+         order by (r->>'ivaPercent')::numeric`
+    : [];
+
+  /*
+   * Le giornate già chiuse che hanno ancora documenti in sospeso.
+   *
+   * La coda consegna solo la giornata di servizio in corso: un documento di
+   * sabato non esce più dentro la giornata di domenica, che è quello che
+   * gonfiava una giornata e svuotava l'altra. Ma allora deve vedersi, o
+   * resterebbe fermo in tabella senza che nessuno lo sappia.
+   */
+  const arretrati = await sql<
+    { giornata: string; quanti: number; totale: string }[]
+  >`select fd.service_date::text as giornata, count(*)::int as quanti,
+           sum(fd.totale_cents)::text as totale
+      from fiscal_documents fd
+      join venues v on v.id = fd.venue_id
+     where fd.venue_id = ${venue.venueId}
+       and fd.stato in ('da_emettere', 'in_corso', 'errore')
+       and fd.service_date <
+           ((now() at time zone coalesce(v.timezone, 'Europe/Rome'))
+             - make_interval(hours => v.giornata_stacco_ora))::date
+     group by fd.service_date
+     order by fd.service_date desc
+     limit 30`;
+
+  /*
    * I conti chiusi senza documento.
    *
    * L'accodamento avviene dopo la chiusura e fuori dalla transazione —
@@ -128,6 +195,17 @@ export default async function FiscalePage() {
   );
   const totaleGiornata = perMetodo.reduce((s, r) => s + Number(r.totale), 0);
 
+  const aliquotePerDocumento = new Map<string, string[]>();
+  for (const r of righeAliquota) {
+    const voce = `${t("fiscale.aliquota", { aliquota: r.aliquota })} ${t.prezzo(
+      Number(r.totale)
+    )}`;
+    aliquotePerDocumento.set(r.id, [
+      ...(aliquotePerDocumento.get(r.id) ?? []),
+      voce,
+    ]);
+  }
+
   return (
     <LinguaProvider lingua={lingua}>
       <main className="mx-auto max-w-4xl px-4 py-5">
@@ -157,7 +235,53 @@ export default async function FiscalePage() {
               </div>
             </dl>
           )}
+
+          {/* Per aliquota: senza, chi batte a mano non ha i numeri che la
+              cassa chiede, e finisce per battere tutto su un reparto solo. */}
+          {perAliquota.length > 0 && (
+            <div className="mt-4 border-t border-border pt-3">
+              <h3 className="font-semibold">{t("fiscale.oggi.aliquote")}</h3>
+              <p className="mt-0.5 text-xs text-muted">
+                {t("fiscale.oggi.aliquote.nota")}
+              </p>
+              <dl className="mt-2 space-y-1 text-sm">
+                {perAliquota.map((r) => (
+                  <div key={r.aliquota} className="flex justify-between gap-3">
+                    <dt>{t("fiscale.aliquota", { aliquota: r.aliquota })}</dt>
+                    <dd className="font-medium tabular-nums">
+                      {t.prezzo(Number(r.totale))}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          )}
         </section>
+
+        {arretrati.length > 0 && (
+          <section className="mt-4 rounded-xl border border-danger bg-danger/5 p-4">
+            <h2 className="font-semibold text-danger">
+              {t.n(
+                arretrati.reduce((n, a) => n + Number(a.quanti), 0),
+                "fiscale.arretrati"
+              )}
+            </h2>
+            <p className="mt-0.5 text-sm">{t("fiscale.arretrati.testo")}</p>
+            <ul className="mt-2 space-y-1 text-sm">
+              {arretrati.map((a) => (
+                <li key={a.giornata} className="flex justify-between gap-3">
+                  <span className="text-muted">
+                    {t.data(new Date(`${a.giornata}T00:00:00`))} ·{" "}
+                    {t.n(Number(a.quanti), "fiscale.arretrati.doc")}
+                  </span>
+                  <span className="font-medium tabular-nums">
+                    {t.prezzo(Number(a.totale))}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {locale?.rt_attivo && scoperti.length > 0 && (
           <section className="mt-4 rounded-xl border border-danger bg-danger/5 p-4">
@@ -237,6 +361,8 @@ export default async function FiscalePage() {
                   pagamenti={Object.entries(d.pagamenti ?? {})
                     .map(([m, c]) => `${METODO[m] ?? m} ${t.prezzo(Number(c))}`)
                     .join(" · ")}
+                  aliquote={(aliquotePerDocumento.get(d.id) ?? []).join(" · ")}
+                  riprovabile={d.service_date === locale?.giornata_corrente}
                 />
               ))}
             </ul>

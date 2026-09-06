@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { LINGUE, type Traduzioni } from "@repo/shared/lingue";
-import { salvaTraduzione } from "./traduzioni-actions";
+import { salvaTraduzione, salvaTraduzioneCategoria } from "./traduzioni-actions";
 import { useLingua } from "@repo/shared/i18n/contesto";
 import { tComune } from "@repo/shared/i18n/comune";
 import { tMenuAdmin } from "@/i18n/menu";
@@ -11,25 +11,29 @@ const CAMPO =
   "min-h-11 w-full rounded-lg border border-border bg-background px-3 text-sm";
 
 /**
- * Traduzioni di un piatto.
+ * Traduzioni di un piatto o di una testata di categoria.
  *
  * Chiuso di default e una lingua per volta: un ristoratore traduce tutto il
  * menu in inglese, poi eventualmente tutto in tedesco. Mostrare sei lingue
  * insieme su ogni piatto renderebbe la pagina illeggibile.
+ *
+ * Della categoria si traduce il solo nome: non ha né descrizione né
+ * ingredienti, e i campi in più sarebbero caselle che non salvano niente.
  */
-export function TraduzioniForm({
-  itemId,
-  nomeItaliano,
-  descrizioneItaliana,
-  lingueAttive,
-  traduzioni,
-}: {
-  itemId: string;
-  nomeItaliano: string;
-  descrizioneItaliana: string | null;
-  lingueAttive: string[];
-  traduzioni: Traduzioni;
-}) {
+type Bersaglio =
+  | { itemId: string; categoryId?: undefined; descrizioneItaliana: string | null }
+  | { categoryId: string; itemId?: undefined; descrizioneItaliana?: undefined };
+
+export function TraduzioniForm(
+  props: {
+    nomeItaliano: string;
+    lingueAttive: string[];
+    traduzioni: Traduzioni;
+  } & Bersaglio
+) {
+  const { nomeItaliano, lingueAttive, traduzioni } = props;
+  const perCategoria = props.categoryId !== undefined;
+  const descrizioneItaliana = props.descrizioneItaliana ?? null;
   const lingua = useLingua();
   const t = tMenuAdmin(lingua);
   const tc = tComune(lingua);
@@ -75,13 +79,19 @@ export function TraduzioniForm({
         <form
           action={(formData) => {
             start(async () => {
-              const r = await salvaTraduzione(formData);
+              const r = perCategoria
+                ? await salvaTraduzioneCategoria(formData)
+                : await salvaTraduzione(formData);
               setEsito(r.error ?? r.success ?? null);
             });
           }}
           className="mt-3 space-y-2 rounded-lg border border-border p-3"
         >
-          <input type="hidden" name="itemId" value={itemId} />
+          {perCategoria ? (
+            <input type="hidden" name="categoryId" value={props.categoryId} />
+          ) : (
+            <input type="hidden" name="itemId" value={props.itemId} />
+          )}
           <input type="hidden" name="lingua" value={aperta} />
 
           <div>
@@ -109,17 +119,19 @@ export function TraduzioniForm({
             </div>
           )}
 
-          <div>
-            <label className="mb-1 block text-xs text-muted">
-              {t("traduzioni.ingredienti")}
-            </label>
-            <textarea
-              name="ingredients"
-              rows={2}
-              defaultValue={traduzioni[aperta]?.ingredients ?? ""}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-            />
-          </div>
+          {!perCategoria && (
+            <div>
+              <label className="mb-1 block text-xs text-muted">
+                {t("traduzioni.ingredienti")}
+              </label>
+              <textarea
+                name="ingredients"
+                rows={2}
+                defaultValue={traduzioni[aperta]?.ingredients ?? ""}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              />
+            </div>
+          )}
 
           <p className="text-xs text-muted">
             {t("traduzioni.nota")}

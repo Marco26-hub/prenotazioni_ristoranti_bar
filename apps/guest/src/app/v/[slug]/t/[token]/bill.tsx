@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { loadStripe, type Stripe } from "@stripe/stripe-js";
 import {
   Elements,
@@ -70,6 +70,19 @@ export function Bill({
   // L'ultimo aggiornamento non è riuscito: l'importo a schermo può non
   // essere più quello vero.
   const [fermo, setFermo] = useState(false);
+  /*
+   * Gli importi dell'ultimo giro, per accorgersi che sono cambiati.
+   *
+   * In un ref e non nello stato: servono solo a decidere se rimettere
+   * svelto il ritmo, e metterli nello stato rifarebbe il render della
+   * pagina a ogni giro per due numeri che si mostrano già da soli.
+   */
+  const ultimiImporti = useRef<{ saldo: number; pagato: number } | null>(null);
+  /*
+   * Il ritmo si definisce sotto, ma serve qui dentro: senza il ref si
+   * rincorrerebbero a vicenda.
+   */
+  const rimettiSvelto = useRef<() => void>(() => {});
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [tipCents, setTipCents] = useState(0);
   const [paid, setPaid] = useState(false);
@@ -119,6 +132,27 @@ export function Bill({
       return;
     }
     setFermo(false);
+    /*
+     * Cambiato qualcosa, si torna a chiedere spesso.
+     *
+     * Il ritmo rallenta a venti secondi dopo mezzo minuto di giri identici,
+     * ed è giusto: un tavolo che aspetta non ha bisogno di dodici richieste
+     * al minuto. Ma senza questo non tornava più svelto per il resto della
+     * serata, e l'ondata appena mandata si vedeva sul conto venti secondi
+     * dopo — è la cifra su cui il tavolo decide se ordinare ancora.
+     */
+    const precedenti = ultimiImporti.current;
+    if (
+      precedenti === null ||
+      precedenti.saldo !== data.balanceCents ||
+      precedenti.pagato !== data.paidCents
+    ) {
+      rimettiSvelto.current();
+    }
+    ultimiImporti.current = {
+      saldo: data.balanceCents,
+      pagato: data.paidCents,
+    };
     setBill(data);
     /*
      * "Saldato" lo decide il saldo, non il fatto che un pagamento sia
@@ -145,11 +179,17 @@ export function Bill({
    * guardando. Rallenta anche quando l'importo non si muove, e si ferma del
    * tutto a conto saldato — lì non cambia più niente per definizione.
    */
-  useRitmo(refreshBill, {
+  const ritmoSvelto = useRitmo(refreshBill, {
     svelto: 5000,
     lento: 20000,
     attivo: !paid,
   });
+
+  // Il ponte si monta fuori dal render: `refreshBill` è definita prima del
+  // ritmo, ma deve poterlo rimettere svelto.
+  useEffect(() => {
+    rimettiSvelto.current = ritmoSvelto;
+  }, [ritmoSvelto]);
 
   useEffect(() => {
     // Il setState avviene dentro il fetch async (dopo l'await), non

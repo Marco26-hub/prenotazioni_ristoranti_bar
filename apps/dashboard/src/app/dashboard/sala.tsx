@@ -3,8 +3,10 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useLingua } from "@repo/shared/i18n/contesto";
+import type { MetodoIncasso } from "@repo/shared/fiscale";
 import { tSala, type TSala } from "@/i18n/sala";
 import { impostaCoperti } from "./sala-actions";
+import { closeTableInPerson } from "./close-table-actions";
 import { FormulaTavolo } from "./formula-tavolo";
 import { DettaglioTavolo } from "./dettaglio-tavolo";
 import { PiantaSala, type StatoTavolo } from "./pianta-sala";
@@ -58,6 +60,23 @@ const AVANTI: Record<
   preparing: { a: "ready", testo: "riga.avanza.ready" },
   ready: { a: "served", testo: "riga.avanza.served" },
 };
+
+/**
+ * Come si può incassare al banco, nell'ordine in cui capita.
+ *
+ * Tre bottoni e non un menu a tendina: si tocca in piedi, con il POS in una
+ * mano, e il mezzo è l'unica cosa che il documento commerciale non può
+ * indovinare. I contanti restano per primi perché sono il caso più
+ * frequente, ma non sono più il predefinito silenzioso.
+ */
+const MEZZI: readonly {
+  metodo: MetodoIncasso;
+  etichetta: "tavolo.mezzo.cash" | "tavolo.mezzo.card" | "tavolo.mezzo.satispay";
+}[] = [
+  { metodo: "cash", etichetta: "tavolo.mezzo.cash" },
+  { metodo: "card", etichetta: "tavolo.mezzo.card" },
+  { metodo: "satispay", etichetta: "tavolo.mezzo.satispay" },
+];
 
 const COLORE_STATO: Record<string, string> = {
   pending: "text-zinc-400",
@@ -154,7 +173,6 @@ function durata(daISO: string, adesso: number, t: TSala): string {
 
 export function Sala({
   tavoli,
-  chiudiConto,
   formulaAttiva,
   supplementoPrevisto,
   avanzaRiga,
@@ -165,7 +183,12 @@ export function Sala({
   sogliaLiberazioneMin,
 }: {
   tavoli: TavoloSala[];
-  chiudiConto: (sessionId: string) => Promise<{ ok?: string; error?: string }>;
+  /**
+   * Non più usata: la chiusura chiama l'azione direttamente perché deve
+   * portarsi dietro il mezzo con cui il tavolo ha pagato, e passando di qui
+   * lo perderebbe. Resta dichiarata finché la pagina continua a passarla.
+   */
+  chiudiConto?: (sessionId: string) => Promise<{ ok?: string; error?: string }>;
   /** Il locale propone una formula a prezzo fisso. */
   formulaAttiva: boolean;
   supplementoPrevisto: number;
@@ -186,6 +209,39 @@ export function Sala({
   const [apertoId, setApertoId] = useState<string | null>(null);
   const [avvisoRiga, setAvvisoRiga] = useState<string | null>(null);
   const [inCorso, start] = useTransition();
+  /** La sessione che si sta chiudendo: un doppio tocco non incassa due volte. */
+  const [inChiusura, setInChiusura] = useState<string | null>(null);
+  /**
+   * Il tavolo per cui la scheda di dettaglio sta chiedendo il mezzo.
+   *
+   * Nella scheda il bottone per chiudere è uno solo, e su di lei non c'è
+   * spazio per tre: il mezzo si chiede qui, sopra la sala, prima di
+   * scrivere l'incasso.
+   */
+  const [mezzoPer, setMezzoPer] = useState<{ sessionId: string; codice: string } | null>(
+    null
+  );
+
+  /**
+   * Chiude il conto dichiarando come è stato pagato.
+   *
+   * `mezzo` manca solo quando non resta niente da incassare: in quel caso
+   * non nasce nessuna riga di pagamento e non c'è nulla da dichiarare.
+   */
+  async function chiudi(sessionId: string, mezzo?: MetodoIncasso) {
+    setInChiusura(sessionId);
+    try {
+      const r = await closeTableInPerson(sessionId, mezzo);
+      // L'esito non si butta via: la chiusura può essere rifiutata perché
+      // una carta sta pagando, o riuscire segnalando che il tavolo ha
+      // versato di più.
+      setAvvisoRiga(r.error ?? r.ok ?? null);
+      if (!r.error) router.refresh();
+      return r;
+    } finally {
+      setInChiusura(null);
+    }
+  }
 
   // Due ritmi diversi di proposito: l'orologio scatta ogni minuto perché è
   // l'unità in cui si legge una permanenza, i dati si ricaricano ogni quindici
@@ -432,24 +488,49 @@ export function Sala({
                     </p>
                   </div>
 
-                  <form
-                    action={async () => {
-                      // L'esito non si butta via: la chiusura può essere
-                      // rifiutata perché una carta sta pagando, o riuscire
-                      // segnalando che il tavolo ha versato di più.
-                      const r = await chiudiConto(tav.sessionId!);
-                      setAvvisoRiga(r.error ?? r.ok ?? null);
-                    }}
-                  >
+                  {daPagare > 0 ? (
+                    /*
+                     * Il mezzo si sceglie incassando, in un tocco solo.
+                     *
+                     * Prima il bottone era uno e la riga di incasso nasceva
+                     * sempre in contanti: il documento commerciale
+                     * dichiarava contante anche il bancomat passato al
+                     * banco, cento volte al giorno, ed è proprio lo
+                     * scostamento con i dati dell'acquirer che viene
+                     * incrociato.
+                     */
+                    <div className="mt-3">
+                      <p className="mb-1 text-xs text-muted">
+                        {t("tavolo.come_ha_pagato")}
+                      </p>
+                      <div className="flex gap-2">
+                        {MEZZI.map((m) => (
+                          <button
+                            key={m.metodo}
+                            type="button"
+                            disabled={inChiusura === tav.sessionId}
+                            aria-label={t("tavolo.incassa_chiudi.aria", {
+                              codice: tav.codice,
+                              mezzo: t(m.etichetta),
+                            })}
+                            onClick={() => void chiudi(tav.sessionId!, m.metodo)}
+                            className="flex min-h-12 flex-1 items-center justify-center rounded-full border border-border text-sm font-medium disabled:opacity-50"
+                          >
+                            {t(m.etichetta)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
                     <button
-                      type="submit"
-                      className="mt-3 flex min-h-11 w-full items-center justify-center rounded-full border border-border text-sm"
+                      type="button"
+                      disabled={inChiusura === tav.sessionId}
+                      onClick={() => void chiudi(tav.sessionId!)}
+                      className="mt-3 flex min-h-11 w-full items-center justify-center rounded-full border border-border text-sm disabled:opacity-50"
                     >
-                      {daPagare > 0
-                        ? t("tavolo.incassa_chiudi")
-                        : t("tavolo.chiudi_conto")}
+                      {t("tavolo.chiudi_conto")}
                     </button>
-                  </form>
+                  )}
                 </>
               )}
             </li>
@@ -466,8 +547,15 @@ export function Sala({
             adesso={adesso}
             onClose={() => setApertoId(null)}
             onChiudiConto={async () => {
-              const r = await chiudiConto(tav.sessionId!);
-              setAvvisoRiga(r.error ?? r.ok ?? null);
+              // Con un residuo da incassare la scheda non chiude niente da
+              // sola: prima si dichiara il mezzo, altrimenti il documento
+              // tornerebbe a dire contante per tutti.
+              if (tav.ordinatoCents - tav.pagatoCents > 0) {
+                setApertoId(null);
+                setMezzoPer({ sessionId: tav.sessionId!, codice: tav.codice });
+                return;
+              }
+              const r = await chiudi(tav.sessionId!);
               // Rifiutata: la scheda resta aperta, o l'avviso parlerebbe di
               // un tavolo che non si sta più guardando.
               if (!r.error) setApertoId(null);
@@ -475,6 +563,57 @@ export function Sala({
           />
         );
       })()}
+
+      {mezzoPer && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center sm:p-4"
+          onClick={() => setMezzoPer(null)}
+          role="presentation"
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={t("tavolo.come_ha_pagato")}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm rounded-t-2xl bg-surface p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:rounded-2xl sm:pb-5"
+          >
+            <p className="mb-3 text-sm font-medium">
+              {t("tavolo.come_ha_pagato")}
+            </p>
+            <div className="flex gap-2">
+              {MEZZI.map((m) => (
+                <button
+                  key={m.metodo}
+                  type="button"
+                  disabled={inChiusura === mezzoPer.sessionId}
+                  aria-label={t("tavolo.incassa_chiudi.aria", {
+                    codice: mezzoPer.codice,
+                    mezzo: t(m.etichetta),
+                  })}
+                  onClick={async () => {
+                    const r = await chiudi(mezzoPer.sessionId, m.metodo);
+                    // Rifiutata — una carta in corso, i coperti da
+                    // confermare — la scelta resta aperta: chiudendola
+                    // l'avviso parlerebbe di un tavolo che non si sta più
+                    // guardando.
+                    if (!r.error) setMezzoPer(null);
+                  }}
+                  className="flex min-h-12 flex-1 items-center justify-center rounded-full border border-border text-sm font-medium disabled:opacity-50"
+                >
+                  {t(m.etichetta)}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setMezzoPer(null)}
+              className="mt-3 flex min-h-11 w-full items-center justify-center rounded-full text-sm text-muted"
+            >
+              {t("tavolo.annulla")}
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }

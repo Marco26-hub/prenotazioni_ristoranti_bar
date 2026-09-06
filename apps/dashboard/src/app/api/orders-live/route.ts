@@ -15,6 +15,14 @@ export async function GET() {
     {
       id: string;
       table_code: string;
+      /**
+       * L'ondata a cui la riga appartiene.
+       *
+       * La sessione di un all you can eat dura tutto il turno e contiene
+       * cinque ordini: senza sapere di quale ordine è la riga, la board può
+       * misurare solo l'attesa dell'intera sessione.
+       */
+      order_id: string;
       pickup_number: number | null;
       item_name: string;
       quantity: number;
@@ -28,7 +36,7 @@ export async function GET() {
       ultimo_da: string | null;
     }[]
   >`
-    select oi.id, t.code as table_code, o.pickup_number, mi.name as item_name, oi.quantity, oi.status,
+    select oi.id, t.code as table_code, oi.order_id, o.pickup_number, mi.name as item_name, oi.quantity, oi.status,
            oi.notes, o.created_at, oi.selected_options, oi.held_at,
            coalesce(mc.reparto, 'cucina') as reparto,
            (t.assigned_to = ${userId}) as mio_tavolo,
@@ -49,11 +57,39 @@ export async function GET() {
       and oi.status <> 'cancelled'
     order by o.created_at asc`;
 
-  const [locale] = await sql<{ soglia_attesa_min: number }[]>`
-    select soglia_attesa_min from venues where id = ${venue.venueId}`;
+  /*
+   * Lo stato della cassa viaggia con le comande.
+   *
+   * Se il Registratore Telematico è fermo, i conti si chiudono lo stesso e
+   * nessun documento commerciale esce: oggi se ne accorge solo chi apre i
+   * Corrispettivi, che in servizio non apre nessuno. Lo schermo delle comande
+   * è l'unico che qualcuno guarda davvero, quindi l'allarme passa di qui.
+   * Gli errori si contano sulla giornata di servizio in corso e non da
+   * sempre: un errore di tre settimane fa non è una stampante ferma adesso.
+   */
+  const [locale] = await sql<
+    { soglia_attesa_min: number; fiscali_errore: number; agente_fermo: boolean }[]
+  >`
+    select v.soglia_attesa_min,
+           (select count(*)::int from fiscal_documents fd
+             where fd.venue_id = v.id
+               and fd.stato = 'errore'
+               and fd.service_date =
+                   ((now() at time zone coalesce(v.timezone, 'Europe/Rome'))
+                     - make_interval(hours => v.giornata_stacco_ora))::date)
+             as fiscali_errore,
+           (v.rt_attivo and v.rt_modalita = 'agente'
+            and (v.rt_agente_visto_at is null
+                 or v.rt_agente_visto_at < now() - interval '10 minutes'))
+             as agente_fermo
+      from venues v where v.id = ${venue.venueId}`;
 
   return NextResponse.json({
     items: rows,
     soglia: locale?.soglia_attesa_min ?? 20,
+    fiscale: {
+      errori: locale?.fiscali_errore ?? 0,
+      agenteFermo: locale?.agente_fermo ?? false,
+    },
   });
 }

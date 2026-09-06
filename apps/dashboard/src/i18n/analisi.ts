@@ -69,6 +69,8 @@ const IT = {
   "analisi.piatti.titolo": "Cosa vende",
   "analisi.piatti.sottotitolo":
     "I dodici più ordinati. Quello che non compare qui, e che è a menu da mesi, probabilmente non serve.",
+  "analisi.piatti.sottotitolo_formula":
+    "I dodici più ordinati. A prezzo fisso contano i pezzi e non gli euro: la singola riga non viene pagata, l'incasso è quello della scheda in alto.",
   "analisi.piatti.pezzi": "{n} pz",
 
   "analisi.metodi.titolo": "Come pagano",
@@ -409,6 +411,8 @@ const EN: Speculare<typeof IT> = {
   "analisi.piatti.titolo": "What sells",
   "analisi.piatti.sottotitolo":
     "The twelve most ordered. Anything that isn't here, and has been on the menu for months, probably isn't earning its place.",
+  "analisi.piatti.sottotitolo_formula":
+    "The twelve most ordered. On a fixed price it is the pieces that count, not the euros: no one pays for the single line, and the takings are the ones in the card above.",
   "analisi.piatti.pezzi": "{n} pcs",
 
   "analisi.metodi.titolo": "How they pay",
