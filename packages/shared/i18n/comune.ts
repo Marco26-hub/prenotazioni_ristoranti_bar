@@ -54,6 +54,20 @@ const IT = {
   "dicitura.senza_lattosio": "Senza lattosio",
   "dicitura.piccante": "Piccante",
 
+  /*
+   * Coperto e servizio.
+   *
+   * Stanno qui e non nel dizionario di una pagina sola perché vanno detti in
+   * DUE posti — il menu del tavolo e la carta pubblica — e devono dire la
+   * stessa cosa. La norma sui prezzi mette il coperto alla pari di un piatto
+   * (R.D. 635/1940 art. 180): va scritto dove il cliente sceglie, non solo in
+   * fondo al conto. Due frasi diverse nei due posti sono il modo più semplice
+   * di ritrovarsi con una delle due sbagliata.
+   */
+  "coperto.etichetta": "Coperto",
+  "coperto.riga": "{etichetta} {prezzo} a persona.",
+  "servizio.riga": "Servizio {percento}% sull'ordinato.",
+
   // Azioni
   "azione.annulla": "Annulla",
   "azione.conferma": "Conferma",
@@ -118,6 +132,10 @@ const EN: Speculare<typeof IT> = {
   "dicitura.senza_glutine": "Gluten free",
   "dicitura.senza_lattosio": "Lactose free",
   "dicitura.piccante": "Spicy",
+
+  "coperto.etichetta": "Cover charge",
+  "coperto.riga": "{etichetta} {prezzo} per person.",
+  "servizio.riga": "Service charge {percento}% on the order.",
 
   "azione.annulla": "Cancel",
   "azione.conferma": "Confirm",

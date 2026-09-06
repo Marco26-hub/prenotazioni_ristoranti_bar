@@ -38,9 +38,6 @@ const IT = {
   "sezione.conto": "Conto e pagamento",
 
   // Coperto e servizio: la norma sui prezzi li mette alla pari di un piatto
-  "coperto.etichetta": "Coperto",
-  "coperto.riga": "{etichetta} {prezzo} a persona.",
-  "servizio.riga": "Servizio {percento}% sull'ordinato.",
 
   // Piè di pagina
   "footer.piva": "P.IVA {numero}",
@@ -138,10 +135,6 @@ const EN: Speculare<typeof IT> = {
   "nav.paga": "Pay now",
   "sezione.ordine": "Order from your table",
   "sezione.conto": "Bill and payment",
-
-  "coperto.etichetta": "Cover charge",
-  "coperto.riga": "{etichetta} {prezzo} per person.",
-  "servizio.riga": "Service charge {percento}% on the order.",
 
   "footer.piva": "VAT no. {numero}",
   "footer.privacy": "Privacy",

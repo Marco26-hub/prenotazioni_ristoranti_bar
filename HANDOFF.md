@@ -301,12 +301,14 @@ paga. Accenderlo senza aver indicato gli orari viene rifiutato.
 **Obblighi di legge sul menu.** Allergeni per piatto; stato di
 conservazione (fresco/congelato/surgelato/abbattuto) con asterisco e nota
 costruita su ciò che c'è davvero in carta; origine per la carne bovina;
-coperto e servizio mostrati **sul menu del tavolo** e non solo in fondo al
-conto, citando il R.D. 635/1940 art. 180.
+coperto e servizio mostrati **su tutte e due le carte** — quella del tavolo e
+quella pubblica `/m/[slug]`, che a un controllo è il listino esposto — e non
+solo in fondo al conto, come vuole il R.D. 635/1940 art. 180: la norma mette
+il coperto alla pari di un piatto, quindi va scritto dove il cliente sceglie.
 
-> Da sistemare: la carta pubblica `/m/[slug]` — quella che a un controllo è
-> il listino esposto — **non** mostra coperto e servizio. Non li legge
-> nemmeno dal database. L'obbligo è soddisfatto solo dalla pagina del tavolo.
+Le tre frasi stanno in `packages/shared/i18n/comune.ts` e non nel dizionario
+di una pagina sola: devono dire la stessa cosa nei due posti, e due copie
+sono il modo più semplice di ritrovarsi con una delle due sbagliata.
 
 **Orari e informazioni pratiche.** Testo libero, non una griglia di fasce:
 gli orari veri sono pieni di eccezioni che una struttura rigida
@@ -1119,6 +1121,21 @@ gliel'abbia detto nessuno.
 **Va deciso prima del primo cliente vero**: o si tiene e si mette nel
 listino, o si toglie dal codice. Le due cose che non si possono fare sono
 lasciarlo lì senza dirlo, e dire che non c'è.
+
+### L'ultimo buco di conformità chiuso
+
+La verifica del documento aveva trovato che l'obbligo sui prezzi era
+soddisfatto solo a metà: coperto e servizio comparivano sul menu del tavolo
+e **non** sulla carta pubblica `/m/[slug]`, che non li leggeva nemmeno dal
+database. È la carta che conta di più, perché è quella esposta e indicizzata.
+
+Ora ci sono, subito sotto i prezzi e non nel piè di pagina, in italiano e in
+inglese, con il nome che il locale ha dato al coperto se ne ha dato uno. Le
+frasi sono le stesse della pagina del tavolo, prese dallo stesso dizionario:
+`packages/shared/i18n/comune.ts`. Quattro casi in
+`e2e/coperto-carta.spec.ts`, compreso quello che conta al contrario — chi non
+applica né coperto né servizio non deve vedersi comparire una riga che dice
+zero.
 
 ### Una trappola per chi scriverà i prossimi test
 

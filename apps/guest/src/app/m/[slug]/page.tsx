@@ -7,7 +7,7 @@ import { headers } from "next/headers";
 import { scegliLingua, traduci, type Traduzioni } from "@repo/shared/lingue";
 import { linguaUIPerContenuto, type LinguaUI } from "@repo/shared/i18n";
 import { LinguaProvider } from "@repo/shared/i18n/contesto";
-import { notaConservazioneTradotta } from "@repo/shared/i18n/comune";
+import { notaConservazioneTradotta, tComune } from "@repo/shared/i18n/comune";
 import { tMenu } from "@/i18n/menu";
 import { type Conservazione } from "@repo/shared/bevande";
 import { SelettoreLingua } from "./selettore-lingua";
@@ -65,6 +65,9 @@ interface VenuePublic {
   address_city: string | null;
   address_province: string | null;
   currency: string;
+  cover_charge_cents: number;
+  cover_charge_label: string | null;
+  service_percent: string;
   languages: string[];
   lingua_predefinita: string;
   opening_hours: string | null;
@@ -82,6 +85,7 @@ async function loadVenue(slug: string) {
   const [venue] = await sql<VenuePublic[]>`
     select id, name, logo_url, brand_color, public_phone, public_email,
            address, address_zip, address_city, address_province, currency,
+           cover_charge_cents, cover_charge_label, service_percent,
            languages, lingua_predefinita, opening_hours, practical_info, assistant_enabled,
            subscription_status, subscription_period_end, modules, public_texts
     from venues where slug = ${slug}`;
@@ -202,6 +206,9 @@ export default async function PublicMenuPage({
     venue.lingua_predefinita
   );
   const t = tMenu(linguaUI);
+  // Coperto, servizio e nota di conservazione: le stesse frasi che legge chi
+  // è seduto al tavolo, prese dallo stesso dizionario.
+  const tc = tComune(linguaUI);
 
   const categories = categorieBase.map((c) => traduci(c, c.translations, lingua));
   const items = itemsBase.map((i) => traduci(i, i.translations, lingua));
@@ -362,6 +369,28 @@ export default async function PublicMenuPage({
         </header>
 
         <MenuCategories categories={categorieConVoci} currency={venue.currency} />
+
+        {/* Coperto e servizio subito sotto i prezzi, non nel piè di pagina.
+            La norma sui prezzi li mette alla pari di un piatto (R.D.
+            635/1940 art. 180), e questa è la carta esposta: a un controllo è
+            questa la pagina che si guarda, non quella del tavolo. Le frasi
+            arrivano dal dizionario comune, le stesse che legge chi è
+            seduto. */}
+        {(venue.cover_charge_cents > 0 || Number(venue.service_percent ?? 0) > 0) && (
+          <p className="mx-auto w-full max-w-5xl px-4 pt-6 text-sm text-muted sm:px-6">
+            {venue.cover_charge_cents > 0 &&
+              tc("coperto.riga", {
+                etichetta: venue.cover_charge_label?.trim() || tc("coperto.etichetta"),
+                prezzo: tc.prezzo(venue.cover_charge_cents, venue.currency),
+              })}
+            {Number(venue.service_percent ?? 0) > 0 && (
+              <>
+                {venue.cover_charge_cents > 0 ? " " : ""}
+                {tc("servizio.riga", { percento: Number(venue.service_percent) })}
+              </>
+            )}
+          </p>
+        )}
 
         {/* La linguetta "Info" portava direttamente al piè di pagina, che ha
             soltanto i link legali: sembrava non contenere niente. Qui c'è la

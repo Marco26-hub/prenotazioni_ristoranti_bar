@@ -10,7 +10,7 @@ import { type Conservazione } from "@repo/shared/bevande";
 import { traduci, type Traduzioni } from "@repo/shared/lingue";
 import { linguaContenuto } from "@repo/shared/i18n";
 import { LinguaProvider } from "@repo/shared/i18n/contesto";
-import { notaConservazioneTradotta } from "@repo/shared/i18n/comune";
+import { notaConservazioneTradotta, tComune } from "@repo/shared/i18n/comune";
 import { linguaPagina } from "@/lib/lingua";
 import { tTavolo } from "@/i18n/tavolo";
 import { SelettoreLinguaUI } from "@/app/_i18n/selettore";
@@ -50,6 +50,9 @@ export default async function TablePage({
   // passarla qui l'impostazione non farebbe niente.
   const lingua = await linguaPagina(lang, resolved.venue.lingua_predefinita);
   const t = tTavolo(lingua);
+  // Coperto e servizio vengono dal dizionario comune: la stessa frase la
+  // scrive anche la carta pubblica, e devono coincidere.
+  const tc = tComune(lingua);
 
   const sql = db();
 
@@ -280,15 +283,15 @@ export default async function TablePage({
           Number(supplementi?.service_percent ?? 0) > 0) && (
           <p className="mt-5 rounded-xl border border-border bg-surface p-3 text-sm text-muted">
             {supplementi.cover_charge_cents > 0 &&
-              t("coperto.riga", {
+              tc("coperto.riga", {
                 etichetta:
-                  supplementi.cover_charge_label?.trim() || t("coperto.etichetta"),
+                  supplementi.cover_charge_label?.trim() || tc("coperto.etichetta"),
                 prezzo: t.prezzo(supplementi.cover_charge_cents, venue.currency),
               })}
             {Number(supplementi?.service_percent ?? 0) > 0 && (
               <>
                 {supplementi.cover_charge_cents > 0 ? " " : ""}
-                {t("servizio.riga", {
+                {tc("servizio.riga", {
                   percento: Number(supplementi.service_percent),
                 })}
               </>
