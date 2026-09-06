@@ -109,6 +109,12 @@ const IT = {
     "Nessuna percentuale trattenuta da noi sui tuoi incassi",
   "abbonamento.iva":
     "Prezzi IVA esclusa. Le commissioni sulle carte sono quelle del tuo fornitore di pagamento e le paghi a lui: noi non tratteniamo nulla sul tuo incassato.",
+  // Quando invece tratteniamo, va scritto qui e non lasciato scoprire
+  // sull'estratto conto Stripe, dove compare come «application fee».
+  "abbonamento.incluso.percentuale.si":
+    "{percent}% trattenuto da noi sui pagamenti con carta dal tavolo",
+  "abbonamento.iva.commissione":
+    "Prezzi IVA esclusa. Sulle carte paghi le commissioni del tuo fornitore di pagamento, e in più tratteniamo il {percent}% sui pagamenti fatti dal telefono del cliente: sul tuo estratto conto Stripe lo trovi come «application fee». Non lo tratteniamo su Satispay né su quello che incassi al banco col tuo POS.",
 
   "abbonamento.gestisci": "Gestisci abbonamento e fatture",
   "abbonamento.apertura": "Apertura…",
@@ -369,6 +375,10 @@ const EN: Speculare<typeof IT> = {
   "abbonamento.incluso.percentuale": "No cut taken by us on your takings",
   "abbonamento.iva":
     "Prices exclude IVA (Italian VAT). Card fees are your payment provider's and you pay them to it: we take nothing off your takings.",
+  "abbonamento.incluso.percentuale.si":
+    "{percent}% kept by us on card payments made at the table",
+  "abbonamento.iva.commissione":
+    "Prices exclude IVA (Italian VAT). On cards you pay your payment provider's fees, and on top of those we keep {percent}% on payments made from the guest's phone: it shows on your Stripe statement as an application fee. We keep nothing on Satispay, nor on what you take at the counter on your own card machine.",
 
   "abbonamento.gestisci": "Manage subscription and invoices",
   "abbonamento.apertura": "Opening…",

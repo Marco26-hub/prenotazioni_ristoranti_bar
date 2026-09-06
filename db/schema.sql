@@ -79,6 +79,11 @@ create table venues (
   -- comunque, perché è un'informazione più precisa di una preferenza fissa.
   lingua_predefinita text not null default 'it'
     check (lingua_predefinita in ('it', 'en')),
+  -- Quanto tratteniamo sui pagamenti con carta di questo locale. Zero di
+  -- partenza: trattenere è un gesto esplicito, non un valore ereditato.
+  -- Vale solo sulla via Stripe — Satispay no, e il POS del locale nemmeno.
+  commissione_percent numeric(4,2) not null default 0
+    check (commissione_percent >= 0 and commissione_percent <= 10),
   -- Formato del locale: pizzeria e steak house non compilano il menu allo
   -- stesso modo. Serve a proporre categorie, scelte e promemoria giusti.
   venue_type text not null default 'ristorante',

@@ -8,6 +8,7 @@ import {
   salvaScheda,
   aggiungiNota,
   impostaFormato,
+  impostaCommissione,
 } from "./actions";
 import { MODELLI } from "@repo/shared/formati";
 import { useLingua } from "@repo/shared/i18n/contesto";
@@ -29,6 +30,8 @@ export interface LocaleAdmin {
   interventi: { chi: string; azione: string; dettaglio: string | null; quando: string }[];
   /** Formato già applicato, se ce n'è uno. */
   formato: string | null;
+  /** Quanto tratteniamo sui pagamenti con carta di questo locale. */
+  commissionePercent: string;
   scheda: {
     referente_nome: string;
     referente_telefono: string;
@@ -81,6 +84,7 @@ export function LocaleRiga({ locale }: { locale: LocaleAdmin }) {
   // Mostrata una volta sola: non è salvata in chiaro da nessuna parte.
   const [passwordUnaVolta, setPasswordUnaVolta] = useState<string | null>(null);
   const [scheda, setScheda] = useState(locale.scheda);
+  const [commissione, setCommissione] = useState(locale.commissionePercent);
   const [nuovaNota, setNuovaNota] = useState("");
   const [formato, setFormato] = useState(locale.formato ?? "");
   const [soloCategorie, setSoloCategorie] = useState(false);
@@ -291,6 +295,59 @@ export function LocaleRiga({ locale }: { locale: LocaleAdmin }) {
               >
                 {t("formato.applica")}
               </button>
+            </div>
+
+            {/*
+              La commissione sta qui e non nelle Impostazioni del locale: è
+              una condizione commerciale, la scrive chi vende. E sta accanto
+              a moduli e abbonamento perché è la stessa conversazione.
+            */}
+            <div className="mt-4 border-t border-border pt-3">
+              <p className="text-sm font-medium">{t("commissione.titolo")}</p>
+              <p className="mt-1 text-xs text-muted">{t("commissione.nota")}</p>
+
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <label className="flex items-center gap-2 text-xs text-muted">
+                  {t("commissione.campo")}
+                  <input
+                    type="number"
+                    min="0"
+                    max="10"
+                    step="0.05"
+                    value={commissione}
+                    onChange={(e) => setCommissione(e.target.value)}
+                    className="min-h-11 w-24 rounded-lg border border-border bg-background px-3 text-sm text-foreground"
+                  />
+                  %
+                </label>
+
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() =>
+                    start(async () => {
+                      const r = await impostaCommissione(
+                        locale.id,
+                        Number(commissione),
+                        nota
+                      );
+                      setAvviso(r.error ?? r.ok ?? null);
+                    })
+                  }
+                  className="min-h-11 rounded-full border border-border px-5 text-sm font-medium disabled:opacity-60"
+                >
+                  {t("commissione.salva")}
+                </button>
+              </div>
+
+              {Number(commissione) > 0 && (
+                <p
+                  role="status"
+                  className="mt-2 rounded-lg border border-amber-400 bg-amber-50 p-2 text-xs text-amber-900"
+                >
+                  {t("commissione.avviso")}
+                </p>
+              )}
             </div>
 
             <label className="mt-2 flex min-h-11 items-center gap-2 text-xs text-muted">

@@ -7,6 +7,43 @@ import { messaggioErrore } from "@repo/shared/errori";
 import { stripeClient } from "@/lib/stripe";
 import { tApi, linguaRichiesta } from "@/i18n/api";
 
+/**
+ * Quanto tratteniamo su questo pagamento, se tratteniamo qualcosa.
+ *
+ * LA PAGA IL RISTORATORE, NON IL CLIENTE AL TAVOLO. Va detto qui perché è la
+ * cosa che qualcuno, un giorno, "aggiusta" sommandola all'importo.
+ *
+ * Il cliente è addebitato `amount` e basta: il conto più l'eventuale mancia.
+ * Su un conto da 156 € paga 156 €, e della commissione non sa e non vede
+ * niente. I soldi arrivano interi sul conto Stripe del locale, e Stripe gli
+ * sottrae poi la propria commissione e questa nostra. Sommarla all'importo
+ * significherebbe farla pagare a chi ha cenato: un prezzo diverso da quello
+ * scritto sul menu, e su questo la legge non lascia margini.
+ *
+ * Era la costante `amountCents * 0.015`, uguale per tutti e marcata
+ * «provvisorio» nel codice, mentre la pagina Abbonamento scriveva al
+ * ristoratore che non tratteniamo nulla sul suo incassato. Ora è una
+ * percentuale per locale (`venues.commissione_percent`), che parte da zero.
+ *
+ * A zero il campo NON viene mandato affatto, invece di essere mandato a
+ * zero: sono due cose diverse per Stripe, e un `application_fee_amount: 0`
+ * comparirebbe comunque sul suo estratto conto come una voce da spiegare.
+ *
+ * Vale solo qui: Satispay non prevede commissione di piattaforma, e i
+ * pagamenti incassati al banco non passano da noi.
+ */
+function commissione(
+  importoCents: number,
+  percent: string | number | null | undefined
+): { application_fee_amount?: number } {
+  const p = Number(percent ?? 0);
+  if (!Number.isFinite(p) || p <= 0) return {};
+  const cents = Math.round((importoCents * p) / 100);
+  // Sotto il centesimo non ha senso chiederla, e Stripe rifiuta lo zero.
+  return cents > 0 ? { application_fee_amount: cents } : {};
+}
+
+
 interface CreateIntentBody {
   sessionId: string;
   tipCents?: number;
@@ -75,9 +112,10 @@ export async function POST(request: Request) {
       subscription_status: string;
       subscription_period_end: Date | null;
       modules: string[] | null;
+      commissione_percent: string;
     }[]
   >`select stripe_account_id, currency, subscription_status, subscription_period_end,
-           modules
+           modules, commissione_percent
       from venues where id = ${session.venue_id}`;
 
   if (
@@ -210,7 +248,11 @@ export async function POST(request: Request) {
       sql,
       stripe,
       session,
-      venue: { stripeAccountId: venue.stripe_account_id, currency: venue.currency },
+      venue: {
+        stripeAccountId: venue.stripe_account_id,
+        currency: venue.currency,
+        commissionePercent: venue.commissione_percent,
+      },
       tipCents,
       orderItemIds: splitItemIds,
     });
@@ -306,7 +348,7 @@ export async function POST(request: Request) {
       amount: amountCents,
       currency: (venue.currency ?? "eur").toLowerCase(),
       automatic_payment_methods: { enabled: true },
-      application_fee_amount: Math.round(amountCents * 0.015), // margine piattaforma, provvisorio
+      ...commissione(amountCents, venue.commissione_percent),
       metadata: { table_session_id: session.id, venue_id: session.venue_id },
     },
     { stripeAccount: venue.stripe_account_id }
@@ -357,7 +399,7 @@ async function createSplitPayment(params: {
   sql: ReturnType<typeof db>;
   stripe: ReturnType<typeof stripeClient>;
   session: { id: string; venue_id: string };
-  venue: { stripeAccountId: string; currency: string };
+  venue: { stripeAccountId: string; currency: string; commissionePercent: string };
   tipCents: number;
   orderItemIds: string[];
 }) {
@@ -407,7 +449,7 @@ async function createSplitPayment(params: {
       amount: amountCents,
       currency: (venue.currency ?? "eur").toLowerCase(),
       automatic_payment_methods: { enabled: true },
-      application_fee_amount: Math.round(amountCents * 0.015),
+      ...commissione(amountCents, venue.commissionePercent),
       metadata: { table_session_id: session.id, venue_id: session.venue_id },
     },
     { stripeAccount: venue.stripeAccountId }

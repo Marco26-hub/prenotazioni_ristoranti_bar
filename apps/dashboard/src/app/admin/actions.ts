@@ -366,3 +366,53 @@ export async function impostaFormato(
   revalidatePath("/admin");
   return { ok: `${v?.name ?? t("azione.locale")}: ${esito.success ?? t("azione.formato.ok")}` };
 }
+
+/**
+ * La commissione che tratteniamo sui pagamenti con carta di questo locale.
+ *
+ * È una condizione commerciale, quindi la scrive chi vende e non il
+ * ristoratore: sta qui e non nelle sue Impostazioni. Zero significa che non
+ * tratteniamo niente, ed è il valore di partenza.
+ *
+ * Vale solo sulla via Stripe. Satispay non prevede commissione di
+ * piattaforma, e quello che il locale incassa al banco col proprio POS non
+ * passa da noi: lì paga il suo acquirer, come ha sempre fatto.
+ *
+ * Ogni modifica finisce in `platform_events`, perché è la voce che il
+ * ristoratore si vedrà sull'estratto conto Stripe: chi l'ha messa e quando
+ * deve restare scritto.
+ */
+export async function impostaCommissione(
+  venueId: string,
+  percent: number,
+  nota: string
+): Promise<{ ok?: string; error?: string }> {
+  const admin = await requireSuperAdmin();
+  const t = tSuperAdmin(await linguaUtente());
+
+  if (!Number.isFinite(percent) || percent < 0 || percent > 10) {
+    return { error: t("commissione.errore.valore") };
+  }
+  // Due decimali: sotto il centesimo di punto non ha significato, e il
+  // vincolo a database è numeric(4,2).
+  const p = Math.round(percent * 100) / 100;
+
+  const sql = db();
+  const [v] = await sql<{ name: string }[]>`
+    update venues set commissione_percent = ${p} where id = ${venueId}
+    returning name`;
+  if (!v) return { error: t("azione.locale_non_trovato") };
+
+  await sql`
+    insert into platform_events (venue_id, admin_id, admin_label, azione, dettaglio)
+    values (${venueId}, ${admin.userId}, ${admin.email}, 'commissione',
+            ${`${p}%${nota ? " — " + nota.slice(0, 200) : ""}`})`;
+
+  revalidatePath("/admin");
+  return {
+    ok:
+      p === 0
+        ? t("commissione.ok.zero", { nome: v.name })
+        : t("commissione.ok", { nome: v.name, percent: String(p) }),
+  };
+}

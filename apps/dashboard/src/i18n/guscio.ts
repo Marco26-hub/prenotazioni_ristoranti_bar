@@ -39,7 +39,7 @@ const IT = {
   "vetrina.badge": "Per ristoranti e bar in Italia",
   "vetrina.titolo": "I tuoi clienti ordinano e pagano dal tavolo.",
   "vetrina.sottotitolo":
-    "Tu servi, non rincorri il POS. Menu QR, ordine, pagamento e prenotazioni — con il marchio del tuo locale. Le commissioni della carta le paghi al tuo fornitore, non a noi.",
+    "Tu servi, non rincorri il POS. Menu QR, ordine, pagamento e prenotazioni — con il marchio del tuo locale. Il fornitore di pagamento resta il tuo: il denaro arriva sul tuo conto senza passare da noi.",
   "vetrina.menu_vero": "Guarda un menu vero",
   "vetrina.prova.domanda": "Preferisci provare da solo?",
   "vetrina.prova.link": "Inizia {giorni} giorni gratis",
@@ -180,9 +180,9 @@ const IT = {
 
   // ---- Come si paga --------------------------------------------------
   "vetrina.pagamenti.titolo": "Come si paga davvero",
-  "vetrina.pagamenti.forte": "Noi non prendiamo nulla sui tuoi incassi.",
+  "vetrina.pagamenti.forte": "Il denaro non passa da noi.",
   "vetrina.pagamenti.uno":
-    "Le commissioni della carta le paghi al tuo fornitore di pagamento, non a noi, e il denaro arriva sul tuo conto senza passare da noi.",
+    "I pagamenti con carta arrivano sul tuo conto Stripe dal primo istante, e le commissioni della carta le paghi al tuo fornitore: se domani spegniamo tutto, il tuo conto non si blocca. Sui piani a canone pieno non tratteniamo nulla in più; dove concordiamo una percentuale la trovi scritta nella tua pagina Abbonamento, prima di firmare.",
   "vetrina.pagamenti.due":
     "Chi ti offre un canone basso e una percentuale unica sta incassando lui e girandoti il resto. A volte quella percentuale conviene, soprattutto con volumi bassi. Quello che perdi è il rapporto diretto: non puoi negoziare la tariffa, non puoi cambiare fornitore senza cambiare gestionale, e il giorno che cresci la percentuale cresce con te.",
   "vetrina.pagamenti.tre":
@@ -373,7 +373,7 @@ const EN: Speculare<typeof IT> = {
   "vetrina.badge": "For restaurants and bars in Italy",
   "vetrina.titolo": "Your guests order and pay from the table.",
   "vetrina.sottotitolo":
-    "You serve, instead of chasing the card machine. QR menu, ordering, payment and bookings — under your own branding. Card fees you pay to your provider, not to us.",
+    "You serve, instead of chasing the card machine. QR menu, ordering, payment and bookings — under your own branding. The payment provider stays yours: the money reaches your account without passing through us.",
   "vetrina.menu_vero": "See a real menu",
   "vetrina.prova.domanda": "Would you rather try it yourself?",
   "vetrina.prova.link": "Start {giorni} days free",
@@ -506,9 +506,9 @@ const EN: Speculare<typeof IT> = {
   "confronto.banco.altri": "Usually a separate system",
 
   "vetrina.pagamenti.titolo": "How you actually get paid",
-  "vetrina.pagamenti.forte": "We take nothing out of your takings.",
+  "vetrina.pagamenti.forte": "The money does not pass through us.",
   "vetrina.pagamenti.uno":
-    "Card fees you pay to your own payment provider, not to us, and the money reaches your account without passing through us.",
+    "Card payments land in your own Stripe account from the first moment, and card fees you pay to your provider: if we switch everything off tomorrow, your account keeps working. On the full-fee plans we keep nothing on top; where we agree a percentage, you find it written on your Billing page before you sign.",
   "vetrina.pagamenti.due":
     "Anyone offering you a low subscription and a single percentage is taking the money in themselves and passing you the rest. Sometimes that percentage is worth it, especially at low volumes. What you lose is the direct relationship: you cannot negotiate the rate, you cannot change provider without changing back office, and the day you grow the percentage grows with you.",
   "vetrina.pagamenti.tre":

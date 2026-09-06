@@ -164,6 +164,18 @@ const IT = {
   "password.salva": "Salva password",
 
   // Esiti delle azioni
+  // La commissione di piattaforma. La scrive chi vende, non il ristoratore:
+  // è una condizione commerciale, e il locale se la vedrà sul suo Stripe.
+  "commissione.titolo": "Commissione sui pagamenti con carta",
+  "commissione.nota":
+    "Quanto tratteniamo su ogni pagamento con carta fatto dal telefono del cliente. Zero = non tratteniamo nulla. Non vale per Satispay né per quello che il locale incassa al banco col proprio POS.",
+  "commissione.campo": "Percentuale trattenuta",
+  "commissione.salva": "Salva la commissione",
+  "commissione.avviso":
+    "Sopra lo zero, il ristoratore vede questa voce sul suo estratto conto Stripe: va scritta nel contratto, o la scopre da solo.",
+  "commissione.errore.valore": "Percentuale non valida (0-10)",
+  "commissione.ok": "{nome}: tratteniamo il {percent}% sui pagamenti con carta.",
+  "commissione.ok.zero": "{nome}: non tratteniamo nulla sui pagamenti.",
   "azione.locale_non_trovato": "Locale non trovato",
   "azione.locale": "Locale",
   "azione.stato_non_valido": "Stato non valido",
@@ -322,6 +334,16 @@ const EN: Speculare<typeof IT> = {
   "password.salvataggio": "Saving…",
   "password.salva": "Save password",
 
+  "commissione.titolo": "Commission on card payments",
+  "commissione.nota":
+    "How much we keep on each card payment made from the guest\u2019s phone. Zero = we keep nothing. It does not apply to Satispay, nor to what the venue takes at the counter on its own card machine.",
+  "commissione.campo": "Percentage kept",
+  "commissione.salva": "Save commission",
+  "commissione.avviso":
+    "Above zero, the restaurateur sees this line on their own Stripe statement: put it in the contract, or they find it on their own.",
+  "commissione.errore.valore": "That percentage isn\u2019t valid (0-10)",
+  "commissione.ok": "{nome}: we keep {percent}% on card payments.",
+  "commissione.ok.zero": "{nome}: we keep nothing on payments.",
   "azione.locale_non_trovato": "Venue not found",
   "azione.locale": "Venue",
   "azione.stato_non_valido": "Invalid status",

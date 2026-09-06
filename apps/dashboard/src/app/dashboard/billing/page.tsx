@@ -11,15 +11,6 @@ export default async function BillingPage() {
   const lingua = await linguaUtente();
   const t = tSoldi(lingua);
 
-  const INCLUSO = [
-    t("abbonamento.incluso.menu"),
-    t("abbonamento.incluso.ordine"),
-    t("abbonamento.incluso.prenotazioni"),
-    t("abbonamento.incluso.marchio"),
-    t("abbonamento.incluso.fattura"),
-    t("abbonamento.incluso.accessi"),
-    t("abbonamento.incluso.percentuale"),
-  ];
 
   // Le etichette dello stato: i valori a database restano none/trialing/…
   const STATO: Record<string, string> = {
@@ -54,12 +45,39 @@ export default async function BillingPage() {
       subscription_period_end: Date | null;
       billing_customer_id: string | null;
       subscription_id: string | null;
+      commissione_percent: string;
     }[]
   >`select subscription_status, subscription_plan, subscription_period_end,
-           billing_customer_id, subscription_id
+           billing_customer_id, subscription_id, commissione_percent
       from venues where id = ${venue.venueId}`;
 
+  /*
+   * Quanto tratteniamo su questo locale, se tratteniamo qualcosa.
+   *
+   * Serve perché questa pagina diceva a tutti «noi non tratteniamo nulla sul
+   * tuo incassato» mentre il codice ne prendeva l'1,5%. Il ristoratore lo
+   * scopriva sul suo estratto conto Stripe: la voce c'era e la frase diceva
+   * che non poteva esserci. Adesso la pagina legge il valore vero, e le due
+   * frasi cambiano di conseguenza — su questo si può discutere il prezzo, non
+   * il fatto che sia scritto.
+   */
+  const commissione = Number(row?.commissione_percent ?? 0);
+  const trattenuta = Number.isFinite(commissione) && commissione > 0;
+
   const status = row?.subscription_status ?? "none";
+
+  const INCLUSO = [
+    t("abbonamento.incluso.menu"),
+    t("abbonamento.incluso.ordine"),
+    t("abbonamento.incluso.prenotazioni"),
+    t("abbonamento.incluso.marchio"),
+    t("abbonamento.incluso.fattura"),
+    t("abbonamento.incluso.accessi"),
+    trattenuta
+      ? t("abbonamento.incluso.percentuale.si", { percent: String(commissione) })
+      : t("abbonamento.incluso.percentuale"),
+  ];
+
   const entitled = isEntitled(status, row?.subscription_period_end ?? null);
   const periodEnd = row?.subscription_period_end
     ? t.data(row.subscription_period_end, "lunga")
@@ -120,7 +138,11 @@ export default async function BillingPage() {
               <li key={v}>— {v}</li>
             ))}
           </ul>
-          <p className="mt-3 text-muted">{t("abbonamento.iva")}</p>
+          <p className="mt-3 text-muted">
+            {trattenuta
+              ? t("abbonamento.iva.commissione", { percent: String(commissione) })
+              : t("abbonamento.iva")}
+          </p>
         </section>
       </main>
     </LinguaProvider>
