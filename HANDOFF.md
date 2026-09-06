@@ -11,10 +11,21 @@ Ultimo aggiornamento: 6 settembre 2026.
 
 ---
 
-## 0. Cosa è cambiato in quest'ultima sessione
+## 0. Le ultime sessioni, in ordine
 
-Elencato qui perché è la parte che cambia il lavoro di chi riprende in mano
-il progetto. Il resto del documento è già aggiornato di conseguenza.
+Le sessioni recenti stanno in fondo al documento, dalla più vecchia alla più
+nuova. **Parti dall'ultima**: è quella che cambia di più il lavoro di chi
+riprende adesso.
+
+| Quando | Cosa |
+|---|---|
+| [4 settembre](#4-settembre-2026--formula-a-prezzo-fisso-banco-prenotazioni-complete) | Formula a prezzo fisso, numeri di ritiro al banco, prenotazioni complete, recensioni dal tavolo |
+| [5 settembre](#5-settembre-2026--postazioni-formati-registratore) | Postazioni scelte dal locale, formati che portano il modo di lavorare, registratore telematico |
+| [6 settembre](#6-settembre-2026--italiano-e-inglese-e-cinque-buchi-dellall-you-can-eat) | **Italiano e inglese ovunque**, cinque difetti dell'all you can eat, i coperti chiesti al tavolo |
+
+Quello che segue qui sotto è il dettaglio della sessione del **4 settembre**,
+tenuto perché descrive per esteso la formula a prezzo fisso — che è la cosa
+su cui poggia tutto il resto.
 
 ### Formule di vendita nuove
 
@@ -191,17 +202,24 @@ non è più un segreto. Anche queste credenziali si chiedono a voce.
 
 ### Variabili d'ambiente da non dimenticare
 
-Impostate su Vercel, non nei file. Quelle che, mancando, non danno errore
-ma spengono qualcosa in silenzio:
+Impostate su Vercel, non nei file.
+
+**Quella che rompe tutto, e va messa per prima:**
+
+| Variabile | Progetto | Se manca |
+|---|---|---|
+| `ENCRYPTION_KEY` | entrambi | **Non degrada: lancia.** È la chiave AES-256-GCM con cui sono cifrati tutti i segreti dei locali — chiave privata Satispay, credenziali fatture, token Tilby, OpenRouter, la Resend del locale. `key()` in `packages/shared/crypto.ts` fa `throw new Error("ENCRYPTION_KEY mancante")`, quindi saltano il pagamento Satispay, l'emissione della fattura elettronica, l'import del menu da Tilby e ogni salvataggio di segreto in Impostazioni. Come effetto secondario i rate limit diventano globali invece che per chiamante. **Non è in nessuno dei due `.env.example`**: chi si tira su l'ambiente locale copiandoli non ce l'ha. |
+
+**Quelle che, mancando, non danno errore ma spengono qualcosa in silenzio:**
 
 | Variabile | Progetto | Se manca |
 |---|---|---|
 | `CRON_SECRET` | guest | Il promemoria del giorno prima non parte. **Impostata il 4 settembre 2026.** L'endpoint rifiuta e lo scrive nei log. |
 | `NEXT_PUBLIC_APP_URL` | guest | I link di disdetta nelle email puntano altrove. Impostata. |
-| `GUEST_APP_URL` | dashboard | I QR per la tipografia punterebbero a `localhost`. Da settembre 2026 la pagina si rifiuta di generarli e lo dice. |
+| `APP_URL` | dashboard | Ripiega **in silenzio** su `http://localhost:3011`, anche in produzione. Finisce nei `return_url`/`refresh_url` dell'onboarding Stripe Connect e negli indirizzi di ritorno dell'abbonamento: il ristoratore completa la procedura su Stripe e viene rimandato su un indirizzo che dal suo computer non esiste. È la stessa trappola di `GUEST_APP_URL`, senza la protezione che `GUEST_APP_URL` ha guadagnato a settembre. |
+| `GUEST_APP_URL` | dashboard | I QR per la tipografia punterebbero a `localhost`. Da settembre 2026 la pagina si rifiuta di generarli e lo dice — è l'unica delle tre a difendersi. Serve **anche in locale**: senza, la pagina QR non si può provare. |
 | `RESEND_API_KEY`, `RESEND_FROM` | entrambi | Nessuna email parte. **Ancora da impostare.** |
 | `INVOICETRONIC_WEBHOOK_SECRET` | guest | Le fatture restano su «Inviata a SDI» per sempre. La lista ora segnala quelle ferme da oltre due giorni. |
-| `ENCRYPTION_KEY` | entrambi | I rate limit diventano globali invece che per chiamante, e lo scrive nei log. |
 
 ---
 
@@ -245,9 +263,10 @@ rinomina, disattivazione. Il prezzo si modifica direttamente dalla riga;
 ritoccare. L'inserimento rapido distingue chiaramente nome, prezzo e categoria.
 Import da CSV/TSV e dal listino Tilby.
 
-**Modelli per formato di locale.** Undici formati — ristorante, pizzeria,
-pizza al trancio, piadineria, steak house, paninoteca, hamburgeria, bar,
-gintoneria, birreria, tisaneria — ognuno con le proprie categorie e i
+**Modelli per formato di locale.** Dodici formati — ristorante, pizzeria,
+pizza al trancio, **sushi / all you can eat**, piadineria, steak house,
+paninoteca, hamburgeria, bar, gintoneria, birreria, tisaneria — ognuno con
+le proprie categorie e i
 propri gruppi di scelte. Applicarne uno aggiunge solo ciò che manca: le
 categorie esistenti restano e un gruppo con lo stesso nome non viene
 sovrascritto, così cambiare idea sul formato non costa il lavoro fatto.
@@ -282,7 +301,12 @@ paga. Accenderlo senza aver indicato gli orari viene rifiutato.
 **Obblighi di legge sul menu.** Allergeni per piatto; stato di
 conservazione (fresco/congelato/surgelato/abbattuto) con asterisco e nota
 costruita su ciò che c'è davvero in carta; origine per la carne bovina;
-coperto e servizio mostrati **sul menu** e non solo in fondo al conto.
+coperto e servizio mostrati **sul menu del tavolo** e non solo in fondo al
+conto, citando il R.D. 635/1940 art. 180.
+
+> Da sistemare: la carta pubblica `/m/[slug]` — quella che a un controllo è
+> il listino esposto — **non** mostra coperto e servizio. Non li legge
+> nemmeno dal database. L'obbligo è soddisfatto solo dalla pagina del tavolo.
 
 **Orari e informazioni pratiche.** Testo libero, non una griglia di fasce:
 gli orari veri sono pieni di eccezioni che una struttura rigida
@@ -382,9 +406,20 @@ Dettaglio in [`docs/GDPR.md`](docs/GDPR.md).
 pnpm test:e2e
 ```
 
-I test end-to-end girano **contro la produzione**: creano un locale
-isolato, ordinano, pagano, chiudono e si ripuliscono. Vanno eseguiti con
-`DATABASE_URL` nell'ambiente.
+I test end-to-end creano un locale isolato, ordinano, pagano, chiudono e si
+ripuliscono. Vanno eseguiti con `DATABASE_URL` nell'ambiente — e, se si
+lavora in locale, con i due server già avviati.
+
+**Di default puntano al locale**, non alla produzione: `localhost:3010` e
+`localhost:3011`, e non c'è nessun `webServer` che li avvii al posto tuo.
+Lanciando `pnpm test:e2e` senza server accesi si raccolgono ottanta
+fallimenti di connessione, che sembrano un codice rotto e non lo sono.
+
+Per puntare alla produzione:
+
+```bash
+E2E_GUEST_URL=https://ristoranti-guest.vercel.app E2E_DASHBOARD_URL=https://ristoranti-dashboard.vercel.app pnpm test:e2e
+```
 
 ### Percorsi cliente
 
@@ -425,11 +460,21 @@ In ordine di quanto bloccano una vendita in Italia:
 
 1. **Buoni pasto** (Pellegrini, Edenred, Ticket). Blocca il pranzo, che in
    Italia è un mercato enorme. Ce l'hanno Nexi e Qromo.
-2. **Scontrino fiscale e corrispettivi telematici.** Il locale deve
-   continuare a battere sulla propria cassa: doppia battuta. È la prima
-   obiezione che farà un ristoratore, e va detta in fase di vendita invece
-   di scoprirla dopo. Non esiste un collegamento universale: va integrato
-   un produttore o middleware fiscale certificato alla volta.
+2. **Scontrino fiscale e corrispettivi telematici — non più del tutto.**
+   Dal 5 settembre 2026 il collegamento al registratore esiste ed è cablato
+   da un capo all'altro: alla chiusura del conto — dallo staff, da Stripe e
+   da Satispay — viene accodato un documento commerciale
+   (`accodaDocumento` in `packages/shared/fiscale.ts`), che l'agente di
+   cassa ritira da `/api/rt/coda`, stampa e riporta su `/api/rt/esito`.
+   C'è anche la via manuale, per chi la stampante non la collega: la pagina
+   Corrispettivi mostra il riepilogo da battere a mano.
+
+   **Quello che manca è la prova su hardware vero.** I tre tracciati XML
+   (Epson, Custom, RCH) non hanno mai toccato una stampante, e l'agente
+   stesso lo dice in testa al file. Finché non è provato, in vendita va
+   detto che il locale continua a battere sulla propria cassa: **è vero
+   oggi, e prometterlo diversamente è la cosa che fa perdere un cliente al
+   primo controllo.**
 3. **Comanda presa dal cameriere.** Oggi ordina solo il cliente. Non tutti
    scansionano il QR.
 4. **Asporto e delivery.** Richiesta frequentissima.
@@ -469,12 +514,16 @@ In ordine di quanto bloccano una vendita in Italia:
   **Finché è pubblico vale la regola di sempre: nessuna password, nessuna
   chiave, nessun segreto nei file committati.** Un segreto finito qui per
   sbaglio va considerato bruciato e ruotato, non solo rimosso.
-- **Suite E2E: 46 test contro la produzione**, con un locale per test. Coprono
-  ordine e pagamento, permessi di ruolo e di reparto, trattenute, chiamate dal
-  tavolo, formula a prezzo fisso, intervallo fra le ordinazioni, rifiuto
-  dell'incasso con carta in volo, disdetta, promemoria, assistenza andata e
-  ritorno. **Non** coprono: numeri di ritiro al banco, recensioni, pannello di
-  piattaforma oltre le guardie di accesso.
+- **Suite E2E: 80 test su 14 file**, con un locale per test — ayce 3, conto
+  11, coperti 5, dashboard 8, fatturapa 2, formati 7, formula 4, gestione 5,
+  guest 9, lingue 7, permessi 6, piattaforma 5, promemoria 3, servizio 5.
+  Nessuno saltato, nessuno isolato. Coprono ordine e pagamento, permessi di
+  ruolo e di reparto, trattenute, chiamate dal tavolo, formula a prezzo
+  fisso, coperti dichiarati e confermati, intervallo fra le ordinazioni,
+  rifiuto dell'incasso con carta in volo, disdetta, promemoria, formati di
+  locale, lingue, pannello di piattaforma, assistenza andata e ritorno.
+  **Non** coprono: numeri di ritiro al banco, recensioni, e il tracciato XML
+  del registratore su hardware vero.
 - **La suite ha bisogno di rete stabile verso Neon.** Su una linea che perde
   colpi i fallimenti si presentano come difetti dell'applicazione
   (`getaddrinfo ENOTFOUND`, o un'asserzione che scade): prima di indagare un
@@ -485,18 +534,23 @@ In ordine di quanto bloccano una vendita in Italia:
 - **Il numero di ritiro non ha un display pubblico.** La pagina Banco è dentro
   il gestionale e vuole un accesso: per metterla su uno schermo rivolto ai
   clienti serve una pagina pubblica in sola lettura, che oggi non c'è.
-- **Le recensioni non si possono rispondere né esportare**, e il link
-  pubblico è proposto ai soli cinque stelle per scelta del committente (vedi
-  sezione 0): è una posizione da rivedere se Google dovesse contestarla.
+- **Le recensioni non si possono rispondere né esportare.** E il link a
+  Google, *dentro il modulo di recensione*, è offerto ai soli cinque stelle
+  per scelta del committente: è una posizione da rivedere se Google dovesse
+  contestarla. Attenzione a non confonderla con l'altro bottone: sul conto
+  saldato il link compare a **tutti** quelli che hanno pagato, senza filtro.
 - **`pickup_metodi` non ha effetto sul cercapersone.** Il software dice quale
   numero far vibrare; non parla con l'hardware dei cercapersone, e non
   esiste uno standard per farlo.
-- **La formula a prezzo fisso è scritta due volte**: una nel conto del
-  cliente (`apps/guest/src/lib/balance.ts`), una dentro la transazione che
-  chiude il tavolo (`close-table-actions.ts`). Devono restare allineate: se
-  la seconda calcola meno, il tavolo non si chiude mai; se calcola di più, si
-  incassa più di quanto mostrato. Tre test E2E le tengono insieme, ma chi
-  tocca una deve toccare l'altra.
+- ~~La formula a prezzo fisso è scritta due volte~~ — **risolto il 4
+  settembre 2026.** L'aritmetica sta in un posto solo, `contoSessione()` in
+  `packages/shared/conto.ts`. `balance.ts` non calcola più niente: le sue
+  quattro funzioni sono firme sottili che chiamano tutte lì, tenute perché
+  mezza applicazione le chiama per nome. Chi tocca il conto tocca un file.
+
+  La regola che resta, ed è quella che conta: **se scrivi un secondo posto
+  dove si calcola il conto, i due divergeranno.** È già successo — la sala
+  diceva centosessantotto euro e la cassa ne registrava sessantaquattro.
 
 ---
 
@@ -530,7 +584,17 @@ contrario, sommando la loro percentuale a quella di Stripe. Era sbagliato.
 
 Quello che vendiamo davvero:
 
-- **Non tratteniamo nulla sull'incassato.** Il denaro non passa da noi.
+- **Il denaro non passa da noi.** I pagamenti con carta sono *direct charges*
+  sull'account Stripe del locale: l'incasso è suo dal primo istante, e se
+  domani ci spegniamo il suo conto non si blocca.
+- **Ma tratteniamo l'1,5%** su ogni pagamento con carta. Va detto, perché è
+  scritto nel codice e comparirà sul suo estratto conto Stripe:
+  `application_fee_amount: Math.round(amountCents * 0.015)` in
+  `apps/guest/src/app/api/payments/create-intent/route.ts`, sia sul conto
+  intero sia alla romana. Su Satispay non tratteniamo niente — quella via non
+  ha nessuna commissione di piattaforma. Nel codice il numero è marcato
+  «provvisorio»: **è una decisione commerciale mai presa davvero**, e va
+  presa prima del primo cliente vero, non dopo.
 - **Il fornitore di pagamento è del locale.** Può negoziare la tariffa,
   cambiarlo, o tenere il POS che ha già: nessun vincolo.
 - **White-label vero**, che sul mercato italiano quasi nessuno offre.
@@ -539,10 +603,22 @@ Quello che vendiamo davvero:
 
 Con volumi bassi la percentuale altrui può convenire. Dirlo in fase di
 vendita costa un cliente ogni tanto; non dirlo costa la fiducia di tutti al
-primo estratto conto.
+primo estratto conto. Vale per il canone e vale, allo stesso modo, per
+l'1,5%.
 
-I moduli non stanno nel codice: arrivano dai metadata del Price su Stripe,
-letti dal webhook. Cambiare listino non richiede un deploy.
+**Il confronto qui sopra va rifatto con quell'1,5% dentro.** Su trentamila
+euro al mese sono 450 € di commissione nostra, che vanno sommati ai 139 € di
+canone: siamo intorno ai 589 € più quello che il locale paga a Stripe,
+contro i 459 € attribuiti al concorrente. Il paragrafo si intitola «Come si
+posiziona, onestamente» e quel numero, come sta scritto sopra, onesto non è.
+
+I moduli **stanno anche nel codice**, e questo limita quanto si può cambiare
+senza un rilascio. `packages/shared/plans.ts` definisce il tipo `Modulo` e
+l'array `PLANS`, e `startSubscription` accetta solo le chiavi che ci trova
+dentro: un piano nuovo inventato su Stripe non si può sottoscrivere finché
+`PLANS` non lo conosce. I metadata del Price servono al webhook per sapere
+quali moduli concedere a un abbonamento già acceso — sono la seconda metà del
+meccanismo, non tutto il meccanismo.
 
 ### 6.1 Stripe: cosa c'è già
 
@@ -564,47 +640,94 @@ generato dai dati reali dell'account:
 {"ordini-mensile":"price_1UBKQgGlajKIILdUKWYC9O8B","ordini-annuale":"price_1UBKQhGlajKIILdU9K2HuvM7","prenotazioni-mensile":"price_1UBLC4GlajKIILdUrycQZjo4","prenotazioni-annuale":"price_1UBLC4GlajKIILdUxIllwjEd","completo-mensile":"price_1UBKQjGlajKIILdUjkKrWC8P","completo-annuale":"price_1UBKQjGlajKIILdUkuZSfQus","setup":"price_1UBKP1GlajKIILdUNJl7eGQ5","setup-prenotazioni":"price_1UBLBsGlajKIILdUlDxDXtn0"}
 ```
 
-I moduli che un piano concede stanno nei **metadata del prezzo** (`moduli`),
-letti dal webhook degli abbonamenti: cambiando il listino su Stripe non
-serve toccare il codice, ma un prezzo senza metadata non concede niente.
+I moduli che un abbonamento concede stanno nei **metadata del prezzo**
+(`moduli`), letti dal webhook degli abbonamenti: un prezzo senza metadata non
+concede niente. Ma i piani *acquistabili* restano quelli di
+`packages/shared/plans.ts`, quindi aggiungerne uno nuovo richiede comunque un
+rilascio — cambiare *prezzo* a un piano esistente no.
+
+**Non documentato altrove, e va documentato: la commissione di piattaforma
+dell'1,5%** applicata in `create-intent` su ogni pagamento con carta, e solo
+su quelli — Satispay ne è fuori. Nel codice è marcata «provvisorio»: nessuno
+ha mai deciso quel numero, ed è il margine su cui poggia tutto il modello
+oltre al canone.
 
 ---
 
 ## 7. Attivare un locale nuovo
 
+**Prima di seguire questa lista, apri il gestionale su *Primi passi***
+(`/dashboard/avvio`). Legge lo stato vero di quel locale e dice cosa manca,
+in che ordine, e cosa può aspettare: cinque voci sotto «Senza queste non si
+apre» — dati, menu, allergeni, tavoli, come incassi — e quattro sotto «Poi,
+appena puoi». La lista qui sotto è il promemoria di chi vende; quella è la
+verità su quel locale.
+
 1. Registrazione da `/registrati` — crea locale, tavoli e categorie, e fa
    accettare l'accordo art. 28.
-2. **Impostazioni**: dati fiscali completi (senza, l'informativa privacy
+2. **Dagli l'abbonamento dal pannello di piattaforma** (`/admin`), oppure
+   fallo abbonare. **Senza questo passo non si va avanti**: un locale appena
+   registrato nasce con `subscription_status = 'none'` e nessun modulo,
+   quindi la navigazione non mostra Menu, QR e tavoli, Ordini, Tavoli,
+   Analisi, Fatture — cioè quasi tutti i passi che seguono. Da lì si sceglie
+   anche il **tipo di locale**, che decide il modello di menu proposto.
+3. **Impostazioni**: dati fiscali completi (senza, l'informativa privacy
    mostrata ai clienti è incompleta e il gestionale lo segnala), logo,
-   colori, coperto e servizio se applicati.
-3. **Menu**: parti dal modello del tuo formato in fondo alla pagina Menu —
+   colori, coperto e servizio se applicati. E la **lingua**: quella con cui
+   il ristoratore vede il gestionale, e quella con cui si aprono le sue
+   pagine pubbliche quando il telefono del cliente non dice niente di utile.
+4. **Menu**: parti dal modello del tuo formato in fondo alla pagina Menu —
    crea categorie e scelte tipiche e ti elenca gli obblighi di quel
    formato. Poi import da file o inserimento. Allergeni su ogni piatto:
    sono obbligatori. Conservazione diversa da "fresco" dove serve.
-4. **Stripe**: *Impostazioni → Connetti Stripe*. Serve documentazione
-   dell'attività e IBAN; la verifica non è immediata.
-5. **QR**: da *QR e tavoli*, una locandina A6 per tavolo, pronta per la
+5. **Come incassa.** Due vie, e valgono uguale — «Primi passi» considera il
+   passo fatto con l'una o con l'altra:
+   - **Stripe**: *Impostazioni → Connetti Stripe*. Serve documentazione
+     dell'attività e IBAN; la verifica non è immediata. È l'unica via su cui
+     tratteniamo l'1,5% (vedi §6).
+   - **Satispay**: *Impostazioni → Satispay*, una sezione più sotto. Serve
+     solo un account Satispay Business e un codice di attivazione, senza
+     istruttoria. **Per un locale che apre fra tre giorni è spesso l'unica
+     via percorribile**, e nessuna commissione di piattaforma.
+6. **QR**: da *QR e tavoli*, una locandina A6 per tavolo, pronta per la
    tipografia.
-6. **Prenotazioni**, se acquistate: indirizzo che riceve le richieste e
+7. **Prenotazioni**, se acquistate: indirizzo che riceve le richieste e
    capienza. Senza capienza la conferma automatica resta disattivabile,
    di proposito.
-7. **Orari**, sempre: compaiono sulle pagine pubbliche e sono la prima cosa
+8. **Orari**, sempre: compaiono sulle pagine pubbliche e sono la prima cosa
    che le persone cercano.
-8. **Formula a prezzo fisso**, se il locale lavora ad all you can eat:
+9. **Formula a prezzo fisso**, se il locale lavora ad all you can eat:
    *Impostazioni → Formula a prezzo fisso*. Prezzo di pranzo e di cena, da
    che ora vale la cena, tariffa bambini, supplemento per l'avanzato. Poi
    spunta **Fuori formula** sulle voci che restano a pagamento — dolci,
-   caffè, amari, bevande, premium — o finiranno comprese. Con la formula
-   accesa compare anche l'**attesa fra le ordinazioni**: senza, un tavolo da
-   sei manda ottanta piatti in tre minuti.
-9. **Numeri di ritiro**, se consegna al bancone e non al tavolo:
+   caffè, amari, bevande, premium — o finiranno comprese. Applicando il
+   modello «Sushi / All you can eat» le spunte su Dolci e Bevande arrivano
+   già fatte.
+
+   Due cose stanno **altrove**, e vanno dette al ristoratore lo stesso:
+   - l'**attesa fra le ordinazioni** è in *Impostazioni → Coperto e
+     servizio*, sempre visibile e slegata dalla formula. Senza, un tavolo da
+     sei manda ottanta piatti in tre minuti.
+   - **quando un tavolo riparte da zero** (`sessione_max_ore`, sei ore di
+     partenza). Chi fa due turni deve metterlo sotto la distanza fra l'uno e
+     l'altro, o il secondo turno eredita il conto del primo — e a prezzo
+     fisso paga una formula per dodici persone.
+
+   E la cosa che cambia il lavoro di sala: **su un tavolo a formula i coperti
+   vanno confermati**, o quel tavolo non può pagare con carta. Vedi «Cosa
+   cambia nel lavoro di sala» nella sessione del 6 settembre.
+10. **Numeri di ritiro**, se consegna al bancone e non al tavolo:
    *Impostazioni → Numeri di ritiro*. Accendili e scegli come avvisi —
    segnaposto, cercapersone, telefono, anche più d'uno. Compare la pagina
    **Banco** per lo schermo dietro al bancone. Accenderli senza scegliere un
    modo viene rifiutato: il cliente avrebbe un numero che nessuno chiama.
-10. **Link recensioni**: *Impostazioni → Marchio*, il campo del profilo
-    pubblico. Viene proposto a fine pasto a chi lascia cinque stelle.
-11. Facoltativi e a consumo, su chiave OpenRouter del locale: **schede vino
+11. **Link recensioni**: *Impostazioni → Marchio*, il campo del profilo
+    pubblico. Compare **a tutti** i clienti che hanno pagato, sul conto
+    saldato. Il filtro a cinque stelle è un'altra cosa: vale nel modulo di
+    recensione interno, dove il link a Google si offre solo a chi ha dato
+    cinque stelle e agli altri si chiede il perché. Chi vende deve tenerle
+    distinte, perché sono due comportamenti diversi sulla stessa pagina.
+12. Facoltativi e a consumo, su chiave OpenRouter del locale: **schede vino
     da foto** e **assistente**. Entrambi spenti finché non li accende lui.
 
 ---
@@ -617,6 +740,14 @@ serve toccare il codice, ma un prezzo senza metadata non concede niente.
   di far provare il sistema a un ristoratore
 - [`docs/Presentazione-ristoratori.pdf`](docs/Presentazione-ristoratori.pdf)
   — spiegazione per chi acquista
+- [`docs/GO-LIVE.md`](docs/GO-LIVE.md) — **leggilo per primo se qualcosa non
+  incassa o non manda email.** È l'elenco dei collegamenti che passano da
+  chiavi del titolare, con lo stato verificato: al 6 settembre 2026 le chiavi
+  Stripe sono **ancora in test** (nessun euro si muove, e il conto risulta
+  saldato lo stesso) e **`RESEND_API_KEY` non esiste** su nessuno dei due
+  progetti (nessuna email parte, e non lo dice nessuno a schermo).
+- [`docs/LINGUE.md`](docs/LINGUE.md) — come si sceglie la lingua, cosa non si
+  traduce e perché, e la differenza fra le due traduzioni
 
 ---
 
@@ -631,9 +762,13 @@ il tavolo si libera. Quello che il locale continua a fare da sé è battere
 lo scontrino fiscale: è la **doppia battuta**, ed è la prima obiezione che
 farà. Va detta in fase di vendita, non scoperta dopo.
 
-Stripe Connect resta necessario solo per il pagamento *dal telefono del
-cliente*. Un locale che non lo vuole compra comunque menu, ordine e
-prenotazioni.
+Per il pagamento *dal telefono del cliente* servono Stripe **oppure**
+Satispay: sono due vie complete e indipendenti, ognuna con la sua rotta, il
+suo webhook e il suo bottone nel conto. Un locale che non vuole
+l'istruttoria di Stripe Connect può incassare da telefono con la sola
+Satispay — e senza la nostra commissione dell'1,5%, che si applica solo alla
+via Stripe. Chi non vuole né l'una né l'altra compra comunque menu, ordine e
+prenotazioni, e incassa come ha sempre fatto.
 
 ---
 
@@ -768,7 +903,7 @@ sono passate proprio così: gli stati `pending`/`declined` delle prenotazioni
 
 ---
 
-## 6 settembre 2026 — italiano e inglese, e tre buchi dell'all you can eat
+## 6 settembre 2026 — italiano e inglese, e cinque buchi dell'all you can eat
 
 ### Il software parla due lingue
 
@@ -815,13 +950,13 @@ controllo.
 
 Dettagli in `docs/LINGUE.md`. Collaudo in `e2e/lingue.spec.ts`.
 
-### Tre cose che si rompevano solo in un all you can eat
+### Cinque cose che si rompevano solo in un all you can eat
 
 Trovate mettendo il prodotto contro un profilo preciso — sushi a prezzo
 fisso, quaranta coperti, due turni, ottanta piatti a tavolo, due reparti che
 lavorano lo stesso tavolo — invece che contro il codice in astratto. Nessuna
-delle tre si presenta in una trattoria da venti coperti, ed è per questo che
-erano rimaste lì.
+delle cinque si presenta in una trattoria da venti coperti, ed è per questo
+che erano rimaste lì.
 
 **1. La stampa comande accumulava per sempre.** Chiudere il conto chiude la
 sessione ma non porta le righe a `served`, e in tutto il progetto nessuno le
@@ -839,28 +974,29 @@ gestione familiare — e il filtro spariva: il bottone diceva 4 e ne spostava
 9. Ora il reparto **dello schermo** viaggia fino alla query, e resta separato
 da `venue_staff.reparti`, che è autorizzazione. Sono due domande diverse.
 
-**3. A prezzo fisso il conto poteva nascere sbagliato in due modi.**
+**3. I coperti nascevano a uno, e a prezzo fisso i coperti sono il conto.**
+Nascono a uno perché la sessione la apre il cliente inquadrando il QR, prima
+che qualcuno del personale la guardi. Alla carta muovono il solo coperto; a
+formula sono *tutto* il conto — un tavolo da sei pagava venticinque euro
+invece di centocinquanta. E un tavolo da uno esiste davvero, quindi
+`guest_count = 1` non distingue il non dichiarato dal reale: serve
+`coperti_confermati`. Finché la sala non conferma, il cliente non vede un
+totale e non può pagare con carta — legge che lo conferma il personale, e il
+tasto contanti resta, perché quello chiama il cameriere, che è proprio
+quello che serve. Il blocco è **anche nelle rotte di pagamento**, non solo
+nel bottone: sono POST pubblici come tutti gli altri.
 
-- I **coperti** nascono a 1, perché la sessione la apre il cliente inquadrando
-  il QR prima che qualcuno del personale la guardi. Alla carta muovono il solo
-  coperto; a formula sono *tutto* il conto — un tavolo da sei pagava
-  venticinque euro invece di centocinquanta. E un tavolo da uno esiste
-  davvero, quindi `guest_count = 1` non distingue il non dichiarato dal
-  reale: serve `coperti_confermati`. Finché la sala non conferma, il cliente
-  non vede un totale e non può pagare con carta — vede scritto che lo
-  conferma il personale, e il tasto contanti resta, perché quello chiama il
-  cameriere, che è proprio quello che serve. Il blocco è **anche nelle rotte
-  di pagamento**, non solo nel bottone: sono POST pubblici come tutti gli
-  altri.
-- La **fascia** pranzo/cena si decideva dall'ora di apertura senza appello. Il
-  tavolo seduto alle 18:30 dove la cena parte alle 19 pagava il pranzo per
-  tutta la sera: su quattro persone con dieci euro di differenza, quaranta
-  euro a tavolo. L'orario resta il predefinito ed è giusto quasi sempre, ma
-  ora `table_sessions.fascia` lo corregge.
+**4. La fascia pranzo/cena si decideva dall'ora di apertura, senza appello.**
+Il tavolo seduto alle 18:30 dove la cena parte alle 19 pagava il pranzo per
+tutta la sera: su quattro persone, con dieci euro di differenza fra le due
+fasce, sono quaranta euro a tavolo. L'orario resta il predefinito ed è
+giusto quasi sempre, ma ora `table_sessions.fascia` lo corregge dalla card
+del tavolo.
 
-Migrazione 063. Provati sul codice vero e sul database vero, non a memoria.
+Il 3 e il 4 stanno nella migrazione 063, e sono stati provati sul codice
+vero e sul database vero, non a memoria.
 
-**4. E una quarta, che era una decisione presa da noi al posto del cliente.**
+**5. E una decisione presa da noi al posto del cliente.**
 `venues.sessione_max_ore` diceva da sempre sei ore e non c'era modo di
 cambiarlo da nessuna schermata. Un tavolo lasciato aperto resta lo stesso
 conto: chi inquadra il QR dopo si aggiunge a quello di prima. Sei ore vanno
@@ -925,6 +1061,64 @@ Non è pignoleria: a prezzo fisso i coperti *sono* il conto, e chiuso il conto
 quel numero entra nel documento commerciale e non torna più indietro. Il tasto
 contanti resta sempre attivo, perché quello chiama il cameriere — che è
 esattamente quello che serve.
+
+### Questo è online, non solo scritto
+
+Commit `908dfbb` su `main`, 223 file. Le due applicazioni sono state
+ricostruite e rilasciate su Vercel, e **gli 80 test end-to-end sono stati
+rifatti contro la produzione**, non contro il locale: 80 su 80, nove minuti
+e mezzo.
+
+Le migrazioni **061-064 sono già applicate** al database di produzione:
+`node db/migrate.mjs` non ha più niente da fare, e `node db/confronta.mjs`
+dice identici su colonne, indici e vincoli. Chi riprende non deve applicare
+niente.
+
+Verificato sugli indirizzi veri:
+
+| Richiesta | Cosa risponde la produzione |
+|---|---|
+| `Accept-Language: en-GB` | `<html lang="en">`, «Terms of service», «Sign in» |
+| `Accept-Language: it-IT` | `<html lang="it">`, «Termini di servizio», «Accedi» |
+
+**Quello che NON è cambiato, ed è ancora quello che separa dal primo euro:**
+le chiavi Stripe sono ancora quelle di **test** su tutti e due i progetti, e
+`RESEND_API_KEY` **non esiste** su nessuno dei due. Quindi: chi paga al
+tavolo non muove un euro e il conto risulta saldato lo stesso, e non parte
+nessuna email — né conferma prenotazione, né promemoria, né copia fattura.
+Sono due valori da incollare su Vercel, e stanno in `docs/GO-LIVE.md` con i
+passaggi e le verifiche.
+
+### Il documento riletto contro il codice, e cosa ne è uscito
+
+Dopo i 223 file di questa sessione la parte di riferimento (sezioni 1-9) è
+stata riletta riga per riga contro il codice, non a memoria. Venti
+affermazioni sono risultate false o scadute e sono state corrette qui dentro:
+il numero dei formati (dodici, non undici, e mancava proprio il sushi), il
+numero dei test (ottanta, non quarantasei), il registratore telematico
+elencato fra le cose che non abbiamo, la formula «scritta due volte» che è
+scritta una sola da settembre, i test dati per «contro la produzione» quando
+di default puntano al locale, e la procedura di attivazione a cui mancava il
+passo senza il quale non se ne fa nessun altro — dare l'abbonamento, perché
+un locale appena registrato non vede nemmeno la voce Menu.
+
+**Ma la cosa più importante che è uscita non è un refuso, ed è una decisione
+che aspetta il committente.**
+
+Il documento diceva, fra gli argomenti di vendita: «Non tratteniamo nulla
+sull'incassato». Non è vero. Il codice trattiene **l'1,5% su ogni pagamento
+con carta** — `application_fee_amount: Math.round(amountCents * 0.015)` in
+`apps/guest/src/app/api/payments/create-intent/route.ts`, sia sul conto
+intero sia alla romana — e nel codice quel numero è marcato «provvisorio».
+
+Quindi: nessuno l'ha mai deciso davvero, e nel frattempo era diventato una
+frase da dire ai clienti che il codice smentiva. Su trentamila euro al mese
+sono 450 € che il ristoratore vede sul suo estratto conto Stripe senza che
+gliel'abbia detto nessuno.
+
+**Va deciso prima del primo cliente vero**: o si tiene e si mette nel
+listino, o si toglie dal codice. Le due cose che non si possono fare sono
+lasciarlo lì senza dirlo, e dire che non c'è.
 
 ### Una trappola per chi scriverà i prossimi test
 
