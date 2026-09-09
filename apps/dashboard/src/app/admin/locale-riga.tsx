@@ -45,9 +45,12 @@ export interface LocaleAdmin {
 
 // A sinistra il valore a database, a destra la chiave del dizionario: il
 // valore non si tocca, l'etichetta si traduce.
-const MODULI: Array<[string, "modulo.ordini" | "modulo.prenotazioni"]> = [
+const MODULI: Array<
+  [string, "modulo.ordini" | "modulo.prenotazioni" | "modulo.ritiro"]
+> = [
   ["ordini", "modulo.ordini"],
   ["prenotazioni", "modulo.prenotazioni"],
+  ["ritiro", "modulo.ritiro"],
 ];
 
 type ChiaveStato =

@@ -25,6 +25,11 @@ const IT = {
   "sala.riepilogo.coperti.uno": "{n} coperto",
   "sala.riepilogo.coperti.molti": "{n} coperti",
   "sala.riepilogo.incasso": "da incassare",
+  "sala.schede.titolo": "Situazione tavoli",
+  "sala.schede.attivi": "Occupati ({n})",
+  "sala.schede.tutti": "Tutti ({n})",
+  "sala.schede.nessun_attivo":
+    "Nessun tavolo occupato. La pianta sopra resta disponibile per aprire e disporre tutti i tavoli.",
 
   // --- La scheda del tavolo -----------------------------------------
   "tavolo.posti.uno": "{n} posto",
@@ -80,9 +85,12 @@ const IT = {
   // --- La pianta della sala -----------------------------------------
   "pianta.sala": "Sala:",
   "pianta.sala.tutte": "Tutte",
+  "pianta.sala.principale": "Sala principale",
   "pianta.disponi": "Disponi la sala",
   "pianta.disponi.fine": "Fine disposizione",
   "pianta.aggiungi": "+ Aggiungi tavolo",
+  "pianta.riordina": "Riordina T1, T2, T3",
+  "pianta.riordinata": "{sala} riordinata da T1 in avanti. Salva per confermare.",
   "pianta.non_salvate": "Modifiche non salvate",
   "pianta.salva": "Salva disposizione",
   "pianta.salvando": "Salvo…",
@@ -338,6 +346,11 @@ const EN: Speculare<typeof IT> = {
   "sala.riepilogo.coperti.uno": "{n} cover",
   "sala.riepilogo.coperti.molti": "{n} covers",
   "sala.riepilogo.incasso": "left to collect",
+  "sala.schede.titolo": "Table status",
+  "sala.schede.attivi": "Occupied ({n})",
+  "sala.schede.tutti": "All ({n})",
+  "sala.schede.nessun_attivo":
+    "No occupied tables. The floor plan above remains available to open and arrange every table.",
 
   "tavolo.posti.uno": "{n} seat",
   "tavolo.posti.molti": "{n} seats",
@@ -382,9 +395,12 @@ const EN: Speculare<typeof IT> = {
 
   "pianta.sala": "Room:",
   "pianta.sala.tutte": "All",
+  "pianta.sala.principale": "Main room",
   "pianta.disponi": "Arrange the floor",
   "pianta.disponi.fine": "Done arranging",
   "pianta.aggiungi": "+ Add table",
+  "pianta.riordina": "Sort T1, T2, T3",
+  "pianta.riordinata": "{sala} sorted from T1 onwards. Save to confirm.",
   "pianta.non_salvate": "Unsaved changes",
   "pianta.salva": "Save layout",
   "pianta.salvando": "Saving…",

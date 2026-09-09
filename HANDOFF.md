@@ -1180,6 +1180,27 @@ fisso mostravano come incasso delle righe che nessuno paga.
 
 **88 test, tutti verdi contro la produzione.**
 
+### Aggiornamento 9 settembre 2026: sale grandi, ritiro e WhatsApp
+
+- I codici tavolo usano ora un ordinamento naturale condiviso: `T2` precede
+  `T10` in sala, QR, personale e prenotazioni.
+- La pianta lavora per sala, con griglia ampliata, disposizione indipendente e
+  comando `Riordina T1, T2, T3`. Il salvataggio di fino a 400 posizioni avviene
+  con un solo aggiornamento SQL invece di una query per tavolo.
+- Le schede operative partono dai soli tavoli occupati; la vista di tutti i
+  tavoli resta disponibile. È stato aggiunto un collaudo da 200 tavoli in tre
+  sale.
+- `ritiro` è un modulo separato. Il piano `ritiro-mensile` costa 129 euro e
+  quello annuale 1.290 euro; il piano completo include il modulo. La migrazione
+  `066_modulo_ritiro.sql` conserva il diritto ai clienti completi esistenti.
+- I Price Stripe test del ritiro sono `price_1UDmXjGlajKIILdU1R9JhEM1`
+  (mensile) e `price_1UDmXjGlajKIILdUcmzBUglH` (annuale). Non sono ancora stati
+  aggiunti a `STRIPE_PRICES` in produzione: quella modifica del listino richiede
+  autorizzazione esplicita.
+- Il pulsante WhatsApp della landing resta un contatto `wa.me`, non un canale
+  automatico. Architettura proposta e confronto verificato con Aurora AI:
+  `docs/WHATSAPP-AURORA.md`.
+
 ### Una trappola per chi scriverà i prossimi test
 
 `playwright.config.ts` ora dichiara `locale: "it-IT"`, e non è un dettaglio.

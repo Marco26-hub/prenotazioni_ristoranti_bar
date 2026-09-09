@@ -9,6 +9,7 @@ import { ScaricaLocandina } from "./scarica-locandina";
 import { PdfTutti } from "./pdf-tutti";
 import { moduloAttivo } from "@/lib/authz";
 import { ModuloNonAttivo } from "../modulo-non-attivo";
+import { confrontaCodici } from "@repo/shared";
 import {
   addTable,
   toggleTableActive,
@@ -71,7 +72,7 @@ export default async function TablesPage() {
 
 
   const tablesWithQr = await Promise.all(
-    tables.map(async (tav) => {
+    tables.sort((a, b) => confrontaCodici(a.code, b.code)).map(async (tav) => {
       const url = `${guestAppUrl}/v/${venueRow.slug}/t/${tav.qr_token}`;
       // Due risoluzioni: una per lo schermo, una per la stampa. Ingrandire
       // quella da schermo fino ad A6 darebbe un QR sgranato che lo scanner

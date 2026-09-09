@@ -134,6 +134,7 @@ const IT = {
   // --- Listino ----------------------------------------------------------
   "piano.ordini.nome": "Ordini e pagamenti",
   "piano.prenotazioni.nome": "Solo prenotazioni",
+  "piano.ritiro.nome": "Ordina e ritira",
   "piano.completo.nome": "Tutto",
   "piano.cadenza.mese": "al mese",
   "piano.cadenza.anno": "all'anno",
@@ -141,9 +142,12 @@ const IT = {
     "Menu QR, ordine al tavolo, conto alla romana, fattura elettronica.",
   "piano.prenotazioni.descrizione":
     "Pagina di prenotazione per il tuo sito, calendario e conferme.",
-  "piano.completo.descrizione": "Ordini, pagamenti e prenotazioni insieme.",
+  "piano.ritiro.descrizione":
+    "Menu QR, pagamento, numeri ordine e schermo chiamate al banco.",
+  "piano.completo.descrizione": "Ordini, pagamenti, ritiro e prenotazioni insieme.",
   "piano.nota.disdetta": "Disdetta in qualsiasi momento",
   "piano.nota.senza_sala": "Senza gestionale di sala",
+  "piano.nota.ritiro": "Per piadinerie, fast food e take-away",
   "piano.nota.risparmio": "59 € in meno dei due separati",
   "piano.nota.due_mesi": "Due mesi in omaggio",
 
@@ -397,6 +401,7 @@ const EN: Speculare<typeof IT> = {
 
   "piano.ordini.nome": "Orders and payments",
   "piano.prenotazioni.nome": "Bookings only",
+  "piano.ritiro.nome": "Order and collect",
   "piano.completo.nome": "Everything",
   "piano.cadenza.mese": "per month",
   "piano.cadenza.anno": "per year",
@@ -404,9 +409,12 @@ const EN: Speculare<typeof IT> = {
     "QR menu, order at the table, split bills, electronic invoice.",
   "piano.prenotazioni.descrizione":
     "Booking page for your website, calendar and confirmations.",
-  "piano.completo.descrizione": "Orders, payments and bookings together.",
+  "piano.ritiro.descrizione":
+    "QR menu, payment, order numbers and a counter call screen.",
+  "piano.completo.descrizione": "Orders, payments, pickup and bookings together.",
   "piano.nota.disdetta": "Cancel any time",
   "piano.nota.senza_sala": "Without floor management",
+  "piano.nota.ritiro": "For fast food and take-away venues",
   "piano.nota.risparmio": "€59 less than the two separately",
   "piano.nota.due_mesi": "Two months free",
 

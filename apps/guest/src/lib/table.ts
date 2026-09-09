@@ -59,6 +59,13 @@ export async function resolveTableFromQr(
     !hasModulo("ordini", venue.subscription_status, venue.subscription_period_end, venue.modules)
   ) return null;
 
+  const ritiroAttivo = hasModulo(
+    "ritiro",
+    venue.subscription_status,
+    venue.subscription_period_end,
+    venue.modules
+  );
+
   const [table] = await sql<
     { id: string; code: string; seats: number; active: boolean }[]
   >`select id, code, seats, active from tables
@@ -96,7 +103,7 @@ export async function resolveTableFromQr(
    * che inquadrava si univa alla sessione del primo: la sua piadina finiva
    * sul conto di uno sconosciuto, e il primo se la vedeva addebitare.
    */
-  const alBanco = Boolean(venue.servizio_al_banco);
+  const alBanco = Boolean(venue.servizio_al_banco) && ritiroAttivo;
 
   const [existingSession] = alBanco
     ? [undefined]

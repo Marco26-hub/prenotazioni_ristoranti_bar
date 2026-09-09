@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { useLingua } from "@repo/shared/i18n/contesto";
+import { confrontaCodici } from "@repo/shared";
 import { tSala } from "@/i18n/sala";
 import { PiantinaForm } from "./piantina-form";
 import { COLONNE, RIGHE, type Posizione } from "./sala-griglia";
@@ -92,32 +93,56 @@ const FORME: Record<string, string> = {
  * Dispone i tavoli mai posizionati in righe, così una sala appena creata
  * non parte con tutto ammucchiato nell'angolo in alto a sinistra.
  */
-function posizioneIniziale(tavoli: TavoloPianta[]): Map<string, { x: number; y: number }> {
-  const mappa = new Map<string, { x: number; y: number }>();
-  const occupate = new Set<string>();
+const SALA_PRINCIPALE = "__principale__";
 
-  for (const tav of tavoli) {
-    if (tav.x !== null && tav.y !== null) {
-      mappa.set(tav.id, { x: tav.x, y: tav.y });
-      occupate.add(`${tav.x},${tav.y}`);
+function chiaveSala(tavolo: TavoloPianta): string {
+  return tavolo.zona?.trim() || SALA_PRINCIPALE;
+}
+
+function celleDisponibili(): Array<{ x: number; y: number }> {
+  const celle: Array<{ x: number; y: number }> = [];
+  const viste = new Set<string>();
+
+  // Prima una disposizione ariosa, poi le celle intermedie per le sale
+  // eccezionalmente grandi. Nessun tavolo viene più ripiegato su 0,0.
+  for (const passo of [2, 1]) {
+    for (let y = 0; y < RIGHE; y += passo) {
+      for (let x = 0; x < COLONNE; x += passo) {
+        const key = `${x},${y}`;
+        if (!viste.has(key)) {
+          viste.add(key);
+          celle.push({ x, y });
+        }
+      }
     }
   }
+  return celle;
+}
 
-  let cursore = 0;
-  for (const tav of tavoli) {
-    if (mappa.has(tav.id)) continue;
-    // Passo di due celle: i tavoli restano staccati e si leggono come oggetti
-    // distinti invece che come un blocco unico.
-    while (cursore < COLONNE * RIGHE) {
-      const x = (cursore * 2) % COLONNE;
-      const y = Math.floor((cursore * 2) / COLONNE) * 2;
-      cursore += 1;
-      if (y >= RIGHE || occupate.has(`${x},${y}`)) continue;
-      mappa.set(tav.id, { x, y });
-      occupate.add(`${x},${y}`);
-      break;
+function posizioneIniziale(tavoli: TavoloPianta[]): Map<string, { x: number; y: number }> {
+  const mappa = new Map<string, { x: number; y: number }>();
+  const perSala = new Map<string, TavoloPianta[]>();
+  for (const tavolo of tavoli) {
+    const key = chiaveSala(tavolo);
+    perSala.set(key, [...(perSala.get(key) ?? []), tavolo]);
+  }
+
+  for (const gruppo of perSala.values()) {
+    const occupate = new Set<string>();
+    for (const tav of gruppo) {
+      if (tav.x !== null && tav.y !== null) {
+        mappa.set(tav.id, { x: tav.x, y: tav.y });
+        occupate.add(`${tav.x},${tav.y}`);
+      }
     }
-    if (!mappa.has(tav.id)) mappa.set(tav.id, { x: 0, y: 0 });
+
+    const libere = celleDisponibili().filter((p) => !occupate.has(`${p.x},${p.y}`));
+    let cursore = 0;
+    for (const tav of [...gruppo].sort((a, b) => confrontaCodici(a.codice, b.codice))) {
+      if (mappa.has(tav.id)) continue;
+      const p = libere[cursore++];
+      if (p) mappa.set(tav.id, p);
+    }
   }
   return mappa;
 }
@@ -148,7 +173,7 @@ export function PiantaSala({
   const [sporco, setSporco] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [nuovoAperto, setNuovoAperto] = useState(false);
-  const [zonaScelta, setZonaScelta] = useState("tutte");
+  const [zonaScelta, setZonaScelta] = useState(SALA_PRINCIPALE);
 
   const areaRef = useRef<HTMLDivElement>(null);
   const trascinato = useRef<string | null>(null);
@@ -249,9 +274,30 @@ export function PiantaSala({
 
   const selezione = tavoli.find((tav) => tav.id === selezionato) ?? null;
 
-  // I nomi che il locale ha già usato: si scrivono una volta e poi si
-  // scelgono, senza che "Dehors" e "dehors" diventino due sale.
-  const zone = [...new Set(tavoli.map((tav) => tav.zona).filter(Boolean))] as string[];
+  const sale = [...new Set(tavoli.map(chiaveSala))];
+  const salaAttiva = sale.includes(zonaScelta) ? zonaScelta : (sale[0] ?? SALA_PRINCIPALE);
+  const tavoliVisibili = tavoli.filter((tav) => chiaveSala(tav) === salaAttiva);
+  const etichettaSala = (sala: string) =>
+    sala === SALA_PRINCIPALE ? t("pianta.sala.principale") : sala;
+  const zone = sale.filter((sala) => sala !== SALA_PRINCIPALE);
+
+  function riordinaSala() {
+    const celle = celleDisponibili();
+    setSpostati((precedenti) => {
+      const prossimi = new Map(precedenti);
+      [...tavoliVisibili]
+        .sort((a, b) => confrontaCodici(a.codice, b.codice))
+        .forEach((tav, indice) => {
+          const cella = celle[indice];
+          if (cella) prossimi.set(tav.id, cella);
+        });
+      return prossimi;
+    });
+    setSporco(true);
+    setAvviso(
+      t("pianta.riordinata", { sala: etichettaSala(salaAttiva) })
+    );
+  }
 
   return (
     <section className="mb-5">
@@ -261,10 +307,10 @@ export function PiantaSala({
         ))}
       </datalist>
 
-      {zone.length > 1 && !disponi && (
+      {sale.length > 1 && (
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <span className="text-sm text-muted">{t("pianta.sala")}</span>
-          {["tutte", ...zone].map((z) => (
+          {sale.map((z) => (
             <button
               key={z}
               type="button"
@@ -274,7 +320,7 @@ export function PiantaSala({
                 zonaScelta === z ? "bg-accent text-accent-foreground" : "border border-border"
               }`}
             >
-              {z === "tutte" ? t("pianta.sala.tutte") : z}
+              {etichettaSala(z)}
             </button>
           ))}
         </div>
@@ -306,6 +352,15 @@ export function PiantaSala({
               className="min-h-11 rounded-full border border-accent px-4 text-sm font-medium"
             >
               {t("pianta.aggiungi")}
+            </button>
+          )}
+          {disponi && tavoliVisibili.length > 0 && (
+            <button
+              type="button"
+              onClick={riordinaSala}
+              className="min-h-11 rounded-full border border-border px-4 text-sm font-medium"
+            >
+              {t("pianta.riordina")}
             </button>
           )}
         </div>
@@ -376,10 +431,7 @@ export function PiantaSala({
           />
         )}
 
-        {tavoli.map((tav) => {
-          // Filtrare per sala nasconde i tavoli, non li sposta: la
-          // disposizione salvata resta quella.
-          if (!disponi && zonaScelta !== "tutte" && tav.zona !== zonaScelta) return null;
+        {tavoliVisibili.map((tav) => {
           const p = pos.get(tav.id) ?? { x: 0, y: 0 };
           // I tavoli grandi occupano più spazio: una pianta in cui un due
           // posti e un dieci posti sono uguali non rappresenta la sala.
@@ -432,7 +484,7 @@ export function PiantaSala({
           );
         })}
 
-        {tavoli.length === 0 && (
+        {tavoliVisibili.length === 0 && (
           <p className="absolute inset-0 flex items-center justify-center text-sm text-muted">
             {t("pianta.vuota")}
           </p>

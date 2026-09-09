@@ -167,6 +167,11 @@ const VOCE_PIANO: Record<string, { titolo: Chiave; testo: Chiave; nota: Chiave }
     testo: "piano.prenotazioni.testo",
     nota: "piano.prenotazioni.nota",
   },
+  "ritiro-mensile": {
+    titolo: "piano.ritiro.titolo",
+    testo: "piano.ritiro.testo",
+    nota: "piano.ritiro.nota",
+  },
   "completo-mensile": {
     titolo: "piano.completo.titolo",
     testo: "piano.completo.testo",
@@ -352,26 +357,26 @@ export default async function LandingPage() {
             {t("vetrina.prezzo.sottotitolo")}
           </p>
 
-          <div className="mt-10 grid gap-5 sm:grid-cols-3">
+          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {mensili.map((plan) => {
               const voce = VOCE_PIANO[plan.key];
               return (
               <div
                 key={plan.key}
                 className={`compare rounded-2xl p-6 ${
-                  plan.moduli.length > 1 ? "bordo-vivo" : "scheda vetro"
+                  plan.key === "completo-mensile" ? "bordo-vivo" : "scheda vetro"
                 }`}
               >
                 <div
                   className={
-                    plan.moduli.length > 1 ? "h-full rounded-2xl bg-surface p-5" : ""
+                    plan.key === "completo-mensile" ? "h-full rounded-2xl bg-surface p-5" : ""
                   }
                 >
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-sm text-muted">
                       {voce ? t(voce.titolo) : plan.label}
                     </p>
-                    {plan.moduli.length > 1 && (
+                    {plan.key === "completo-mensile" && (
                       <span className="rounded-full bg-accent px-2.5 py-1 text-[11px] font-medium text-accent-foreground">
                         {t("vetrina.prezzo.consigliato")}
                       </span>

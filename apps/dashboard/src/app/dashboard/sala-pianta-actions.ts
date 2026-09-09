@@ -36,13 +36,16 @@ export async function salvaPianta(
   if (pulite.length === 0) return { error: t("azioni.pianta.niente_salvare") };
 
   const sql = db();
-  await sql.begin(async (tx) => {
-    for (const p of pulite) {
-      await tx`
-        update tables set pos_x = ${p.x}, pos_y = ${p.y}
-         where id = ${p.id} and venue_id = ${venue.venueId}`;
-    }
-  });
+  await sql`
+    with nuove as (
+      select id::uuid, x::integer, y::integer
+        from jsonb_to_recordset(${sql.json(pulite)}::jsonb)
+          as posizione(id text, x integer, y integer)
+    )
+    update tables as t
+       set pos_x = nuove.x, pos_y = nuove.y
+      from nuove
+     where t.id = nuove.id and t.venue_id = ${venue.venueId}`;
 
   revalidatePath("/dashboard");
   return { ok: t("azioni.pianta.salvata") };

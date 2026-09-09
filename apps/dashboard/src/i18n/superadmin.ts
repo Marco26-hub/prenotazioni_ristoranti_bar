@@ -69,6 +69,7 @@ const IT = {
   "moduli.titolo": "Moduli",
   "modulo.ordini": "Ordini e pagamenti",
   "modulo.prenotazioni": "Prenotazioni",
+  "modulo.ritiro": "Ritiro al banco",
 
   // Abbonamento — le etichette degli stati; i valori a database restano
   "stato.active": "Attivo",
@@ -248,6 +249,7 @@ const EN: Speculare<typeof IT> = {
   "moduli.titolo": "Modules",
   "modulo.ordini": "Orders and payments",
   "modulo.prenotazioni": "Bookings",
+  "modulo.ritiro": "Counter pickup",
 
   "stato.active": "Active",
   "stato.trialing": "On trial",

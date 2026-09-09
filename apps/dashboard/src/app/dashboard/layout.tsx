@@ -25,7 +25,7 @@ const NAV = [
   { href: "/dashboard", chiave: "nav.tavoli", modulo: "ordini", fila: "servizio" },
   { href: "/dashboard/avvio", chiave: "nav.avvio", fila: "gestione" },
   { href: "/dashboard/orders", chiave: "nav.ordini", modulo: "ordini", fila: "servizio" },
-  { href: "/dashboard/banco", chiave: "nav.banco", modulo: "ordini", fila: "servizio" },
+  { href: "/dashboard/banco", chiave: "nav.banco", modulo: "ritiro", fila: "servizio" },
   {
     href: "/dashboard/reservations",
     chiave: "nav.prenotazioni",
@@ -117,12 +117,12 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
     ].filter((v): v is string => v !== null);
 
     moduliAttivi = new Set(
-      (["ordini", "prenotazioni"] as Modulo[]).filter((modulo) =>
+      (["ordini", "prenotazioni", "ritiro"] as Modulo[]).filter((modulo) =>
         hasModulo(modulo, row?.subscription_status, row?.subscription_period_end, row?.modules)
       )
     );
 
-    banco = Boolean(row?.pickup_numbering_enabled);
+    banco = Boolean(row?.pickup_numbering_enabled) && moduliAttivi.has("ritiro");
     alBanco = Boolean(row?.servizio_al_banco);
   }
 

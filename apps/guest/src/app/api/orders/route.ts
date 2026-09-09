@@ -112,6 +112,13 @@ export async function POST(request: Request) {
     );
   }
 
+  const ritiroAttivo = hasModulo(
+    "ritiro",
+    venueSub?.subscription_status,
+    venueSub?.subscription_period_end,
+    venueSub?.modules
+  );
+
   /*
    * Intervallo fra un'ordinazione e la successiva.
    *
@@ -231,7 +238,9 @@ export async function POST(request: Request) {
                - make_interval(hours => v.giornata_stacco_ora))::date,
              1
         from venues v
-       where v.id = ${session.venue_id} and v.pickup_numbering_enabled
+       where v.id = ${session.venue_id}
+         and v.pickup_numbering_enabled
+         and ${ritiroAttivo}
       on conflict (venue_id, service_date)
       do update set last_number = order_number_counters.last_number + 1
       returning last_number as numero, service_date::text as giornata`;

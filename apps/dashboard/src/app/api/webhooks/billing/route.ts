@@ -106,7 +106,13 @@ export async function POST(request: Request) {
   const moduli = moduliGrezzi
     .split(",")
     .map((m) => m.trim())
-    .filter((m) => m === "ordini" || m === "prenotazioni");
+    .filter((m) => m === "ordini" || m === "prenotazioni" || m === "ritiro");
+
+  // Il piano completo include sempre il ritiro, anche se un vecchio Price
+  // Stripe conserva ancora i metadata precedenti all'introduzione del modulo.
+  if (sub.metadata?.plan?.startsWith("completo-") && !moduli.includes("ritiro")) {
+    moduli.push("ritiro");
+  }
 
   // Un abbonamento chiuso non dà accesso a nulla: azzerare qui evita di
   // dover ricordare altrove che 'canceled' vale come nessun modulo.

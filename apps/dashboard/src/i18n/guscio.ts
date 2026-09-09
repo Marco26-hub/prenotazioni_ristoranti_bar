@@ -136,8 +136,12 @@ const IT = {
   "piano.prenotazioni.testo":
     "Pagina di prenotazione per il tuo sito, calendario e conferme.",
   "piano.prenotazioni.nota": "Senza gestionale di sala",
+  "piano.ritiro.titolo": "Ordina e ritira",
+  "piano.ritiro.testo":
+    "Menu QR, pagamento, numeri ordine e schermo chiamate al banco.",
+  "piano.ritiro.nota": "Per piadinerie, fast food e take-away",
   "piano.completo.titolo": "Tutto",
-  "piano.completo.testo": "Ordini, pagamenti e prenotazioni insieme.",
+  "piano.completo.testo": "Ordini, pagamenti, ritiro e prenotazioni insieme.",
   "piano.completo.nota": "59 € in meno dei due separati",
 
   // ---- Confronto -----------------------------------------------------
@@ -349,6 +353,7 @@ const IT = {
   // ---- Modulo non attivo ---------------------------------------------
   "modulo.ordini": "Ordini e pagamenti",
   "modulo.prenotazioni": "Prenotazioni",
+  "modulo.ritiro": "Ritiro al banco",
   "modulo.titolo": "{nome} non è attivo",
   "modulo.testo.prima": "Questa parte del gestionale fa parte del modulo",
   "modulo.testo.dopo":
@@ -464,8 +469,12 @@ const EN: Speculare<typeof IT> = {
   "piano.prenotazioni.testo":
     "A booking page for your website, calendar and confirmations.",
   "piano.prenotazioni.nota": "Without the floor back office",
+  "piano.ritiro.titolo": "Order and collect",
+  "piano.ritiro.testo":
+    "QR menu, payment, order numbers and a counter call screen.",
+  "piano.ritiro.nota": "For fast food and take-away venues",
   "piano.completo.titolo": "Everything",
-  "piano.completo.testo": "Orders, payments and bookings together.",
+  "piano.completo.testo": "Orders, payments, pickup and bookings together.",
   "piano.completo.nota": "€ 59 less than the two apart",
 
   "vetrina.confronto.noi": "Us",
@@ -666,6 +675,7 @@ const EN: Speculare<typeof IT> = {
 
   "modulo.ordini": "Orders and payments",
   "modulo.prenotazioni": "Bookings",
+  "modulo.ritiro": "Counter pickup",
   "modulo.titolo": "{nome} is not active",
   "modulo.testo.prima": "This part of the back office belongs to the",
   "modulo.testo.dopo":

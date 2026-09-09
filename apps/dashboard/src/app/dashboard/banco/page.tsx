@@ -1,9 +1,10 @@
 import { db } from "@repo/shared/db";
-import { requireVenue } from "@/lib/authz";
+import { moduloAttivo, requireVenue } from "@/lib/authz";
 import { BancoVivo, type OrdineBanco } from "./banco-vivo";
 import { linguaUtente } from "@/lib/lingua";
 import { LinguaProvider } from "@repo/shared/i18n/contesto";
 import { tServizio } from "@/i18n/servizio";
+import { ModuloNonAttivo } from "../modulo-non-attivo";
 
 /**
  * Il banco: i numeri di ritiro, grandi.
@@ -17,6 +18,10 @@ export default async function BancoPage() {
   const lingua = await linguaUtente();
   const t = tServizio(lingua);
   const sql = db();
+
+  if (!(await moduloAttivo(venue.venueId, "ritiro"))) {
+    return <ModuloNonAttivo modulo="ritiro" />;
+  }
 
   const [locale] = await sql<
     { pickup_numbering_enabled: boolean; pickup_metodi: string[] | null }[]

@@ -10,17 +10,18 @@
 export type BillingInterval = "month" | "year";
 
 /**
- * I due pezzi vendibili separatamente.
+ * I servizi vendibili separatamente.
  *
  * Un bar che vuole solo il menu QR e il pagamento al tavolo non deve pagare
  * le prenotazioni, e un ristorante che riempie a telefono ma vuole una
  * pagina dove farsi prenotare non deve comprare tutto il gestionale.
  */
-export type Modulo = "ordini" | "prenotazioni";
+export type Modulo = "ordini" | "prenotazioni" | "ritiro";
 
 export const MODULO_ETICHETTA: Record<Modulo, string> = {
   ordini: "Ordini e pagamenti al tavolo",
   prenotazioni: "Prenotazioni online",
+  ritiro: "Ritiro al banco e numeri ordine",
 };
 
 export interface Plan {
@@ -90,12 +91,22 @@ export const PLANS: Plan[] = [
   },
   {
     interval: "month",
+    key: "ritiro-mensile",
+    label: "Ordina e ritira",
+    moduli: ["ordini", "ritiro"],
+    amountCents: 12900,
+    cadence: "al mese",
+    descrizione: "Menu QR, pagamento, numeri ordine e schermo chiamate al banco.",
+    note: "Per piadinerie, fast food e take-away",
+  },
+  {
+    interval: "month",
     key: "completo-mensile",
     label: "Tutto",
-    moduli: ["ordini", "prenotazioni"],
+    moduli: ["ordini", "prenotazioni", "ritiro"],
     amountCents: 13900,
     cadence: "al mese",
-    descrizione: "Ordini, pagamenti e prenotazioni insieme.",
+    descrizione: "Ordini, pagamenti, ritiro e prenotazioni insieme.",
     note: "59 € in meno dei due separati",
   },
   {
@@ -120,12 +131,22 @@ export const PLANS: Plan[] = [
   },
   {
     interval: "year",
+    key: "ritiro-annuale",
+    label: "Ordina e ritira",
+    moduli: ["ordini", "ritiro"],
+    amountCents: 129000,
+    cadence: "all'anno",
+    descrizione: "Menu QR, pagamento, numeri ordine e schermo chiamate al banco.",
+    note: "Due mesi in omaggio",
+  },
+  {
+    interval: "year",
     key: "completo-annuale",
     label: "Tutto",
-    moduli: ["ordini", "prenotazioni"],
+    moduli: ["ordini", "prenotazioni", "ritiro"],
     amountCents: 139000,
     cadence: "all'anno",
-    descrizione: "Ordini, pagamenti e prenotazioni insieme.",
+    descrizione: "Ordini, pagamenti, ritiro e prenotazioni insieme.",
     note: "Due mesi in omaggio",
   },
 ];

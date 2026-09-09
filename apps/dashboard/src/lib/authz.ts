@@ -107,11 +107,12 @@ export async function requireModulo(
       row?.modules ?? null
     )
   ) {
-    throw new Error(
-      modulo === "ordini"
-        ? "Il modulo Ordini e pagamenti non è attivo su questo abbonamento."
-        : "Il modulo Prenotazioni non è attivo su questo abbonamento."
-    );
+    const nomi: Record<Modulo, string> = {
+      ordini: "Ordini e pagamenti",
+      prenotazioni: "Prenotazioni",
+      ritiro: "Ritiro al banco",
+    };
+    throw new Error(`Il modulo ${nomi[modulo]} non è attivo su questo abbonamento.`);
   }
 
   return result;

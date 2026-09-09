@@ -3,7 +3,7 @@ import { db } from "@repo/shared/db";
 import { closeTableInPerson } from "./close-table-actions";
 import { contiSessioni } from "@repo/shared/conto";
 import { setOrderItemStatus } from "./orders/actions";
-import type { OrderItemStatus } from "@repo/shared";
+import { confrontaCodici, type OrderItemStatus } from "@repo/shared";
 import { Sala, type TavoloSala, type RigaOrdine } from "./sala";
 import { moduloAttivo } from "@/lib/authz";
 import { ModuloNonAttivo } from "./modulo-non-attivo";
@@ -169,7 +169,7 @@ export default async function DashboardPage() {
 
   const perTavolo = new Map(sessioni.map((s) => [s.table_id, s]));
 
-  const tavoli: TavoloSala[] = tables.map((t) => {
+  const tavoli: TavoloSala[] = tables.sort((a, b) => confrontaCodici(a.code, b.code)).map((t) => {
     const s = perTavolo.get(t.id);
     return {
       id: t.id,

@@ -9,9 +9,14 @@ import { linguaUtente } from "@/lib/lingua";
  * e dove si attiva, invece di lasciare una pagina bianca da cui si esce solo
  * col tasto indietro.
  */
-export async function ModuloNonAttivo({ modulo }: { modulo: "ordini" | "prenotazioni" }) {
+export async function ModuloNonAttivo({ modulo }: { modulo: "ordini" | "prenotazioni" | "ritiro" }) {
   const t = tGuscio(await linguaUtente());
-  const nome = modulo === "ordini" ? t("modulo.ordini") : t("modulo.prenotazioni");
+  const nome =
+    modulo === "ordini"
+      ? t("modulo.ordini")
+      : modulo === "prenotazioni"
+        ? t("modulo.prenotazioni")
+        : t("modulo.ritiro");
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-10">

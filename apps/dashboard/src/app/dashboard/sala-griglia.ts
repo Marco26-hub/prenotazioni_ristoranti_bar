@@ -7,8 +7,8 @@
  * Coordinate e non pixel: la pianta si adatta alla larghezza dello schermo
  * senza che le posizioni salvate perdano significato.
  */
-export const COLONNE = 16;
-export const RIGHE = 12;
+export const COLONNE = 24;
+export const RIGHE = 16;
 
 export interface Posizione {
   id: string;

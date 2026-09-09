@@ -10,7 +10,7 @@ import { type Modulo } from "@repo/shared";
 import { tSuperAdmin } from "@/i18n/superadmin";
 import { linguaUtente } from "@/lib/lingua";
 
-const VALIDI: Modulo[] = ["ordini", "prenotazioni"];
+const VALIDI: Modulo[] = ["ordini", "prenotazioni", "ritiro"];
 
 /**
  * Attiva o disattiva a mano i moduli di un locale.

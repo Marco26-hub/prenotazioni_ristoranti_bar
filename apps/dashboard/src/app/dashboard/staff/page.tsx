@@ -7,6 +7,7 @@ import { AddStaffForm } from "./add-staff-form";
 import { linguaUtente } from "@/lib/lingua";
 import { tPersone } from "@/i18n/persone";
 import { LinguaProvider } from "@repo/shared/i18n/contesto";
+import { confrontaCodici } from "@repo/shared";
 
 export default async function StaffPage() {
   const session = await auth();
@@ -129,7 +130,7 @@ export default async function StaffPage() {
             reparti: s.reparti ?? [],
             codice: s.codice_suffisso,
           }))}
-          tavoli={tavoli.map((t) => ({
+          tavoli={tavoli.sort((a, b) => confrontaCodici(a.code, b.code)).map((t) => ({
             id: t.id,
             code: t.code,
             assignedTo: t.assigned_to,

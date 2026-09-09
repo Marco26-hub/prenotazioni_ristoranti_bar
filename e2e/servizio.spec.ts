@@ -90,8 +90,11 @@ test("lo staff può chiudere un conto pagato al banco", async ({ page, context }
   await expect(chiudi.first()).toBeVisible({ timeout: 15000 });
   await chiudi.first().click();
 
-  // Il tavolo torna libero e il bottone sparisce.
-  await expect(page.getByText("libero").first()).toBeVisible({ timeout: 15000 });
+  // Il tavolo torna libero: nella vista operativa le schede libere sono
+  // nascoste, quindi il segnale stabile è il conteggio degli occupati.
+  await expect(page.getByRole("button", { name: "Occupati (0)" })).toBeVisible({
+    timeout: 15000,
+  });
   await expect(chiudi).toHaveCount(0);
 
   // L'incasso deve comunque risultare nello storico di giornata.

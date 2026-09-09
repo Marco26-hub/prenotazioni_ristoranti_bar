@@ -21,10 +21,13 @@ const METODI = ["segnaposto", "cercapersone", "telefono"] as const;
  * segnaposto spesso avvisa anche sul telefono, per chi si è seduto fuori.
  */
 export async function salvaRitiro(formData: FormData): Promise<EsitoRitiro> {
-  const { venue } = await requireRole(["owner", "manager"]);
+  const attivo = formData.get("attivo") === "on";
+  const { venue } = await requireRole(
+    ["owner", "manager"],
+    attivo ? "ritiro" : undefined
+  );
   const t = tImpostazioni(await linguaUtente());
 
-  const attivo = formData.get("attivo") === "on";
   const metodi = METODI.filter((m) => formData.get(`metodo-${m}`) === "on");
 
   /*

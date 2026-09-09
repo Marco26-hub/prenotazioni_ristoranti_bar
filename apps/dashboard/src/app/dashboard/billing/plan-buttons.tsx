@@ -27,16 +27,19 @@ export function PlanButtons({
   const NOME: Record<string, string> = {
     ordini: t("piano.ordini.nome"),
     prenotazioni: t("piano.prenotazioni.nome"),
+    ritiro: t("piano.ritiro.nome"),
     completo: t("piano.completo.nome"),
   };
   const DESCRIZIONE: Record<string, string> = {
     ordini: t("piano.ordini.descrizione"),
     prenotazioni: t("piano.prenotazioni.descrizione"),
+    ritiro: t("piano.ritiro.descrizione"),
     completo: t("piano.completo.descrizione"),
   };
   const NOTA_MENSILE: Record<string, string> = {
     ordini: t("piano.nota.disdetta"),
     prenotazioni: t("piano.nota.senza_sala"),
+    ritiro: t("piano.nota.ritiro"),
     completo: t("piano.nota.risparmio"),
   };
 
@@ -83,7 +86,7 @@ export function PlanButtons({
             ))}
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             {PLANS.filter((p) => p.interval === periodo).map((plan) => {
               const famiglia = plan.key.split("-")[0];
               const nota =

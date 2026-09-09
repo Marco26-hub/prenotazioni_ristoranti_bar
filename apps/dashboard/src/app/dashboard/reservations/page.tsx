@@ -8,6 +8,7 @@ import { addReservation } from "./actions";
 import { CardPrenotazione, type Prenotazione } from "./card-prenotazione";
 import { moduloAttivo } from "@/lib/authz";
 import { ModuloNonAttivo } from "../modulo-non-attivo";
+import { confrontaCodici } from "@repo/shared";
 
 interface Riga {
   id: string;
@@ -141,7 +142,7 @@ export default async function ReservationsPage({
     avvisatoIl: r.guest_notified_at ? r.guest_notified_at.toISOString() : null,
     erroreAvviso: r.guest_notify_error,
     erroreAvvisoLocale: r.venue_notify_error,
-    tavoli: r.table_codes,
+    tavoli: [...r.table_codes].sort(confrontaCodici),
   }));
 
   const indirizzoRichieste = locale?.reservation_email ?? locale?.public_email;

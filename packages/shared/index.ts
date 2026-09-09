@@ -8,3 +8,5 @@ export * from "./plans";
 export * from "./lingue";
 
 export * from "./bevande";
+
+export * from "./sort";

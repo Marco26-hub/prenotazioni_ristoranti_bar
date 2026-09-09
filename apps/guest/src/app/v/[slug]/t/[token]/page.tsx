@@ -8,6 +8,7 @@ import { annuncioAttivo } from "@/lib/annuncio";
 import { gruppiPerPiatti } from "@repo/shared/varianti";
 import { type Conservazione } from "@repo/shared/bevande";
 import { traduci, type Traduzioni } from "@repo/shared/lingue";
+import { hasModulo } from "@repo/shared";
 import { linguaContenuto } from "@repo/shared/i18n";
 import { LinguaProvider } from "@repo/shared/i18n/contesto";
 import { notaConservazioneTradotta, tComune } from "@repo/shared/i18n/comune";
@@ -112,7 +113,13 @@ export default async function TablePage({
   // leggermente diverse.
   const avvisaSulTelefono =
     (venue.pickup_metodi ?? []).includes("telefono") &&
-    Boolean(venue.pickup_numbering_enabled);
+    Boolean(venue.pickup_numbering_enabled) &&
+    hasModulo(
+      "ritiro",
+      venue.subscription_status,
+      venue.subscription_period_end,
+      venue.modules
+    );
 
   /*
    * "Compreso nella formula" solo se la fascia in corso ha davvero un prezzo.

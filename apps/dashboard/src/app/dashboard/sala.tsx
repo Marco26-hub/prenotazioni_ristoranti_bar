@@ -208,6 +208,7 @@ export function Sala({
   const [adesso, setAdesso] = useState(() => Date.now());
   const [apertoId, setApertoId] = useState<string | null>(null);
   const [avvisoRiga, setAvvisoRiga] = useState<string | null>(null);
+  const [vistaSchede, setVistaSchede] = useState<"attivi" | "tutti">("attivi");
   const [inCorso, start] = useTransition();
   /** La sessione che si sta chiudendo: un doppio tocco non incassa due volte. */
   const [inChiusura, setInChiusura] = useState<string | null>(null);
@@ -272,6 +273,8 @@ export function Sala({
   const daConfermare = tavoli.filter(
     (tav) => tav.sessionId && tav.copertiDaConfermare
   ).length;
+  const tavoliSchede =
+    vistaSchede === "attivi" ? tavoli.filter((tav) => tav.sessionId) : tavoli;
 
   return (
     <>
@@ -321,8 +324,35 @@ export function Sala({
         </p>
       )}
 
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-semibold">{t("sala.schede.titolo")}</h2>
+        <div className="flex rounded-lg border border-border bg-surface p-1">
+          {(["attivi", "tutti"] as const).map((vista) => (
+            <button
+              key={vista}
+              type="button"
+              aria-pressed={vistaSchede === vista}
+              onClick={() => setVistaSchede(vista)}
+              className={`min-h-10 rounded-md px-3 text-sm font-medium ${
+                vistaSchede === vista ? "bg-accent text-accent-foreground" : "text-muted"
+              }`}
+            >
+              {vista === "attivi"
+                ? t("sala.schede.attivi", { n: occupati })
+                : t("sala.schede.tutti", { n: tavoli.length })}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {tavoliSchede.length === 0 && (
+        <p className="mb-3 rounded-lg border border-border bg-surface p-4 text-sm text-muted">
+          {t("sala.schede.nessun_attivo")}
+        </p>
+      )}
+
       <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {tavoli.map((tav) => {
+        {tavoliSchede.map((tav) => {
           const aperto = Boolean(tav.sessionId);
           const daPagare = tav.ordinatoCents - tav.pagatoCents;
 
