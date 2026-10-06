@@ -48,3 +48,6 @@ Thumbs.db
 # hanno senso in un repo pubblico.
 guida/*.mp4
 guida/out/
+
+# Output degli strumenti di analisi: si rigenera, non si versiona.
+graphify-out/
